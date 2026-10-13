@@ -116,7 +116,7 @@
             <i class="fa-solid fa-crown"></i>
         </div>
         <h2 class="fw-bold mb-1 fs-4 text-white">Super Admin Portal</h2>
-        <p class="text-muted small mb-0">Master Control Cabang & Manajemen User Naumil Rice</p>
+        <p class="small mb-0 text-white">Master Control Cabang & Manajemen User Naumil Rice</p>
     </div>
 
     <div class="p-4 p-md-5">
@@ -141,7 +141,7 @@
             </div>
         @endif
 
-        <!-- Hint credentials reminder for user -->
+        <!-- Hint credentials reminder for user 
         <div class="credentials-pill mb-4 cursor-pointer" onclick="fillSuperCredentials()" title="Klik untuk mengisi otomatis">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <strong><i class="fa-solid fa-key me-1"></i> Default Kredensial Super Admin:</strong>
@@ -150,7 +150,7 @@
             <div>Username: <code class="text-white fw-bold">naufal_su</code></div>
             <div>Password: <code class="text-white fw-bold">naufal_super2020</code></div>
         </div>
-
+        -->
         <form action="{{ route('superadmin.login.submit') }}" method="POST">
             @csrf
             
@@ -168,14 +168,14 @@
                 <div class="input-group">
                     <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fa-solid fa-lock"></i></span>
                     <input type="password" name="password" id="passwordInput" class="form-control form-control-dark" 
-                           placeholder="Masukkan password" value="naufal_super2020" required>
+                           placeholder="Masukkan password" value="" required>
                 </div>
             </div>
 
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div class="form-check">
                     <input class="form-check-input bg-dark border-secondary" type="checkbox" name="remember" id="rememberMe" checked>
-                    <label class="form-check-label small text-muted" for="rememberMe">Ingat saya</label>
+                    <label class="form-check-label small ttext-white" for="rememberMe">Ingat saya</label>
                 </div>
                 <a href="{{ url('/') }}" class="small text-muted text-decoration-none hover-white">
                     <i class="fa-solid fa-arrow-left me-1"></i> Ke Beranda
