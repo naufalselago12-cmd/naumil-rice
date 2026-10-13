@@ -27,5 +27,6 @@ class DatabaseSeeder extends Seeder
         );
 
         $this->call(FoodEcommerceSeeder::class);
+        $this->call(MultiStoreSuperAdminSeeder::class);
     }
 }

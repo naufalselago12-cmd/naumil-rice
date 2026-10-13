@@ -13,7 +13,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->redirectGuestsTo('/backend/login');
+        $middleware->redirectGuestsTo(function ($request) {
+            if ($request->is('superadmin*')) {
+                return route('superadmin.login');
+            }
+            if ($request->route('store_slug')) {
+                return route('store.backend.login', ['store_slug' => $request->route('store_slug')]);
+            }
+            return '/backend/login';
+        });
+
+        $middleware->alias([
+            'superadmin' => \App\Http\Middleware\SuperAdminMiddleware::class,
+            'store.scope' => \App\Http\Middleware\StoreScopeMiddleware::class,
+        ]);
+
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);

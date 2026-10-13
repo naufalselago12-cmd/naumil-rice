@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Store extends Model
 {
@@ -11,6 +12,7 @@ class Store extends Model
 
     protected $fillable = [
         'name',
+        'slug',
         'code',
         'address',
         'phone',
@@ -19,6 +21,21 @@ class Store extends Model
         'qris_data',
         'status',
     ];
+
+    protected static function booted()
+    {
+        static::saving(function ($store) {
+            if (empty($store->slug) && !empty($store->name)) {
+                $baseSlug = Str::slug($store->name);
+                $store->slug = $baseSlug;
+            }
+        });
+    }
+
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
 
     public function categories()
     {
@@ -38,5 +55,15 @@ class Store extends Model
     public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function getFrontendUrlAttribute(): string
+    {
+        return url('/' . ($this->slug ?: Str::slug($this->name)));
+    }
+
+    public function getBackendUrlAttribute(): string
+    {
+        return url('/' . ($this->slug ?: Str::slug($this->name)) . '/backend');
     }
 }

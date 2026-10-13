@@ -15,9 +15,6 @@
 
         <nav class="nav-links">
           <Link href="/" :class="['nav-link', isActive('/') ? 'active' : '']">
-            <i class="fa-solid fa-bullhorn"></i> Open PO
-          </Link>
-          <Link href="/stores" :class="['nav-link', isActive('/stores') ? 'active' : '']">
             <i class="fa-solid fa-store"></i> Cabang Toko
           </Link>
           <Link href="/trace" :class="['nav-link', isActive('/trace') ? 'active' : '']">
@@ -26,13 +23,9 @@
         </nav>
 
         <div class="nav-actions">
-          <a href="/backend" target="_blank" class="btn-admin" title="Buka Admin LTE Backend">
-            <i class="fa-solid fa-gauge"></i>
-            <span class="d-none-mobile">Backend</span>
-          </a>
-          <a href="/backend/kds" target="_blank" class="btn-kds" title="Layar Kitchen Display">
-            <i class="fa-solid fa-desktop"></i>
-            <span class="d-none-mobile">KDS</span>
+          <a href="/superadmin" target="_blank" class="btn-admin" title="Buka Super Admin Portal">
+            <i class="fa-solid fa-crown text-warning"></i>
+            <span class="d-none-mobile">Super Admin</span>
           </a>
         </div>
       </div>

@@ -1,69 +1,144 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Admin\AuthController;
-use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\Admin\StoreController;
-use App\Http\Controllers\Admin\CategoryController;
-use App\Http\Controllers\Admin\MenuController;
-use App\Http\Controllers\Admin\CampaignController;
-use App\Http\Controllers\Admin\OrderController;
-use App\Http\Controllers\Admin\KdsController;
-use App\Http\Controllers\Admin\ReportController;
-use App\Http\Controllers\Admin\ApiDocsController;
+use Inertia\Inertia;
+
+// Super Admin Controllers
+use App\Http\Controllers\SuperAdmin\SuperAdminAuthController;
+use App\Http\Controllers\SuperAdmin\SuperAdminDashboardController;
+use App\Http\Controllers\SuperAdmin\SuperAdminStoreController;
+use App\Http\Controllers\SuperAdmin\SuperAdminUserController;
+
+// Store Backend Controllers
+use App\Http\Controllers\StoreBackend\StoreBackendAuthController;
+use App\Http\Controllers\StoreBackend\StoreBackendDashboardController;
+use App\Http\Controllers\StoreBackend\StoreBackendMenuController;
+use App\Http\Controllers\StoreBackend\StoreBackendCategoryController;
+use App\Http\Controllers\StoreBackend\StoreBackendCampaignController;
+use App\Http\Controllers\StoreBackend\StoreBackendOrderController;
+use App\Http\Controllers\StoreBackend\StoreBackendKdsController;
+use App\Http\Controllers\StoreBackend\StoreBackendReportController;
+use App\Http\Controllers\StoreBackend\StoreBackendSettingsController;
+
+// Public Front Controller
+use App\Http\Controllers\StoreFrontController;
+
+// Legacy Admin Controllers (for /backend compatibility)
+use App\Http\Controllers\Admin\AuthController as LegacyAuthController;
+use App\Http\Controllers\Admin\DashboardController as LegacyDashboardController;
+use App\Http\Controllers\Admin\StoreController as LegacyStoreController;
+use App\Http\Controllers\Admin\CategoryController as LegacyCategoryController;
+use App\Http\Controllers\Admin\MenuController as LegacyMenuController;
+use App\Http\Controllers\Admin\CampaignController as LegacyCampaignController;
+use App\Http\Controllers\Admin\OrderController as LegacyOrderController;
+use App\Http\Controllers\Admin\KdsController as LegacyKdsController;
+use App\Http\Controllers\Admin\ReportController as LegacyReportController;
+use App\Http\Controllers\Admin\ApiDocsController as LegacyApiDocsController;
 
 /*
 |--------------------------------------------------------------------------
-| BACKEND / ADMINISTRATOR ROUTES (/backend)
+| 1. SUPER ADMIN PORTAL (/superadmin)
+| Kredensial: Username: naufal_su | Password: naufal_super2020
 |--------------------------------------------------------------------------
 */
+Route::prefix('superadmin')->name('superadmin.')->group(function () {
+    Route::get('/login', [SuperAdminAuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [SuperAdminAuthController::class, 'login'])->name('login.submit');
+    Route::post('/logout', [SuperAdminAuthController::class, 'logout'])->name('logout');
 
-// Authentication Routes
-Route::prefix('backend')->name('admin.')->group(function () {
-    Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
-    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::middleware(['auth', 'superadmin'])->group(function () {
+        Route::get('/', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])->name('dashboard.index');
 
-    // Protected AdminLTE Routes (Requires Login)
-    Route::middleware('auth')->group(function () {
-        // Route /backend root -> redirect to dashboard
-        Route::get('/', function () {
-            return redirect()->route('admin.dashboard');
-        });
+        // Manage Stores (CRUD & URLs)
+        Route::resource('stores', SuperAdminStoreController::class);
 
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        // Manage Users per Toko
+        Route::resource('users', SuperAdminUserController::class);
 
-        // Stores CRUD
-        Route::resource('stores', StoreController::class);
-
-        // Categories CRUD
-        Route::resource('categories', CategoryController::class);
-
-        // Menus & Options CRUD
-        Route::resource('menus', MenuController::class);
-
-        // Campaigns Open PO
-        Route::resource('campaigns', CampaignController::class);
-
-        // Orders Management
-        Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
-        Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
-        Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
-
-        // Kitchen Display System (KDS)
-        Route::get('/kds', [KdsController::class, 'index'])->name('kds');
-
-        // Reports
-        Route::get('/reports', [ReportController::class, 'index'])->name('reports');
-
-        // API Documentation
-        Route::get('/api-docs', [ApiDocsController::class, 'index'])->name('apiDocs');
+        // Fast switch to store backend
+        Route::get('/switch-store/{store}', [SuperAdminDashboardController::class, 'switchToStore'])->name('switchStore');
     });
 });
 
-// Shortcuts & Aliases
+/*
+|--------------------------------------------------------------------------
+| 2. STORE BACKEND PER TOKO (/{store_slug}/backend)
+| Mengelola data toko masing-masing (Menu, Kategori, PO, Order, KDS, Laporan, Setting)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function () {
+    Route::get('/login', [StoreBackendAuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [StoreBackendAuthController::class, 'login'])->name('login.submit');
+    Route::post('/logout', [StoreBackendAuthController::class, 'logout'])->name('logout');
+
+    Route::middleware(['auth', 'store.scope'])->group(function () {
+        Route::get('/', [StoreBackendDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard', [StoreBackendDashboardController::class, 'index'])->name('dashboard.index');
+
+        // Menus CRUD
+        Route::resource('menus', StoreBackendMenuController::class);
+
+        // Categories CRUD
+        Route::resource('categories', StoreBackendCategoryController::class);
+
+        // Campaigns Open PO CRUD
+        Route::resource('campaigns', StoreBackendCampaignController::class);
+
+        // Orders Management
+        Route::get('/orders', [StoreBackendOrderController::class, 'index'])->name('orders.index');
+        Route::get('/orders/{order}', [StoreBackendOrderController::class, 'show'])->name('orders.show');
+        Route::patch('/orders/{order}/status', [StoreBackendOrderController::class, 'updateStatus'])->name('orders.updateStatus');
+
+        // Kitchen Display System (KDS)
+        Route::get('/kds', [StoreBackendKdsController::class, 'index'])->name('kds');
+
+        // Reports
+        Route::get('/reports', [StoreBackendReportController::class, 'index'])->name('reports');
+
+        // Store Profile & QRIS Settings
+        Route::get('/settings', [StoreBackendSettingsController::class, 'index'])->name('settings');
+        Route::put('/settings', [StoreBackendSettingsController::class, 'update'])->name('settings.update');
+    });
+});
+
+/*
+|--------------------------------------------------------------------------
+| 3. LEGACY / GLOBAL BACKEND ROUTES (/backend)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('backend')->name('admin.')->group(function () {
+    Route::get('/login', [LegacyAuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [LegacyAuthController::class, 'login'])->name('login.submit');
+    Route::post('/logout', [LegacyAuthController::class, 'logout'])->name('logout');
+
+    Route::middleware('auth')->group(function () {
+        Route::get('/', function () {
+            if (auth()->check() && auth()->user()->isSuperAdmin()) {
+                return redirect()->route('superadmin.dashboard');
+            }
+            if (auth()->check() && auth()->user()->store) {
+                return redirect()->route('store.backend.dashboard', auth()->user()->store->slug);
+            }
+            return redirect()->route('admin.dashboard');
+        });
+
+        Route::get('/dashboard', [LegacyDashboardController::class, 'index'])->name('dashboard');
+        Route::resource('stores', LegacyStoreController::class);
+        Route::resource('categories', LegacyCategoryController::class);
+        Route::resource('menus', LegacyMenuController::class);
+        Route::resource('campaigns', LegacyCampaignController::class);
+        Route::get('/orders', [LegacyOrderController::class, 'index'])->name('orders.index');
+        Route::get('/orders/{order}', [LegacyOrderController::class, 'show'])->name('orders.show');
+        Route::patch('/orders/{order}/status', [LegacyOrderController::class, 'updateStatus'])->name('orders.updateStatus');
+        Route::get('/kds', [LegacyKdsController::class, 'index'])->name('kds');
+        Route::get('/reports', [LegacyReportController::class, 'index'])->name('reports');
+        Route::get('/api-docs', [LegacyApiDocsController::class, 'index'])->name('apiDocs');
+    });
+});
+
 Route::get('/admin', function () {
-    return redirect('/backend');
+    return redirect('/superadmin');
 });
 
 Route::get('/admin/{any}', function ($any) {
@@ -74,16 +149,18 @@ Route::get('/kds', function () {
     return redirect()->route('admin.kds');
 })->name('kds.fullscreen');
 
-use Inertia\Inertia;
-
 /*
 |--------------------------------------------------------------------------
-| INERTIA VUE 3 FRONTEND ROUTES
+| 4. PUBLIC FRONTEND ROUTES (INERTIA VUE 3)
 |--------------------------------------------------------------------------
 */
-Route::get('/', function () {
-    return Inertia::render('Home');
-})->name('home');
+
+// Root URL (/) - Directory / Looping Per Toko
+Route::get('/', [StoreFrontController::class, 'directory'])->name('home');
+
+Route::get('/stores', function () {
+    return redirect()->route('home');
+})->name('stores');
 
 Route::get('/campaign/{token}', function ($token) {
     return Inertia::render('Campaign', [
@@ -95,13 +172,14 @@ Route::get('/po/{token}', function ($token) {
     return redirect()->route('campaign', ['token' => $token]);
 });
 
-Route::get('/stores', function () {
-    return Inertia::render('Stores');
-})->name('stores');
-
 Route::get('/trace/{orderNumber?}', function ($orderNumber = null) {
     return Inertia::render('Trace', [
         'orderNumber' => $orderNumber ?? '',
     ]);
 })->name('trace');
 
+// 5. Store Frontend Landing Page (base_url/{nama_toko})
+// Menampilkan seluruh data yang terikat ke toko tersebut
+Route::get('/{store_slug}', [StoreFrontController::class, 'show'])
+    ->name('store.front')
+    ->where('store_slug', '^(?!superadmin|backend|admin|api|campaign|po|trace|stores|storage|build|favicon).*$');
