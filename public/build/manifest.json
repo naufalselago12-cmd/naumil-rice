@@ -1,0 +1,96 @@
+{
+  "_AppLayout-BCsVggvi.css": {
+    "file": "assets/AppLayout-BCsVggvi.css",
+    "src": "_AppLayout-BCsVggvi.css"
+  },
+  "_AppLayout-CAQEpqN9.js": {
+    "file": "assets/AppLayout-CAQEpqN9.js",
+    "name": "AppLayout",
+    "imports": [
+      "resources/js/app.js"
+    ],
+    "css": [
+      "assets/AppLayout-BCsVggvi.css"
+    ]
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-CDDuz6Aa.css",
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "name": "app",
+    "names": [
+      "app.css"
+    ]
+  },
+  "resources/js/Pages/Campaign.vue": {
+    "file": "assets/Campaign-sx4BJ3YO.js",
+    "name": "Campaign",
+    "src": "resources/js/Pages/Campaign.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_AppLayout-CAQEpqN9.js"
+    ],
+    "css": [
+      "assets/Campaign-PoFsliJ_.css",
+      "assets/app-CDDuz6Aa.css"
+    ]
+  },
+  "resources/js/Pages/Home.vue": {
+    "file": "assets/Home-B8w8sHDt.js",
+    "name": "Home",
+    "src": "resources/js/Pages/Home.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_AppLayout-CAQEpqN9.js"
+    ],
+    "css": [
+      "assets/Home-BsCzWvmJ.css",
+      "assets/app-CDDuz6Aa.css"
+    ]
+  },
+  "resources/js/Pages/Stores.vue": {
+    "file": "assets/Stores-NE-h-BXw.js",
+    "name": "Stores",
+    "src": "resources/js/Pages/Stores.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_AppLayout-CAQEpqN9.js"
+    ],
+    "css": [
+      "assets/Stores-BUCbeHlb.css",
+      "assets/app-CDDuz6Aa.css"
+    ]
+  },
+  "resources/js/Pages/Trace.vue": {
+    "file": "assets/Trace-Csyr9lwS.js",
+    "name": "Trace",
+    "src": "resources/js/Pages/Trace.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_AppLayout-CAQEpqN9.js"
+    ],
+    "css": [
+      "assets/Trace-CGrgx7LH.css",
+      "assets/app-CDDuz6Aa.css"
+    ]
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-CmIT48GN.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "dynamicImports": [
+      "resources/js/Pages/Campaign.vue",
+      "resources/js/Pages/Home.vue",
+      "resources/js/Pages/Stores.vue",
+      "resources/js/Pages/Trace.vue"
+    ],
+    "css": [
+      "assets/app-CDDuz6Aa.css"
+    ]
+  }
+}
