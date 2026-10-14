@@ -133,7 +133,7 @@ class CampaignController extends Controller
             'min_purchase_amount' => 'nullable|numeric|min:0',
             'close_order_at' => 'required|date',
             'ready_at' => 'required|date|after_or_equal:close_order_at',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable',
             'selected_menus' => 'required|array|min:1',
             'selected_menus.*' => 'exists:menus,id',
         ]);
@@ -157,7 +157,7 @@ class CampaignController extends Controller
                 'min_purchase_amount' => $validated['min_purchase_amount'] ?? 0,
                 'close_order_at' => $validated['close_order_at'],
                 'ready_at' => $validated['ready_at'],
-                'is_active' => $request->has('is_active'),
+                'is_active' => $request->boolean('is_active'),
             ]);
 
             // Sync campaign menus

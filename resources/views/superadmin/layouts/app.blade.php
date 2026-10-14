@@ -425,6 +425,18 @@
                 </div>
             @endif
 
+            @if($errors->any())
+                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert" style="background-color: rgba(244, 63, 94, 0.2); color: #fb7185; border-left: 4px solid #f43f5e !important;">
+                    <div class="fw-bold mb-1"><i class="fa-solid fa-triangle-exclamation me-2"></i> Periksa kesalahan input berikut:</div>
+                    <ul class="mb-0 ps-3">
+                        @foreach($errors->all() as $err)
+                            <li>{{ $err }}</li>
+                        @endforeach
+                    </ul>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
             @yield('content')
         </main>
     </div>

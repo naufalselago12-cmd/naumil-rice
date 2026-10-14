@@ -27,7 +27,7 @@
                     <div class="col-md-3">
                         <label class="form-label fw-bold">Status Campaign</label>
                         <div class="form-check form-switch mt-2">
-                            <input class="form-check-input" type="checkbox" name="is_active" id="isActive" {{ $campaign->is_active ? 'checked' : '' }}>
+                            <input class="form-check-input" type="checkbox" name="is_active" id="isActive" value="1" {{ old('is_active', $campaign->is_active) ? 'checked' : '' }}>
                             <label class="form-check-label fw-semibold" for="isActive">Aktif</label>
                         </div>
                     </div>

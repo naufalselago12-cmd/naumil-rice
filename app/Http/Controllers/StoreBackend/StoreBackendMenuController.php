@@ -42,21 +42,24 @@ class StoreBackendMenuController extends Controller
         $store = $this->getStore($request);
 
         $validated = $request->validate([
-            'category_id' => 'nullable|exists:categories,id',
+            'category_id' => [
+                'nullable',
+                \Illuminate\Validation\Rule::exists('categories', 'id')->where('store_id', $store->id),
+            ],
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'initial_stock' => 'required|integer|min:0',
             'image_url' => 'nullable|string',
             'image_file' => 'nullable|image|max:3072',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable',
             'options' => 'nullable|array',
-            'options.*.type' => 'required|in:topping,upsize,condition',
-            'options.*.name' => 'required|string|max:255',
+            'options.*.type' => 'nullable|in:topping,upsize,condition',
+            'options.*.name' => 'nullable|string|max:255',
             'options.*.price' => 'nullable|numeric|min:0',
         ]);
 
-        $imagePath = $validated['image_url'] ?? 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80';
+        $imagePath = !empty($validated['image_url']) ? $validated['image_url'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80';
         if ($request->hasFile('image_file')) {
             $path = $request->file('image_file')->store('menus', 'public');
             $imagePath = asset('storage/' . $path);
@@ -72,7 +75,7 @@ class StoreBackendMenuController extends Controller
                 'initial_stock' => $validated['initial_stock'],
                 'current_stock' => $validated['initial_stock'],
                 'image' => $imagePath,
-                'is_active' => $request->has('is_active'),
+                'is_active' => $request->boolean('is_active'),
             ]);
 
             if (!empty($validated['options'])) {
@@ -80,8 +83,8 @@ class StoreBackendMenuController extends Controller
                     if (!empty($opt['name'])) {
                         MenuOption::create([
                             'menu_id' => $menu->id,
-                            'type' => $opt['type'],
-                            'name' => $opt['name'],
+                            'type' => $opt['type'] ?? 'topping',
+                            'name' => trim($opt['name']),
                             'price' => $opt['price'] ?? 0,
                         ]);
                     }
@@ -116,7 +119,10 @@ class StoreBackendMenuController extends Controller
         }
 
         $validated = $request->validate([
-            'category_id' => 'nullable|exists:categories,id',
+            'category_id' => [
+                'nullable',
+                \Illuminate\Validation\Rule::exists('categories', 'id')->where('store_id', $store->id),
+            ],
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
@@ -124,10 +130,10 @@ class StoreBackendMenuController extends Controller
             'current_stock' => 'required|integer|min:0',
             'image_url' => 'nullable|string',
             'image_file' => 'nullable|image|max:3072',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable',
             'options' => 'nullable|array',
-            'options.*.type' => 'required|in:topping,upsize,condition',
-            'options.*.name' => 'required|string|max:255',
+            'options.*.type' => 'nullable|in:topping,upsize,condition',
+            'options.*.name' => 'nullable|string|max:255',
             'options.*.price' => 'nullable|numeric|min:0',
         ]);
 
@@ -149,7 +155,7 @@ class StoreBackendMenuController extends Controller
                 'initial_stock' => $validated['initial_stock'],
                 'current_stock' => $validated['current_stock'],
                 'image' => $imagePath,
-                'is_active' => $request->has('is_active'),
+                'is_active' => $request->boolean('is_active'),
             ]);
 
             // Replace options
@@ -159,8 +165,8 @@ class StoreBackendMenuController extends Controller
                     if (!empty($opt['name'])) {
                         MenuOption::create([
                             'menu_id' => $menu->id,
-                            'type' => $opt['type'],
-                            'name' => $opt['name'],
+                            'type' => $opt['type'] ?? 'topping',
+                            'name' => trim($opt['name']),
                             'price' => $opt['price'] ?? 0,
                         ]);
                     }

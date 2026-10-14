@@ -24,12 +24,14 @@ class ExampleTest extends TestCase
 
     public function test_admin_can_login_with_naufal_admin_credentials(): void
     {
-        User::create([
-            'name' => 'Administrator Naufal',
-            'username' => 'naufal_admin',
-            'email' => 'naufal_admin@naumilrice.com',
-            'password' => bcrypt('naufal2020'),
-        ]);
+        User::firstOrCreate(
+            ['username' => 'naufal_admin'],
+            [
+                'name' => 'Administrator Naufal',
+                'email' => 'naufal_admin@naumilrice.com',
+                'password' => bcrypt('naufal2020'),
+            ]
+        );
 
         $response = $this->post('/backend/login', [
             'username' => 'naufal_admin',

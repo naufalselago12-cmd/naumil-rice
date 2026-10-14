@@ -30,7 +30,7 @@
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Status Produk</label>
                         <div class="form-check form-switch mt-2">
-                            <input class="form-check-input" type="checkbox" name="is_active" id="isActive" checked>
+                            <input class="form-check-input" type="checkbox" name="is_active" id="isActive" value="1" {{ old('is_active', '1') ? 'checked' : '' }}>
                             <label class="form-check-label fw-semibold" for="isActive">Tampilkan di Menu Pembeli</label>
                         </div>
                     </div>
