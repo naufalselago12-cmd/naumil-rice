@@ -10,11 +10,13 @@ class SuperAdminAuthController extends Controller
 {
     public function showLoginForm()
     {
-        if (Auth::check()) {
-            if (Auth::user()->isSuperAdmin()) {
-                return redirect()->route('superadmin.dashboard');
-            }
-            Auth::logout();
+        if (Auth::guard('superadmin')->check()) {
+            return redirect()->route('superadmin.dashboard');
+        }
+
+        if (Auth::guard('web')->check() && Auth::guard('web')->user()->isSuperAdmin()) {
+            Auth::guard('superadmin')->login(Auth::guard('web')->user());
+            return redirect()->route('superadmin.dashboard');
         }
 
         return view('superadmin.auth.login');
@@ -33,15 +35,18 @@ class SuperAdminAuthController extends Controller
 
         $fieldType = filter_var($loginInput, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
-        if (Auth::attempt([$fieldType => $loginInput, 'password' => $password], $remember)) {
-            $user = Auth::user();
+        if (Auth::guard('superadmin')->attempt([$fieldType => $loginInput, 'password' => $password], $remember)) {
+            $user = Auth::guard('superadmin')->user();
 
             if (!$user->isSuperAdmin()) {
-                Auth::logout();
+                Auth::guard('superadmin')->logout();
                 return back()->withErrors([
                     'username' => 'Akses ditolak: Akun Anda bukan Super Administrator.',
                 ])->onlyInput('username');
             }
+
+            // Also auto-login into web guard so that navigating to store backend works automatically
+            Auth::guard('web')->login($user, $remember);
 
             $request->session()->regenerate();
             return redirect()->intended(route('superadmin.dashboard'))
@@ -55,7 +60,12 @@ class SuperAdminAuthController extends Controller
 
     public function logout(Request $request)
     {
-        Auth::logout();
+        Auth::guard('superadmin')->logout();
+
+        if (Auth::guard('web')->check() && Auth::guard('web')->user()->isSuperAdmin()) {
+            Auth::guard('web')->logout();
+        }
+
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

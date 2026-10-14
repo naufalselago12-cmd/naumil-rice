@@ -34,13 +34,17 @@ class StoreScopeMiddleware
         $request->attributes->set('store', $store);
         View::share('currentStore', $store);
 
-        // Check authentication
-        if (!Auth::check()) {
-            return redirect()->route('store.backend.login', ['store_slug' => $store->slug ?: $storeSlug])
-                ->with('warning', "Silakan login untuk mengakses backend {$store->name}.");
+        // Check authentication: if not logged into web guard, check if superadmin is logged in
+        if (!Auth::guard('web')->check()) {
+            if (Auth::guard('superadmin')->check() && Auth::guard('superadmin')->user()->isSuperAdmin()) {
+                Auth::guard('web')->login(Auth::guard('superadmin')->user());
+            } else {
+                return redirect()->route('store.backend.login', ['store_slug' => $store->slug ?: $storeSlug])
+                    ->with('warning', "Silakan login untuk mengakses backend {$store->name}.");
+            }
         }
 
-        $user = Auth::user();
+        $user = Auth::guard('web')->user();
 
         // Check permission: superadmin or assigned store_admin
         if (!$user->canManageStore($store->id)) {

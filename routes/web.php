@@ -46,7 +46,7 @@ Route::prefix('superadmin')->name('superadmin.')->group(function () {
     Route::post('/login', [SuperAdminAuthController::class, 'login'])->name('login.submit');
     Route::post('/logout', [SuperAdminAuthController::class, 'logout'])->name('logout');
 
-    Route::middleware(['auth', 'superadmin'])->group(function () {
+    Route::middleware(['superadmin'])->group(function () {
         Route::get('/', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])->name('dashboard.index');
 
@@ -72,7 +72,7 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
     Route::post('/login', [StoreBackendAuthController::class, 'login'])->name('login.submit');
     Route::post('/logout', [StoreBackendAuthController::class, 'logout'])->name('logout');
 
-    Route::middleware(['auth', 'store.scope'])->group(function () {
+    Route::middleware(['store.scope'])->group(function () {
         Route::get('/', [StoreBackendDashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard', [StoreBackendDashboardController::class, 'index'])->name('dashboard.index');
 

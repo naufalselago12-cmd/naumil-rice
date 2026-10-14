@@ -14,21 +14,25 @@ class SuperAdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!Auth::check()) {
-            return redirect()->route('superadmin.login')->with('warning', 'Silakan login sebagai Super Admin.');
+        // First check superadmin guard
+        if (!Auth::guard('superadmin')->check()) {
+            // Check if web guard is logged in as superadmin
+            if (Auth::guard('web')->check() && Auth::guard('web')->user()->isSuperAdmin()) {
+                Auth::guard('superadmin')->login(Auth::guard('web')->user());
+            } else {
+                return redirect()->route('superadmin.login')->with('warning', 'Silakan login sebagai Super Admin.');
+            }
         }
 
-        $user = Auth::user();
+        $user = Auth::guard('superadmin')->user();
 
         if (!$user->isSuperAdmin()) {
-            // If they are a store admin, redirect them to their store backend
-            if ($user->store_id && $user->store) {
-                return redirect()->to(url('/' . $user->store->slug . '/backend'))
-                    ->with('error', 'Akses ditolak: Portal Super Admin hanya untuk Super Administrator.');
-            }
-
-            abort(403, 'Akses ditolak: Anda tidak memiliki hak akses Super Administrator.');
+            Auth::guard('superadmin')->logout();
+            return redirect()->route('superadmin.login')
+                ->with('error', 'Akses ditolak: Portal Super Admin hanya untuk Super Administrator.');
         }
+
+        auth()->shouldUse('superadmin');
 
         return $next($request);
     }

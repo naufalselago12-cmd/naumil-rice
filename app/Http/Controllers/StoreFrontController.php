@@ -16,13 +16,17 @@ class StoreFrontController extends Controller
      */
     public function directory()
     {
+        $isSuperAdmin = \Illuminate\Support\Facades\Auth::guard('superadmin')->check()
+            || (\Illuminate\Support\Facades\Auth::guard('web')->check() && \Illuminate\Support\Facades\Auth::guard('web')->user()->isSuperAdmin());
+        $webUser = \Illuminate\Support\Facades\Auth::guard('web')->user();
+
         $stores = Store::where('status', 'active')
             ->withCount([
                 'menus' => fn($q) => $q->where('is_active', true),
                 'campaigns' => fn($q) => $q->where('is_active', true),
             ])
             ->get()
-            ->map(function ($store) {
+            ->map(function ($store) use ($isSuperAdmin, $webUser) {
                 return [
                     'id' => $store->id,
                     'name' => $store->name,
@@ -37,6 +41,7 @@ class StoreFrontController extends Controller
                     'campaigns_count' => $store->campaigns_count,
                     'frontend_url' => url('/' . ($store->slug ?: $store->code)),
                     'backend_url' => url('/' . ($store->slug ?: $store->code) . '/backend'),
+                    'can_manage_backend' => $isSuperAdmin || ($webUser && $webUser->canManageStore($store->id)),
                 ];
             });
 
@@ -56,6 +61,17 @@ class StoreFrontController extends Controller
 
         if (!$store) {
             return redirect()->route('home')->with('error', "Cabang '{$store_slug}' tidak ditemukan.");
+        }
+
+        // Check if viewer has authority to access store backend (Super Admin or Store Admin for this store)
+        $canAccessBackend = false;
+        if (\Illuminate\Support\Facades\Auth::guard('superadmin')->check()) {
+            $canAccessBackend = true;
+        } elseif (\Illuminate\Support\Facades\Auth::guard('web')->check()) {
+            $user = \Illuminate\Support\Facades\Auth::guard('web')->user();
+            if ($user->canManageStore($store->id)) {
+                $canAccessBackend = true;
+            }
         }
 
         // 1. Categories for this store with their menus
@@ -97,6 +113,7 @@ class StoreFrontController extends Controller
                 'qris_data' => $store->qris_data,
                 'status' => $store->status,
                 'backend_url' => url('/' . ($store->slug ?: $store->code) . '/backend'),
+                'can_manage_backend' => $canAccessBackend,
             ],
             'categories' => $categories,
             'menus' => $menus,

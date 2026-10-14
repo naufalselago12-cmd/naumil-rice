@@ -383,14 +383,17 @@
             </div>
 
             <div class="d-flex align-items-center gap-3">
+                @php
+                    $currentSuperUser = auth('superadmin')->user() ?? auth()->user();
+                @endphp
                 <!-- User Profile Badge -->
                 <div class="d-flex align-items-center gap-2">
                     <div class="text-end d-none d-sm-block">
-                        <div class="fw-bold fs-7 text-white">{{ auth()->user()->name ?? 'Super Administrator' }}</div>
-                        <small class="text-muted font-mono" style="font-size: 0.75rem;">@<span>{{ auth()->user()->username ?? 'naufal_su' }}</span></small>
+                        <div class="fw-bold fs-7 text-white">{{ $currentSuperUser->name ?? 'Super Administrator' }}</div>
+                        <small class="text-muted font-mono" style="font-size: 0.75rem;">@<span>{{ $currentSuperUser->username ?? 'naufal_su' }}</span></small>
                     </div>
                     <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #f43f5e, #be123c); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">
-                        {{ strtoupper(substr(auth()->user()->name ?? 'N', 0, 1)) }}
+                        {{ strtoupper(substr($currentSuperUser->name ?? 'N', 0, 1)) }}
                     </div>
                 </div>
             </div>

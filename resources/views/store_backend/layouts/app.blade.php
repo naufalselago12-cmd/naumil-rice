@@ -318,7 +318,7 @@
                 </a>
             </li>
 
-            @if(auth()->check() && auth()->user()->isSuperAdmin())
+            @if((auth()->check() && auth()->user()->isSuperAdmin()) || \Illuminate\Support\Facades\Auth::guard('superadmin')->check())
                 <li class="nav-item">
                     <a href="{{ route('superadmin.dashboard') }}" class="nav-link-side text-warning">
                         <i class="fa-solid fa-crown"></i>

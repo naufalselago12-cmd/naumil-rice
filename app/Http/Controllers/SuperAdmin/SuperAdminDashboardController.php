@@ -59,6 +59,13 @@ class SuperAdminDashboardController extends Controller
 
     public function switchToStore(Store $store)
     {
+        $superadmin = \Illuminate\Support\Facades\Auth::guard('superadmin')->user() 
+            ?? \Illuminate\Support\Facades\Auth::guard('web')->user();
+
+        if ($superadmin) {
+            \Illuminate\Support\Facades\Auth::guard('web')->login($superadmin);
+        }
+
         return redirect()->to(url('/' . ($store->slug ?: $store->id) . '/backend'))
             ->with('info', "Beralih ke backend cabang: {$store->name} [Super Admin Access]");
     }

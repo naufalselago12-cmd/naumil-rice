@@ -143,8 +143,8 @@
                       <i class="fa-brands fa-whatsapp text-success"></i> WhatsApp
                     </a>
                     
-                    <!-- Store Backend Link: base_url/(nama_toko)/backend -->
-                    <a :href="'/' + (store.slug || store.code) + '/backend'" target="_blank" 
+                    <!-- Store Backend Link: base_url/(nama_toko)/backend (Khusus Admin & Super Admin) -->
+                    <a v-if="store.can_manage_backend" :href="'/' + (store.slug || store.code) + '/backend'" target="_blank" 
                        class="btn-secondary flex-grow-1 text-center py-2" title="Masuk Panel Dapur Toko">
                       <i class="fa-solid fa-gauge text-primary"></i> Backend
                     </a>

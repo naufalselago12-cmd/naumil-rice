@@ -35,7 +35,8 @@
               <a v-if="store.phone" :href="'https://wa.me/' + cleanPhone(store.phone)" target="_blank" class="btn-secondary">
                 <i class="fa-brands fa-whatsapp text-success me-1"></i> WhatsApp
               </a>
-              <a :href="store.backend_url" target="_blank" class="btn-primary" title="Masuk ke Backend Toko Ini">
+              <!-- Backend Cabang (Hanya dimunculkan untuk Admin Cabang / Super Admin) -->
+              <a v-if="store.can_manage_backend" :href="store.backend_url" target="_blank" class="btn-primary" title="Masuk ke Backend Toko Ini">
                 <i class="fa-solid fa-gauge me-1"></i> Backend Cabang
               </a>
             </div>

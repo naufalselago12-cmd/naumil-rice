@@ -103,6 +103,25 @@
             </div>
         @endif
 
+        @if(Auth::guard('superadmin')->check())
+            <div class="alert alert-info border-0 p-3 mb-3 rounded-3 small shadow-sm">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div>
+                        <i class="fa-solid fa-crown text-warning me-1"></i>
+                        Super Admin Aktif: <strong>{{ Auth::guard('superadmin')->user()->name }}</strong>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <a href="{{ route('superadmin.switchStore', $store->id) }}" class="btn btn-sm btn-primary">
+                            <i class="fa-solid fa-right-to-bracket me-1"></i> Masuk Otomatis
+                        </a>
+                        <a href="{{ route('superadmin.dashboard') }}" class="btn btn-sm btn-outline-secondary">
+                            Super Admin
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <form action="{{ route('store.backend.login.submit', $store->slug) }}" method="POST">
             @csrf
 

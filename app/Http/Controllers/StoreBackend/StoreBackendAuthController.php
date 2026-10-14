@@ -20,8 +20,8 @@ class StoreBackendAuthController extends Controller
     {
         $store = $this->getStore($storeSlug);
 
-        if (Auth::check()) {
-            if (Auth::user()->canManageStore($store->id)) {
+        if (Auth::guard('web')->check()) {
+            if (Auth::guard('web')->user()->canManageStore($store->id)) {
                 return redirect()->route('store.backend.dashboard', ['store_slug' => $store->slug]);
             }
         }
@@ -44,15 +44,20 @@ class StoreBackendAuthController extends Controller
 
         $fieldType = filter_var($loginInput, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
-        if (Auth::attempt([$fieldType => $loginInput, 'password' => $password], $remember)) {
-            $user = Auth::user();
+        if (Auth::guard('web')->attempt([$fieldType => $loginInput, 'password' => $password], $remember)) {
+            $user = Auth::guard('web')->user();
 
             if (!$user->canManageStore($store->id)) {
-                Auth::logout();
+                Auth::guard('web')->logout();
                 $assigned = $user->store ? $user->store->name : 'cabang lain';
                 return back()->withErrors([
                     'username' => "Akses Ditolak: Akun Anda hanya memiliki hak akses untuk {$assigned}.",
                 ])->onlyInput('username');
+            }
+
+            // If user is superadmin, also sync to superadmin guard
+            if ($user->isSuperAdmin()) {
+                Auth::guard('superadmin')->login($user, $remember);
             }
 
             $request->session()->regenerate();
@@ -69,8 +74,13 @@ class StoreBackendAuthController extends Controller
     {
         $store = $this->getStore($storeSlug);
 
-        Auth::logout();
-        $request->session()->invalidate();
+        // Logout only from store backend (web guard)
+        Auth::guard('web')->logout();
+
+        // Invalidate session only if NOT logged in as superadmin
+        if (!Auth::guard('superadmin')->check()) {
+            $request->session()->invalidate();
+        }
         $request->session()->regenerateToken();
 
         return redirect()->route('store.backend.login', ['store_slug' => $store->slug])
