@@ -28,10 +28,38 @@ class StoreBackendSettingsController extends Controller
             'phone' => 'nullable|string|max:50',
             'logo' => 'nullable|string',
             'logo_file' => 'nullable|image|max:3072',
+            'payment_type' => 'required|in:qris_static,payment_gateway',
             'qris_image' => 'nullable|string',
             'qris_file' => 'nullable|image|max:3072',
             'qris_data' => 'nullable|string',
+            'mayar_api_key' => 'nullable|string',
+            'mayar_webhook_token' => 'nullable|string',
+            'mayar_environment' => 'nullable|in:sandbox,production',
+        ], [
+            'payment_type.required' => 'Wajib memilih salah satu metode pembayaran: QRIS Statik atau Payment Gateway.',
         ]);
+
+        // Validation rule: If QRIS Static is chosen, ensure QRIS file or data exists
+        if ($validated['payment_type'] === 'qris_static') {
+            $hasExistingQris = !empty($store->qris_image) || !empty($store->qris_data);
+            $hasNewQris = $request->hasFile('qris_file') || !empty($validated['qris_data']) || !empty($validated['qris_image']);
+            
+            if (!$hasExistingQris && !$hasNewQris) {
+                return back()->withErrors([
+                    'qris_file' => 'Metode QRIS Statik dipilih: Wajib upload file gambar QRIS atau masukkan string payload merchant.',
+                ])->withInput();
+            }
+        }
+
+        // Validation rule: If Payment Gateway is chosen, ensure Mayar API Key is present
+        if ($validated['payment_type'] === 'payment_gateway') {
+            $hasKey = !empty($validated['mayar_api_key']) || !empty($store->mayar_api_key);
+            if (!$hasKey) {
+                return back()->withErrors([
+                    'mayar_api_key' => 'Metode Payment Gateway dipilih: Wajib mengisi API Key Mayar.id untuk memproses pembayaran online.',
+                ])->withInput();
+            }
+        }
 
         if ($request->hasFile('logo_file')) {
             $path = $request->file('logo_file')->store('stores/logos', 'public');
@@ -47,9 +75,22 @@ class StoreBackendSettingsController extends Controller
             $validated['qris_image'] = 'https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=' . urlencode($validated['qris_data']);
         }
 
+        $validated['mayar_environment'] = $validated['mayar_environment'] ?? 'sandbox';
+
         $store->update($validated);
 
         return redirect()->route('store.backend.settings', ['store_slug' => $store->slug])
-            ->with('success', 'Profil dan QRIS cabang berhasil diperbarui.');
+            ->with('success', 'Profil dan metode pembayaran cabang (' . ($validated['payment_type'] === 'payment_gateway' ? 'Payment Gateway Mayar.id' : 'QRIS Statik') . ') berhasil disimpan.');
+    }
+
+    public function testMayar(Request $request, string $store_slug)
+    {
+        $apiKey = $request->input('api_key');
+        $environment = $request->input('environment', 'sandbox');
+
+        $service = new \App\Services\MayarPaymentService();
+        $result = $service->testConnection($apiKey, $environment);
+
+        return response()->json($result);
     }
 }

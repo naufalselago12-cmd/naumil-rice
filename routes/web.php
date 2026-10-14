@@ -96,9 +96,10 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
         // Reports
         Route::get('/reports', [StoreBackendReportController::class, 'index'])->name('reports');
 
-        // Store Profile & QRIS Settings
+        // Store Profile, QRIS & Payment Gateway Settings
         Route::get('/settings', [StoreBackendSettingsController::class, 'index'])->name('settings');
         Route::put('/settings', [StoreBackendSettingsController::class, 'update'])->name('settings.update');
+        Route::post('/settings/test-mayar', [StoreBackendSettingsController::class, 'testMayar'])->name('settings.testMayar');
     });
 });
 

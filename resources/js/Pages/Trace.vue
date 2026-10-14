@@ -152,10 +152,40 @@
           </div>
         </div>
 
-        <!-- PAYMENT & QRIS SECTION (IF QRIS) -->
-        <div v-if="orderData.order?.payment_method === 'QRIS Dinamis'" class="card p-4 mb-4">
+        <!-- PAYMENT STATUS & ONLINE PAYMENT / QRIS SECTION -->
+        <!-- 1. If Paid -->
+        <div v-if="orderData.order?.payment_status === 'paid'" class="card p-4 mb-4 border-success bg-success-subtle shadow-sm">
+          <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle bg-success text-white p-2 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+              <i class="fa-solid fa-check fs-5"></i>
+            </div>
+            <div>
+              <h5 class="fw-bold mb-0 text-success">Pembayaran Lunas (PAID)</h5>
+              <small class="text-muted">Metode: {{ orderData.order?.payment_method }} • Pembayaran terkonfirmasi.</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. If Unpaid with Payment Gateway Link -->
+        <div v-else-if="orderData.order?.payment_url" class="card p-4 mb-4 border-primary shadow-sm">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h4 class="fw-bold fs-6 mb-0 text-dark">
+              <i class="fa-solid fa-credit-card text-success me-2"></i> Pembayaran Online Mayar.id
+            </h4>
+            <span class="badge bg-warning text-dark">Menunggu Pembayaran</span>
+          </div>
+          <p class="text-muted small mb-3">Pesanan Anda memiliki invoice online resmi. Klik tombol di bawah untuk bayar dengan QRIS, Virtual Account, atau E-Wallet:</p>
+          <a :href="orderData.order.payment_url" target="_blank" class="btn btn-danger py-2 px-4 fw-bold text-white d-flex align-items-center justify-content-center gap-2 text-decoration-none shadow-sm">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            <span>Bayar Sekarang via Mayar.id (Rp {{ formatNumber(orderData.order?.total_amount) }})</span>
+          </a>
+          <small class="text-muted d-block text-center mt-2">Status pesanan akan otomatis terverifikasi setelah Anda menyelesaikan pembayaran.</small>
+        </div>
+
+        <!-- 3. If QRIS (Statik / Dinamis) -->
+        <div v-else-if="orderData.order?.payment_method === 'QRIS Dinamis' || orderData.order?.payment_method === 'QRIS Statik'" class="card p-4 mb-4">
           <h4 class="fw-bold fs-6 mb-3">
-            <i class="fa-solid fa-qrcode text-primary me-2"></i> Pembayaran QRIS Dinamis Toko
+            <i class="fa-solid fa-qrcode text-primary me-2"></i> Pembayaran QRIS Toko
           </h4>
 
           <div class="text-center p-3 bg-light rounded border">

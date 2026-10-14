@@ -36,11 +36,18 @@ class SuperAdminStoreController extends Controller
             'phone' => 'nullable|string|max:50',
             'logo' => 'nullable|string',
             'logo_file' => 'nullable|image|max:3072',
+            'payment_type' => 'nullable|in:qris_static,payment_gateway',
             'qris_image' => 'nullable|string',
             'qris_file' => 'nullable|image|max:3072',
             'qris_data' => 'nullable|string',
+            'mayar_api_key' => 'nullable|string',
+            'mayar_webhook_token' => 'nullable|string',
+            'mayar_environment' => 'nullable|in:sandbox,production',
             'status' => 'required|in:active,inactive',
         ]);
+
+        $validated['payment_type'] = $validated['payment_type'] ?? 'qris_static';
+        $validated['mayar_environment'] = $validated['mayar_environment'] ?? 'sandbox';
 
         if (empty($validated['slug'])) {
             $baseSlug = Str::slug($validated['name']);
@@ -91,13 +98,19 @@ class SuperAdminStoreController extends Controller
             'phone' => 'nullable|string|max:50',
             'logo' => 'nullable|string',
             'logo_file' => 'nullable|image|max:3072',
+            'payment_type' => 'nullable|in:qris_static,payment_gateway',
             'qris_image' => 'nullable|string',
             'qris_file' => 'nullable|image|max:3072',
             'qris_data' => 'nullable|string',
+            'mayar_api_key' => 'nullable|string',
+            'mayar_webhook_token' => 'nullable|string',
+            'mayar_environment' => 'nullable|in:sandbox,production',
             'status' => 'required|in:active,inactive',
         ]);
 
         $validated['slug'] = Str::slug($validated['slug']);
+        $validated['payment_type'] = $validated['payment_type'] ?? 'qris_static';
+        $validated['mayar_environment'] = $validated['mayar_environment'] ?? 'sandbox';
 
         if ($request->hasFile('logo_file')) {
             $path = $request->file('logo_file')->store('stores/logos', 'public');

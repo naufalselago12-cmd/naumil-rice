@@ -25,4 +25,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/orders/trace/{orderNumber}', [OrderApiController::class, 'trace']);
     Route::get('/orders/kds', [OrderApiController::class, 'kdsQueue']);
     Route::patch('/orders/{id}/status', [OrderApiController::class, 'updateStatus']);
+
+    // 5. Payment Gateway Webhook (Mayar.id)
+    Route::post('/payment/mayar/webhook/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);
 });

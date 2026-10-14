@@ -104,6 +104,8 @@ class CampaignApiController extends Controller
                     'logo' => $campaign->store->logo,
                     'qris_image' => $campaign->store->qris_image,
                     'qris_data' => $campaign->store->qris_data,
+                    'payment_type' => $campaign->store->payment_type ?? 'qris_static',
+                    'has_mayar' => $campaign->store->hasMayarConfigured(),
                 ],
                 'menus' => $menus
             ]

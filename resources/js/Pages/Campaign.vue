@@ -374,19 +374,31 @@
               </h5>
 
               <div class="payment-options">
-                <!-- Method 1: QRIS Dinamis -->
-                <label :class="['payment-card', clientForm.payment_method === 'QRIS Dinamis' ? 'selected' : '']">
+                <!-- Method 1: Payment Gateway if configured -->
+                <label v-if="store.payment_type === 'payment_gateway'" :class="['payment-card', clientForm.payment_method === 'Payment Gateway (Mayar.id)' ? 'selected' : '']">
+                  <input type="radio" value="Payment Gateway (Mayar.id)" v-model="clientForm.payment_method" />
+                  <div class="payment-card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                      <span class="fw-bold"><i class="fa-solid fa-credit-card text-success me-1"></i> Payment Gateway (Mayar.id)</span>
+                      <span class="badge badge-primary">Online Otomatis</span>
+                    </div>
+                    <p class="text-muted small mb-0">Bayar online instan via QRIS Otomatis, Virtual Account Bank & E-Wallet.</p>
+                  </div>
+                </label>
+
+                <!-- Method 2: QRIS Statik / Dinamis -->
+                <label v-else :class="['payment-card', clientForm.payment_method === 'QRIS Dinamis' ? 'selected' : '']">
                   <input type="radio" value="QRIS Dinamis" v-model="clientForm.payment_method" />
                   <div class="payment-card-body">
                     <div class="d-flex align-items-center justify-content-between mb-1">
-                      <span class="fw-bold"><i class="fa-solid fa-qrcode text-primary me-1"></i> Bayar Langsung QRIS Dinamis</span>
+                      <span class="fw-bold"><i class="fa-solid fa-qrcode text-primary me-1"></i> Bayar Langsung QRIS Toko</span>
                       <span class="badge badge-primary">Rekomendasi</span>
                     </div>
                     <p class="text-muted small mb-0">Scan barcode QRIS toko dari mobile banking (BCA, Mandiri, BRI, GoPay, OVO, ShopeePay).</p>
                   </div>
                 </label>
 
-                <!-- Method 2: COD -->
+                <!-- Method 3: COD -->
                 <label :class="['payment-card', clientForm.payment_method === 'Bayar Terima Makanan' ? 'selected' : '']">
                   <input type="radio" value="Bayar Terima Makanan" v-model="clientForm.payment_method" />
                   <div class="payment-card-body">
@@ -531,6 +543,9 @@ const fetchCampaign = async () => {
       store.value = res.data.data.store
       menus.value = res.data.data.menus
       isExpired.value = res.data.is_expired
+      if (store.value?.payment_type === 'payment_gateway') {
+        clientForm.value.payment_method = 'Payment Gateway (Mayar.id)'
+      }
       startCountdown()
     }
   } catch (err) {
@@ -719,10 +734,15 @@ const submitOrder = async () => {
         origin: { y: 0.6 }
       })
 
-      // 3. Navigate to live tracing page
+      // 3. Navigate to payment portal or live tracing page
       const orderNumber = res.data.data.order_number
+      const paymentUrl = res.data.data.payment_url
       setTimeout(() => {
-        router.visit('/trace/' + orderNumber)
+        if (paymentUrl) {
+          window.location.href = paymentUrl
+        } else {
+          router.visit('/trace/' + orderNumber)
+        }
       }, 1200)
     }
   } catch (err) {

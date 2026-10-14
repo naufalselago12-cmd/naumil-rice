@@ -112,6 +112,8 @@ class StoreFrontController extends Controller
                 'qris_image' => $store->qris_image,
                 'qris_data' => $store->qris_data,
                 'status' => $store->status,
+                'payment_type' => $store->payment_type ?? 'qris_static',
+                'has_mayar' => $store->hasMayarConfigured(),
                 'backend_url' => url('/' . ($store->slug ?: $store->code) . '/backend'),
                 'can_manage_backend' => $canAccessBackend,
             ],

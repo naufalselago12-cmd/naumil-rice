@@ -10,6 +10,9 @@ class Store extends Model
 {
     use HasFactory;
 
+    public const PAYMENT_TYPE_QRIS_STATIC = 'qris_static';
+    public const PAYMENT_TYPE_GATEWAY = 'payment_gateway';
+
     protected $fillable = [
         'name',
         'slug',
@@ -19,6 +22,10 @@ class Store extends Model
         'logo',
         'qris_image',
         'qris_data',
+        'payment_type',
+        'mayar_api_key',
+        'mayar_webhook_token',
+        'mayar_environment',
         'status',
     ];
 
@@ -65,5 +72,20 @@ class Store extends Model
     public function getBackendUrlAttribute(): string
     {
         return url('/' . ($this->slug ?: Str::slug($this->name)) . '/backend');
+    }
+
+    public function isQrisStatic(): bool
+    {
+        return $this->payment_type !== self::PAYMENT_TYPE_GATEWAY;
+    }
+
+    public function isPaymentGateway(): bool
+    {
+        return $this->payment_type === self::PAYMENT_TYPE_GATEWAY;
+    }
+
+    public function hasMayarConfigured(): bool
+    {
+        return !empty($this->mayar_api_key);
     }
 }

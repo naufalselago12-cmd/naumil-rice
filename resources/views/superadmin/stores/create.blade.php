@@ -93,23 +93,96 @@
                 </div>
             </div>
 
+            <!-- Pilihan Metode Pembayaran Utama -->
             <div class="p-3 rounded bg-black bg-opacity-40 border border-secondary mb-4">
-                <h6 class="fw-bold text-white mb-2"><i class="fa-solid fa-qrcode text-primary me-2"></i> Konfigurasi QRIS Dinamis Per Toko</h6>
-                <div class="row g-3">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h6 class="fw-bold text-white mb-0">
+                        <i class="fa-solid fa-wallet text-warning me-2"></i> Pilihan Metode Pembayaran Toko
+                    </h6>
+                    <span class="badge bg-warning text-dark">Wajib Pilih Salah Satu</span>
+                </div>
+
+                <div class="row g-3 mb-3">
                     <div class="col-md-6">
-                        <label class="form-label-dark">QRIS String Payload (Data Merchant)</label>
-                        <textarea name="qris_data" rows="2" class="form-control form-control-dark font-mono small" 
-                                  placeholder="00020101021226600014ID.LINKAJA.WWW0118936009180000...">{{ old('qris_data') }}</textarea>
-                        <small class="text-muted">Digunakan untuk menghasilkan QRIS dinamis unik per transaksi.</small>
+                        <label class="d-flex align-items-center gap-2 p-3 rounded border border-secondary cursor-pointer bg-dark bg-opacity-50">
+                            <input type="radio" name="payment_type" value="qris_static" class="form-check-input" 
+                                   {{ old('payment_type', 'qris_static') === 'qris_static' ? 'checked' : '' }}
+                                   onchange="togglePaymentSectionAdmin(this.value)">
+                            <div>
+                                <strong class="text-white d-block"><i class="fa-solid fa-qrcode text-primary me-1"></i> QRIS Statik Toko</strong>
+                                <small class="text-muted">Pelanggan scan QRIS langsung dan upload bukti / konfirmasi manual.</small>
+                            </div>
+                        </label>
                     </div>
+
                     <div class="col-md-6">
-                        <label class="form-label-dark">Upload Gambar QRIS Statis</label>
-                        <input type="file" name="qris_file" class="form-control form-control-dark mb-2" accept="image/*">
-                        <input type="url" name="qris_image" class="form-control form-control-dark small" 
-                               placeholder="Atau URL gambar QRIS..." value="{{ old('qris_image') }}">
+                        <label class="d-flex align-items-center gap-2 p-3 rounded border border-secondary cursor-pointer bg-dark bg-opacity-50">
+                            <input type="radio" name="payment_type" value="payment_gateway" class="form-check-input" 
+                                   {{ old('payment_type') === 'payment_gateway' ? 'checked' : '' }}
+                                   onchange="togglePaymentSectionAdmin(this.value)">
+                            <div>
+                                <strong class="text-white d-block"><i class="fa-solid fa-bolt text-warning me-1"></i> Payment Gateway (Mayar.id)</strong>
+                                <small class="text-muted">Pembayaran online instan via invoice Mayar.id (otomatis lunas).</small>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Bagian QRIS Statik -->
+                <div id="admin_section_qris" class="{{ old('payment_type', 'qris_static') === 'qris_static' ? '' : 'd-none' }}">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label-dark">QRIS String Payload (Data Merchant)</label>
+                            <textarea name="qris_data" rows="2" class="form-control form-control-dark font-mono small" 
+                                      placeholder="00020101021226600014ID.LINKAJA.WWW0118936009180000...">{{ old('qris_data') }}</textarea>
+                            <small class="text-muted">Digunakan untuk menghasilkan QRIS dinamis per transaksi.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label-dark">Upload Gambar QRIS Statis</label>
+                            <input type="file" name="qris_file" class="form-control form-control-dark mb-2" accept="image/*">
+                            <input type="url" name="qris_image" class="form-control form-control-dark small" 
+                                   placeholder="Atau URL gambar QRIS..." value="{{ old('qris_image') }}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bagian Payment Gateway Mayar.id -->
+                <div id="admin_section_mayar" class="{{ old('payment_type') === 'payment_gateway' ? '' : 'd-none' }}">
+                    <div class="row g-3 mb-2">
+                        <div class="col-md-4">
+                            <label class="form-label-dark">Environment Mayar</label>
+                            <select name="mayar_environment" class="form-select form-select-dark">
+                                <option value="sandbox" {{ old('mayar_environment', 'sandbox') === 'sandbox' ? 'selected' : '' }}>Sandbox (Testing)</option>
+                                <option value="production" {{ old('mayar_environment') === 'production' ? 'selected' : '' }}>Production (Live)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label-dark">API Key Mayar.id (Bearer Token)</label>
+                            <input type="password" name="mayar_api_key" class="form-control form-control-dark font-mono small" 
+                                   placeholder="API Key dari dashboard Mayar.id" value="{{ old('mayar_api_key') }}">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label-dark">Webhook Token / Secret (Opsional)</label>
+                        <input type="password" name="mayar_webhook_token" class="form-control form-control-dark font-mono small" 
+                               placeholder="Token webhook rahasia" value="{{ old('mayar_webhook_token') }}">
                     </div>
                 </div>
             </div>
+
+            <script>
+            function togglePaymentSectionAdmin(type) {
+                const qris = document.getElementById('admin_section_qris');
+                const mayar = document.getElementById('admin_section_mayar');
+                if (type === 'qris_static') {
+                    qris.classList.remove('d-none');
+                    mayar.classList.add('d-none');
+                } else {
+                    mayar.classList.remove('d-none');
+                    qris.classList.add('d-none');
+                }
+            }
+            </script>
 
             <div class="d-flex justify-content-end gap-2">
                 <a href="{{ route('superadmin.stores.index') }}" class="btn btn-outline-secondary">Batal</a>

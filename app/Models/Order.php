@@ -33,6 +33,9 @@ class Order extends Model
         'status',
         'payment_method',
         'payment_status',
+        'payment_url',
+        'payment_id',
+        'payment_payload',
         'subtotal',
         'discount_amount',
         'total_amount',
@@ -44,6 +47,7 @@ class Order extends Model
         'subtotal' => 'float',
         'discount_amount' => 'float',
         'total_amount' => 'float',
+        'payment_payload' => 'array',
     ];
 
     public function store()

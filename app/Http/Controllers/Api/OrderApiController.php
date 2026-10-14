@@ -23,6 +23,17 @@ class OrderApiController extends Controller
      */
     public function store(Request $request)
     {
+        if ($request->has('client') && !$request->has('customer_name')) {
+            $whatsapp = $request->input('client.whatsapp', '');
+            $email = $request->input('client.email') ?: ($whatsapp ? $whatsapp . '@naumilrice.com' : 'pelanggan@naumilrice.com');
+            $request->merge([
+                'customer_name' => $request->input('client.name'),
+                'customer_whatsapp' => $whatsapp,
+                'customer_email' => $email,
+                'customer_address' => $request->input('client.address'),
+            ]);
+        }
+
         $validated = $request->validate([
             'store_id' => 'required|exists:stores,id',
             'campaign_id' => 'nullable|exists:campaigns,id',
@@ -30,7 +41,7 @@ class OrderApiController extends Controller
             'customer_whatsapp' => 'required|string|max:50',
             'customer_email' => 'required|email|max:255',
             'customer_address' => 'nullable|string',
-            'payment_method' => 'required|in:QRIS Dinamis,Bayar Terima Makanan',
+            'payment_method' => 'required|in:QRIS Statik,QRIS Dinamis,Payment Gateway,Payment Gateway (Mayar.id),Bayar Terima Makanan',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.menu_id' => 'required|exists:menus,id',
@@ -156,7 +167,7 @@ class OrderApiController extends Controller
                 'client_id' => $client->id,
                 'status' => Order::STATUS_CONFIRMED,
                 'payment_method' => $validated['payment_method'],
-                'payment_status' => $validated['payment_method'] === 'QRIS Dinamis' ? 'unpaid' : 'unpaid',
+                'payment_status' => 'unpaid',
                 'subtotal' => $subtotal,
                 'discount_amount' => $discountAmount,
                 'total_amount' => $totalAmount,
@@ -178,7 +189,18 @@ class OrderApiController extends Controller
             // Load full relationships
             $order->load(['store', 'client', 'items.menu', 'statusLogs', 'campaign']);
 
-            // 9. Broadcast WebSocket event
+            // 9. If Payment Gateway (Mayar.id), create payment invoice link
+            $paymentUrl = null;
+            if (in_array($validated['payment_method'], ['Payment Gateway', 'Payment Gateway (Mayar.id)'])) {
+                $mayarService = new \App\Services\MayarPaymentService();
+                $mayarRes = $mayarService->createPaymentLink($order->store, $order);
+                if ($mayarRes['success'] && !empty($mayarRes['payment_url'])) {
+                    $paymentUrl = $mayarRes['payment_url'];
+                    $order->refresh();
+                }
+            }
+
+            // 10. Broadcast WebSocket event
             try {
                 broadcast(new NewOrderCreated($order))->toOthers();
             } catch (\Exception $e) {
@@ -194,6 +216,8 @@ class OrderApiController extends Controller
                     'status' => $order->status,
                     'total_amount' => $order->total_amount,
                     'payment_method' => $order->payment_method,
+                    'payment_url' => $order->payment_url ?? $paymentUrl,
+                    'payment_type' => $order->store->payment_type,
                     'store_qris_image' => $order->store->qris_image,
                     'store_qris_data' => $order->store->qris_data,
                     'client' => $client,

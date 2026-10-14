@@ -325,14 +325,33 @@
               <div class="mb-4">
                 <label class="form-label small fw-bold">Metode Pembayaran</label>
                 <div class="d-flex flex-column gap-2">
-                  <label class="option-radio-card">
+                  <!-- Payment Gateway (Mayar.id) if activated by store -->
+                  <label v-if="store.payment_type === 'payment_gateway'" class="option-radio-card">
+                    <input type="radio" value="Payment Gateway (Mayar.id)" v-model="customerForm.paymentMethod" name="paymentMethod" />
+                    <div class="flex-grow-1 ms-2">
+                      <div class="fw-bold"><i class="fa-solid fa-credit-card text-success me-1"></i> Payment Gateway (Mayar.id)</div>
+                      <small class="text-muted d-block">QRIS Otomatis, Virtual Account Bank & E-Wallet (Lunas Instan)</small>
+                    </div>
+                    <span class="badge badge-primary">Online Otomatis</span>
+                  </label>
+
+                  <!-- QRIS Statik / Dinamis if activated by store -->
+                  <label v-else class="option-radio-card">
                     <input type="radio" value="QRIS Dinamis" v-model="customerForm.paymentMethod" name="paymentMethod" />
-                    <span class="flex-grow-1 ms-2 fw-bold"><i class="fa-solid fa-qrcode text-primary me-1"></i> QRIS Dinamis Otomatis</span>
+                    <div class="flex-grow-1 ms-2">
+                      <div class="fw-bold"><i class="fa-solid fa-qrcode text-primary me-1"></i> QRIS Toko (Scan Mandiri)</div>
+                      <small class="text-muted d-block">Scan QRIS menggunakan m-Banking atau E-Wallet apapun</small>
+                    </div>
                     <span class="badge badge-primary">Rekomendasi</span>
                   </label>
+
+                  <!-- COD option -->
                   <label class="option-radio-card">
                     <input type="radio" value="Bayar Terima Makanan" v-model="customerForm.paymentMethod" name="paymentMethod" />
-                    <span class="flex-grow-1 ms-2 fw-bold"><i class="fa-solid fa-hand-holding-dollar text-success me-1"></i> Bayar Terima Makanan (COD)</span>
+                    <div class="flex-grow-1 ms-2">
+                      <div class="fw-bold"><i class="fa-solid fa-hand-holding-dollar text-success me-1"></i> Bayar Terima Makanan (COD)</div>
+                      <small class="text-muted d-block">Bayar tunai kepada kurir saat pesanan tiba</small>
+                    </div>
                   </label>
                 </div>
               </div>
@@ -362,7 +381,7 @@
         </div>
       </div>
 
-      <!-- Order Success / QRIS Popup Modal -->
+      <!-- Order Success / QRIS / Payment Gateway Popup Modal -->
       <div v-if="createdOrderData" class="modal-backdrop-custom">
         <div class="modal-card-custom text-center p-4 max-w-500">
           <div class="success-icon-bubble mb-3 mx-auto">
@@ -377,11 +396,27 @@
             <strong class="fs-4 font-mono text-danger">{{ createdOrderData.order_number }}</strong>
           </div>
 
+          <!-- Mayar.id Payment Gateway Pay Button if payment_url is returned -->
+          <div v-if="createdOrderData.payment_url" class="p-3 border rounded bg-white mb-3 shadow-sm text-start">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <h6 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-credit-card text-success me-1"></i> Pembayaran Online Mayar.id</h6>
+              <span class="badge bg-success text-white">Menunggu Pembayaran</span>
+            </div>
+            <p class="text-muted small mb-3">
+              Silakan selesaikan pembayaran tagihan ini secara aman melalui portal Mayar.id (QRIS otomatis, Virtual Account, & E-Wallet):
+            </p>
+            <a :href="createdOrderData.payment_url" target="_blank" class="btn btn-danger w-100 py-2 fw-bold text-white fs-6 d-flex align-items-center justify-content-center gap-2 mb-2 shadow-sm text-decoration-none">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              <span>Bayar Sekarang (Rp {{ formatPrice(createdOrderData.total_amount) }})</span>
+            </a>
+            <small class="text-muted d-block text-center mt-1">Setelah dibayar, status pesanan otomatis berubah jadi <strong>Diproses</strong>.</small>
+          </div>
+
           <!-- Dynamic QRIS Display if QRIS payment -->
-          <div v-if="createdOrderData.payment_method === 'QRIS Dinamis'" class="qris-payment-box p-3 border rounded bg-white mb-3">
-            <h6 class="fw-bold mb-2"><i class="fa-solid fa-qrcode text-primary me-1"></i> Scan QRIS Dinamis Per Toko</h6>
+          <div v-else-if="createdOrderData.payment_method === 'QRIS Dinamis' || createdOrderData.payment_method === 'QRIS Statik'" class="qris-payment-box p-3 border rounded bg-white mb-3">
+            <h6 class="fw-bold mb-2"><i class="fa-solid fa-qrcode text-primary me-1"></i> Scan QRIS Toko</h6>
             <div class="p-2 bg-white d-inline-block border rounded mb-2">
-              <img :src="dynamicQrisUrl" alt="QRIS Dinamis" class="img-fluid" style="max-width: 220px;" />
+              <img :src="store.qris_image || dynamicQrisUrl" alt="QRIS Toko" class="img-fluid" style="max-width: 220px;" />
             </div>
             <div class="font-mono fw-bold fs-5 text-success">
               Rp {{ formatPrice(createdOrderData.total_amount) }}
@@ -547,7 +582,7 @@ const customerForm = ref({
   whatsapp: '',
   email: '',
   address: '',
-  paymentMethod: 'QRIS Dinamis'
+  paymentMethod: props.store.payment_type === 'payment_gateway' ? 'Payment Gateway (Mayar.id)' : 'QRIS Dinamis'
 })
 
 const submittingOrder = ref(false)
