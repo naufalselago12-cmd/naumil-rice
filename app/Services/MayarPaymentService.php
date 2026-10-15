@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class MayarPaymentService
 {
-    public const SANDBOX_URL = 'https://api.mayar.club/hl/v1';
+    public const SANDBOX_URL = 'https://api.mayar.io/hl/v1';
     public const PRODUCTION_URL = 'https://api.mayar.id/hl/v1';
 
     /**
@@ -90,6 +90,13 @@ class MayarPaymentService
                 }
             }
 
+            $rawMsg = $response->json('messages') ?? $response->json('message') ?? $response->body();
+            if (str_contains(strtolower($rawMsg), 'scope not allowed to write')) {
+                $friendlyMsg = 'API Key Mayar tidak memiliki izin WRITE. Harap buat API Key baru di dashboard Mayar.id dan centang izin WRITE / Full Access.';
+            } else {
+                $friendlyMsg = 'Gagal membuat link pembayaran Mayar: ' . $rawMsg;
+            }
+
             Log::warning('Mayar Payment Link Failed', [
                 'status' => $response->status(),
                 'response' => $response->body(),
@@ -98,7 +105,7 @@ class MayarPaymentService
 
             return [
                 'success' => false,
-                'message' => 'Gagal membuat link pembayaran Mayar: ' . ($response->json('messages') ?? $response->body()),
+                'message' => $friendlyMsg,
                 'status_code' => $response->status(),
             ];
         } catch (\Exception $e) {
@@ -126,13 +133,34 @@ class MayarPaymentService
             ];
         }
 
+        // Check JWT payload scope if token is JWT
+        $parts = explode('.', $apiKey);
+        if (count($parts) === 3) {
+            $jwtPayload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+            if (is_array($jwtPayload) && isset($jwtPayload['scope'])) {
+                $scope = (array) $jwtPayload['scope'];
+                $hasWrite = (!empty($scope['write']) && $scope['write'] !== false)
+                    || (!empty($scope['full']) && $scope['full'] !== false)
+                    || in_array('write', array_keys($scope), true)
+                    || in_array('write', $scope, true);
+
+                if (!$hasWrite) {
+                    return [
+                        'success' => false,
+                        'message' => 'API Key terhubung, tetapi HANYA memiliki izin READ. Harap buat API Key baru di dashboard Mayar.id dan pastikan mencentang izin WRITE (Create Payment Link).',
+                        'scope' => $scope,
+                    ];
+                }
+            }
+        }
+
         $baseUrl = self::getBaseUrl($environment);
 
         try {
             // Test ping or test dummy minimal request to check token validity
             $response = Http::timeout(10)
                 ->withToken($apiKey)
-                ->get("{$baseUrl}/balance"); // If balance endpoint exists, or dummy test
+                ->get("{$baseUrl}/balance");
 
             // Even if balance is 404, check if 401 Unauthorized
             if ($response->status() === 401 || $response->status() === 403) {
@@ -144,7 +172,7 @@ class MayarPaymentService
 
             return [
                 'success' => true,
-                'message' => 'API Key Mayar terhubung dengan baik (' . strtoupper($environment) . ').',
+                'message' => 'API Key Mayar terhubung dengan baik (' . strtoupper($environment) . '). Izin READ/WRITE siap.',
                 'status_code' => $response->status(),
             ];
         } catch (\Exception $e) {

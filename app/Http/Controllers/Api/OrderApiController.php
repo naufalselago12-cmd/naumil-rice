@@ -191,12 +191,15 @@ class OrderApiController extends Controller
 
             // 9. If Payment Gateway (Mayar.id), create payment invoice link
             $paymentUrl = null;
+            $paymentMessage = null;
             if (in_array($validated['payment_method'], ['Payment Gateway', 'Payment Gateway (Mayar.id)'])) {
                 $mayarService = new \App\Services\MayarPaymentService();
                 $mayarRes = $mayarService->createPaymentLink($order->store, $order);
                 if ($mayarRes['success'] && !empty($mayarRes['payment_url'])) {
                     $paymentUrl = $mayarRes['payment_url'];
                     $order->refresh();
+                } else {
+                    $paymentMessage = $mayarRes['message'] ?? 'Gagal membuat link pembayaran Mayar.';
                 }
             }
 
@@ -217,6 +220,7 @@ class OrderApiController extends Controller
                     'total_amount' => $order->total_amount,
                     'payment_method' => $order->payment_method,
                     'payment_url' => $order->payment_url ?? $paymentUrl,
+                    'payment_message' => $paymentMessage,
                     'payment_type' => $order->store->payment_type,
                     'store_qris_image' => $order->store->qris_image,
                     'store_qris_data' => $order->store->qris_data,

@@ -200,6 +200,21 @@
           </div>
         </div>
 
+        <!-- Fallback if Mayar Payment Gateway chosen but payment_url is not yet generated -->
+        <div v-else-if="orderData.order?.payment_status === 'unpaid' && (orderData.order?.payment_method === 'Payment Gateway' || orderData.order?.payment_method === 'Payment Gateway (Mayar.id)')" class="card p-4 mb-4 border-warning shadow-sm">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="fa-solid fa-triangle-exclamation text-warning fs-5"></i>
+            <h4 class="fw-bold fs-6 mb-0 text-dark">Invoice Online Belum Tersedia</h4>
+          </div>
+          <p class="text-muted small mb-3">Invoice online Mayar belum dapat dibuat secara otomatis (periksa izin WRITE API Key di Mayar Dashboard). Anda dapat menyelesaikan pembayaran langsung melalui WhatsApp dapur toko.</p>
+          <a v-if="orderData.order?.store?.phone" 
+             :href="'https://wa.me/' + cleanPhone(orderData.order.store.phone) + '?text=Halo%20' + (orderData.order?.store?.name || 'Toko') + ',%20saya%20ingin%20membayar%20pesanan%20' + orderData.order?.order_number" 
+             target="_blank" class="btn btn-outline-success py-2 px-3 fw-bold d-flex align-items-center justify-content-center gap-2 text-decoration-none">
+            <i class="fa-brands fa-whatsapp fs-5"></i>
+            <span>Minta Bantuan Pembayaran via WhatsApp</span>
+          </a>
+        </div>
+
         <!-- STORE CONTACT & SUPPORT -->
         <div class="card p-4 text-center">
           <h5 class="fw-bold mb-1">Ada Pertanyaan Mengenai Pesanan Anda?</h5>

@@ -424,6 +424,18 @@
             <small class="text-muted d-block mt-1">Scan menggunakan BCA, Gopay, OVO, ShopeePay, atau m-Banking apapun.</small>
           </div>
 
+          <!-- Fallback if Mayar Payment Gateway selected but payment_url failed to generate -->
+          <div v-else-if="createdOrderData.payment_method === 'Payment Gateway' || createdOrderData.payment_method === 'Payment Gateway (Mayar.id)'" class="p-3 border rounded bg-warning-subtle text-warning-emphasis mb-3 text-start shadow-sm">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="fa-solid fa-triangle-exclamation text-warning fs-5"></i>
+              <h6 class="fw-bold mb-0">Link Pembayaran Mayar Belum Tersedia</h6>
+            </div>
+            <p class="small mb-2">
+              {{ createdOrderData.payment_message || 'Invoice online belum berhasil dibuat oleh sistem gateway. Periksa izin API Key toko di dashboard Mayar.' }}
+            </p>
+            <small class="text-muted d-block">Pesanan tetap tercatat di sistem dapur. Silakan konfirmasi via WhatsApp toko untuk menyelesaikan pembayaran.</small>
+          </div>
+
           <div class="d-flex flex-column gap-2 mt-3">
             <Link :href="'/trace/' + createdOrderData.order_number" class="btn-primary py-2 text-center">
               <i class="fa-solid fa-radar me-1"></i> Lacak Status Pesanan (Live KDS)
