@@ -309,67 +309,177 @@
           </div>
 
           <div class="p-4">
-            <!-- 1. Returning User Banner (Concat Info) -->
-            <div v-if="isReturningUser" class="alert-returning mb-4">
-              <div class="d-flex align-items-center justify-content-between">
-                <div>
-                  <span class="fw-bold d-block text-success">
-                    <i class="fa-solid fa-circle-check me-1"></i> Masuk sebagai: {{ clientConcat || (clientForm.name + ' (' + clientForm.email + ')') }}
-                  </span>
-                  <small class="text-muted">Data otomatis terisi dari akun pelanggan terverifikasi.</small>
-                </div>
-                <button type="button" class="btn-text-sm" @click="clearReturningUser">Ganti Akun</button>
-              </div>
-            </div>
-
-            <!-- Quick Email Lookup Banner if not returning -->
-            <div v-else class="suggestion-box mb-4 p-3 bg-light rounded border">
-              <span class="d-block small text-primary fw-bold mb-1">
-                <i class="fa-solid fa-user-clock me-1"></i> Pernah memesan sebelumnya?
-              </span>
-              <p class="small text-muted mb-0">Cukup masukkan Email terdaftar Anda di formulir bawah untuk otomatis memuat data profil.</p>
-            </div>
-
-            <!-- 2. Client Registration Form (Mandatory: Name, WA, Email, Address) -->
-            <div class="form-section mb-4">
-              <h5 class="section-subtitle">
-                <i class="fa-solid fa-id-card text-danger me-2"></i> Identitas Pemesan (Wajib Diisi)
+            <!-- Pilihan Metode Pemesanan: Pelanggan Setia vs Beli Makanan Saja -->
+            <div class="checkout-method-selector mb-4">
+              <h5 class="section-subtitle mb-2">
+                <i class="fa-solid fa-user-check text-primary me-2"></i> Pilih Metode Pemesanan
               </h5>
-
-              <div class="form-group mb-3">
-                <label class="form-label">Email Aktif <span class="text-danger">*</span></label>
-                <div class="input-group">
-                  <input type="email" v-model="clientForm.email" @blur="onEmailLookup" @keyup.enter="onEmailLookup" class="form-input" 
-                         placeholder="dimas@gmail.com" required />
-                  <button class="btn-sm btn-outline-primary px-3" type="button" @click="onEmailLookup" :disabled="lookingUpEmail || !clientForm.email">
-                    <i v-if="lookingUpEmail" class="fa-solid fa-spinner fa-spin"></i>
-                    <span v-else><i class="fa-solid fa-magnifying-glass me-1"></i> Cek</span>
-                  </button>
+              <div class="row g-2 mb-3">
+                <div class="col-sm-6">
+                  <label :class="['p-3 border rounded h-100 d-block cursor-pointer', checkoutMode === 'loyalty' ? 'border-primary bg-primary-subtle shadow-sm' : 'bg-light']" style="cursor: pointer;">
+                    <div class="d-flex align-items-center gap-2">
+                      <input type="radio" value="loyalty" v-model="checkoutMode" name="checkoutMode">
+                      <div>
+                        <strong class="d-block text-primary"><i class="fa-solid fa-crown text-warning me-1"></i> Pelanggan Setia</strong>
+                        <small class="text-muted d-block" style="font-size: 0.76rem;">Banyak promo menarik & kumpulkan reward point</small>
+                      </div>
+                    </div>
+                  </label>
                 </div>
-                <small v-if="emailLookupStatus" :class="emailLookupFound ? 'text-success fw-bold' : 'text-muted'" class="d-block mt-1" style="font-size: 0.78rem;">
-                  <i :class="emailLookupFound ? 'fa-solid fa-check-circle me-1' : 'fa-solid fa-circle-info me-1'"></i> {{ emailLookupStatus }}
-                </small>
+                <div class="col-sm-6">
+                  <label :class="['p-3 border rounded h-100 d-block cursor-pointer', checkoutMode === 'guest' ? 'border-primary bg-primary-subtle shadow-sm' : 'bg-light']" style="cursor: pointer;">
+                    <div class="d-flex align-items-center gap-2">
+                      <input type="radio" value="guest" v-model="checkoutMode" name="checkoutMode">
+                      <div>
+                        <strong class="d-block text-dark"><i class="fa-solid fa-bag-shopping me-1"></i> Beli Makanan Saja</strong>
+                        <small class="text-muted d-block" style="font-size: 0.76rem;">Pesan cepat tanpa perlu verifikasi email</small>
+                      </div>
+                    </div>
+                  </label>
+                </div>
               </div>
 
-              <div class="form-group mb-3">
-                <label class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
-                <input type="text" v-model="clientForm.name" class="form-input" 
-                       placeholder="Contoh: Dimas Wicaksono" required />
+              <!-- Option A: Pelanggan Setia -->
+              <div v-if="checkoutMode === 'loyalty'" class="p-3 rounded bg-warning-subtle border border-warning mb-3">
+                <!-- Logged-in State -->
+                <div v-if="isReturningUser">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                      <div class="d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-circle-check text-success fs-5"></i>
+                        <span class="fw-bold text-dark fs-6">Masuk sebagai: {{ clientConcat }}</span>
+                      </div>
+                      <small class="text-muted d-block mt-1">
+                        <i class="fa-solid fa-coins text-warning me-1"></i> Saldo Credit Point: <strong class="text-dark font-mono">{{ customerLoyaltyPoints }} Pts</strong>
+                      </small>
+                    </div>
+                    <button type="button" class="btn-text-sm" @click="clearReturningUser">Ganti Akun</button>
+                  </div>
+
+                  <div class="mt-3 pt-3 border-top">
+                    <label class="form-label small fw-bold">Alamat Pengiriman Lengkap <span class="text-danger">*</span></label>
+                    <textarea v-model="clientForm.address" rows="2" class="form-textarea" placeholder="Jalan, nomor rumah, RT/RW, patokan..." required></textarea>
+                  </div>
+                </div>
+
+                <!-- Not Logged In: Register or Login Tabs -->
+                <div v-else>
+                  <div class="d-flex gap-2 mb-3">
+                    <button type="button" :class="['btn btn-sm flex-grow-1 fw-bold', loyaltyTab === 'register' ? 'btn-primary' : 'btn-outline-secondary']" @click="loyaltyTab = 'register'">
+                      <i class="fa-solid fa-user-plus me-1"></i> Daftar Pelanggan Setia
+                    </button>
+                    <button type="button" :class="['btn btn-sm flex-grow-1 fw-bold', loyaltyTab === 'login' ? 'btn-primary' : 'btn-outline-secondary']" @click="loyaltyTab = 'login'">
+                      <i class="fa-solid fa-right-to-bracket me-1"></i> Masuk Akun
+                    </button>
+                  </div>
+
+                  <!-- Register Form -->
+                  <div v-if="loyaltyTab === 'register'">
+                    <div v-if="registerSuccessMsg" class="p-3 rounded bg-success-subtle border border-success text-center">
+                      <i class="fa-solid fa-envelope-circle-check text-success fa-2x mb-2"></i>
+                      <h6 class="fw-bold text-success mb-1">Verifikasi Email Dikirim!</h6>
+                      <p class="small text-muted mb-2">{{ registerSuccessMsg }}</p>
+                      <button type="button" class="btn btn-sm btn-success" @click="checkUserSession">
+                        <i class="fa-solid fa-rotate me-1"></i> Saya Sudah Verifikasi Email
+                      </button>
+                    </div>
+
+                    <div v-else>
+                      <div class="row g-2 mb-2">
+                        <div class="col-sm-7">
+                          <label class="form-label small fw-bold">Nama Lengkap <span class="text-danger">*</span></label>
+                          <input type="text" v-model="regForm.name" class="form-input" placeholder="Nama Lengkap" required />
+                        </div>
+                        <div class="col-sm-5">
+                          <label class="form-label small fw-bold">Jenis Kelamin <span class="text-danger">*</span></label>
+                          <div class="d-flex gap-2 pt-1">
+                            <label class="small"><input type="radio" value="Laki-laki" v-model="regForm.gender"> Laki-laki</label>
+                            <label class="small"><input type="radio" value="Perempuan" v-model="regForm.gender"> Perempuan</label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="row g-2 mb-2">
+                        <div class="col-sm-6">
+                          <label class="form-label small fw-bold">Email Valid <span class="text-danger">*</span></label>
+                          <input type="email" v-model="regForm.email" class="form-input" placeholder="nama@gmail.com" required />
+                        </div>
+                        <div class="col-sm-6">
+                          <label class="form-label small fw-bold">Password Login <span class="text-danger">*</span></label>
+                          <input type="password" v-model="regForm.password" class="form-input" placeholder="Min. 6 karakter" required />
+                        </div>
+                      </div>
+
+                      <div class="row g-2 mb-2">
+                        <div class="col-sm-6">
+                          <label class="form-label small fw-bold">No. HP / WhatsApp <span class="text-danger">*</span></label>
+                          <input type="text" v-model="regForm.whatsapp" class="form-input font-mono" placeholder="081234567890" required />
+                        </div>
+                        <div class="col-sm-6">
+                          <label class="form-label small fw-bold">Pekerjaan Saat Ini <span class="text-danger">*</span></label>
+                          <input type="text" v-model="regForm.occupation" class="form-input" placeholder="Contoh: Karyawan Swasta" required />
+                        </div>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label small fw-bold">Alamat Pengiriman Lengkap <span class="text-danger">*</span></label>
+                        <textarea v-model="regForm.address" rows="2" class="form-textarea" placeholder="Jalan, nomor rumah, RT/RW..." required></textarea>
+                      </div>
+
+                      <button type="button" class="btn btn-warning w-100 fw-bold py-2" @click="submitLoyaltyRegister" :disabled="registering">
+                        <i v-if="registering" class="fa-solid fa-spinner fa-spin me-1"></i>
+                        <i v-else class="fa-solid fa-paper-plane me-1"></i>
+                        <span>{{ registering ? 'Mendaftarkan...' : 'Daftar & Kirim Email Verifikasi' }}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Login Form -->
+                  <div v-else>
+                    <div class="mb-2">
+                      <label class="form-label small fw-bold">Email Terdaftar <span class="text-danger">*</span></label>
+                      <input type="email" v-model="loginForm.email" class="form-input" placeholder="nama@gmail.com" required />
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label small fw-bold">Password Login <span class="text-danger">*</span></label>
+                      <input type="password" v-model="loginForm.password" class="form-input" placeholder="Password Anda" required />
+                    </div>
+                    <button type="button" class="btn btn-primary w-100 fw-bold py-2" @click="submitLoyaltyLogin" :disabled="loggingIn">
+                      <i v-if="loggingIn" class="fa-solid fa-spinner fa-spin me-1"></i>
+                      <i v-else class="fa-solid fa-right-to-bracket me-1"></i>
+                      <span>{{ loggingIn ? 'Memverifikasi...' : 'Masuk Akun' }}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div class="form-group mb-3">
-                <label class="form-label">No. HP / WhatsApp <span class="text-danger">*</span></label>
-                <input type="tel" v-model="clientForm.whatsapp" class="form-input" 
-                       placeholder="081234567890" required />
-              </div>
+              <!-- Option B: Beli Makanan Saja (Guest Checkout) -->
+              <div v-else class="p-3 rounded bg-light border mb-3">
+                <div class="p-2 mb-3 rounded bg-white border small text-muted">
+                  <i class="fa-solid fa-circle-info text-primary me-1"></i>
+                  Pemesanan langsung tanpa verifikasi email. Lengkapi formulir di bawah ini untuk pengantaran pesanan:
+                </div>
 
-              <div class="form-group mb-0">
-                <label class="form-label">Alamat Pengiriman Lengkap <span class="text-danger">*</span></label>
-                <textarea v-model="clientForm.address" rows="2" class="form-textarea" 
-                          placeholder="Jalan, nomor rumah, RT/RW, patokan penjemputan..." required></textarea>
-                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
-                  <i class="fa-solid fa-envelope-circle-check text-primary me-1"></i> Link aktivasi akun akan dikirim via email. Notifikasi otomatis dikirim saat menu <strong>Ready</strong>.
-                </small>
+                <div class="mb-2">
+                  <label class="form-label small fw-bold">Nama Lengkap Pemesan <span class="text-danger">*</span></label>
+                  <input type="text" v-model="clientForm.name" class="form-input" placeholder="Contoh: Dimas Wicaksono" required />
+                </div>
+
+                <div class="row g-2 mb-2">
+                  <div class="col-sm-6">
+                    <label class="form-label small fw-bold">Nomor WhatsApp <span class="text-danger">*</span></label>
+                    <input type="tel" v-model="clientForm.whatsapp" class="form-input" placeholder="081234567890" required />
+                  </div>
+                  <div class="col-sm-6">
+                    <label class="form-label small fw-bold">Email Aktif <span class="text-danger">*</span></label>
+                    <input type="email" v-model="clientForm.email" class="form-input" placeholder="dimas@gmail.com" required />
+                  </div>
+                </div>
+
+                <div class="mb-2">
+                  <label class="form-label small fw-bold">Alamat Pengiriman Lengkap <span class="text-danger">*</span></label>
+                  <textarea v-model="clientForm.address" rows="2" class="form-textarea" placeholder="Jalan, nomor rumah, RT/RW, patokan..." required></textarea>
+                </div>
               </div>
             </div>
 
@@ -504,7 +614,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
 import axios from 'axios'
 import confetti from 'canvas-confetti'
@@ -530,6 +640,13 @@ const isExpired = ref(false)
 const activeCategory = ref('all')
 const cart = ref([])
 
+// Save cart to local storage so draft is preserved during member activation
+watch(cart, (newVal) => {
+  if (newVal && newVal.length > 0) {
+    localStorage.setItem('naumil_campaign_cart_' + props.token, JSON.stringify(newVal))
+  }
+}, { deep: true })
+
 // Modal States
 const activeMenuModal = ref(null)
 const selectedToppings = ref([])
@@ -540,16 +657,36 @@ const modalQty = ref(1)
 
 // Checkout States
 const showCheckoutModal = ref(false)
+const checkoutMode = ref('loyalty') // 'loyalty' or 'guest'
+const loyaltyTab = ref('register') // 'register' or 'login'
 const isReturningUser = ref(false)
-const registeredClients = ref([])
 const clientConcat = ref('')
-const lookingUpEmail = ref(false)
-const emailLookupStatus = ref('')
-const emailLookupFound = ref(false)
+const customerLoyaltyPoints = ref(0)
+const registering = ref(false)
+const loggingIn = ref(false)
+const registerSuccessMsg = ref('')
 const mayarPaymentWaiting = ref(false)
 const paymentGatewayUrl = ref('')
 const currentOrderNumber = ref('')
 
+// Form Pelanggan Setia Baru
+const regForm = ref({
+  name: '',
+  gender: 'Laki-laki',
+  email: '',
+  password: '',
+  whatsapp: '',
+  occupation: 'Karyawan Swasta',
+  address: ''
+})
+
+// Form Login Pelanggan Setia
+const loginForm = ref({
+  email: '',
+  password: ''
+})
+
+// Form Pemesanan Aktif / Guest
 const clientForm = ref({
   name: '',
   whatsapp: '',
@@ -586,44 +723,75 @@ const fetchCampaign = async () => {
   }
 }
 
-const fetchClients = async () => {
+const applyLoyaltyUser = (user) => {
+  clientForm.value.name = user.name || ''
+  clientForm.value.whatsapp = user.whatsapp || ''
+  clientForm.value.email = user.email || ''
+  clientForm.value.address = user.address || clientForm.value.address || ''
+  clientConcat.value = `${user.name} (${user.email})`
+  customerLoyaltyPoints.value = user.loyalty_points || 0
+  isReturningUser.value = true
+  localStorage.setItem('naumil_customer_session', JSON.stringify(user))
+  localStorage.setItem('naumil_user', JSON.stringify(user))
+}
+
+const submitLoyaltyRegister = async () => {
+  if (!regForm.value.name || !regForm.value.email || !regForm.value.password || !regForm.value.whatsapp) {
+    alert('Mohon lengkapi Nama Lengkap, Email Valid, Password, dan Nomor WhatsApp.')
+    return
+  }
+
   try {
-    const res = await axios.get('/api/v1/clients')
+    registering.value = true
+    // Backup cart to local storage so draft is preserved
+    localStorage.setItem('naumil_campaign_cart_' + props.token, JSON.stringify(cart.value))
+
+    const res = await axios.post('/api/v1/customer/register-loyalty', {
+      ...regForm.value,
+      store_ids: store.value?.id ? [store.value.id] : []
+    })
+
     if (res.data.success) {
-      registeredClients.value = res.data.data
+      registerSuccessMsg.value = res.data.message
     }
   } catch (err) {
-    console.error('Failed to load registered clients', err)
+    alert(err.response?.data?.message || 'Gagal mendaftar Pelanggan Setia.')
+  } finally {
+    registering.value = false
   }
 }
 
-const onEmailLookup = async () => {
-  const email = (clientForm.value.email || '').trim().toLowerCase()
-  if (!email || !email.includes('@')) {
-    emailLookupStatus.value = ''
+const submitLoyaltyLogin = async () => {
+  if (!loginForm.value.email || !loginForm.value.password) {
+    alert('Mohon masukkan Email dan Password.')
     return
   }
+
   try {
-    lookingUpEmail.value = true
-    const res = await axios.post('/api/v1/customer/lookup-by-email', { email })
-    if (res.data?.found && res.data?.client) {
-      clientForm.value.name = res.data.client.name
-      clientForm.value.whatsapp = res.data.client.whatsapp
-      clientForm.value.address = res.data.client.address || ''
-      clientConcat.value = `${res.data.client.name} (${res.data.client.email})`
-      isReturningUser.value = true
-      emailLookupFound.value = true
-      emailLookupStatus.value = `Akun terverifikasi: ${res.data.client.name} (${res.data.client.email})`
-      localStorage.setItem('naumil_customer_session', JSON.stringify(res.data.client))
-      localStorage.setItem('naumil_user', JSON.stringify(res.data.client))
+    loggingIn.value = true
+    const res = await axios.post('/api/v1/customer/login-loyalty', loginForm.value)
+    if (res.data.success) {
+      applyLoyaltyUser(res.data.client)
+    }
+  } catch (err) {
+    alert(err.response?.data?.message || 'Email atau password salah atau akun belum diaktifkan.')
+  } finally {
+    loggingIn.value = false
+  }
+}
+
+const checkUserSession = async () => {
+  try {
+    const res = await axios.get('/api/v1/customer/current-session')
+    if (res.data?.authenticated && res.data?.client) {
+      applyLoyaltyUser(res.data.client)
+      registerSuccessMsg.value = ''
+      alert('Selamat! Akun Pelanggan Setia Anda aktif dan terverifikasi.')
     } else {
-      emailLookupFound.value = false
-      emailLookupStatus.value = 'Email baru / belum terdaftar. Silakan lengkapi data pemesan.'
+      alert('Akun belum terverifikasi atau belum login. Silakan cek inbox/spam email Anda untuk klik link verifikasi.')
     }
   } catch (e) {
-    console.error('Email lookup error', e)
-  } finally {
-    lookingUpEmail.value = false
+    alert('Gagal memeriksa status aktivasi akun.')
   }
 }
 
@@ -633,12 +801,7 @@ const checkBrowserCache = async () => {
     try {
       const user = JSON.parse(cached)
       if (user.email) {
-        clientForm.value.name = user.name || ''
-        clientForm.value.whatsapp = user.whatsapp || ''
-        clientForm.value.email = user.email || ''
-        clientForm.value.address = user.address || ''
-        clientConcat.value = `${user.name} (${user.email})`
-        isReturningUser.value = true
+        applyLoyaltyUser(user)
         return
       }
     } catch (e) {
@@ -650,13 +813,7 @@ const checkBrowserCache = async () => {
   try {
     const res = await axios.get('/api/v1/customer/current-session')
     if (res.data?.authenticated && res.data?.client) {
-      const user = res.data.client
-      clientForm.value.name = user.name || ''
-      clientForm.value.whatsapp = user.whatsapp || ''
-      clientForm.value.email = user.email || ''
-      clientForm.value.address = user.address || ''
-      clientConcat.value = `${user.name} (${user.email})`
-      isReturningUser.value = true
+      applyLoyaltyUser(res.data.client)
     }
   } catch (e) {}
 }
@@ -664,31 +821,17 @@ const checkBrowserCache = async () => {
 const clearReturningUser = async () => {
   isReturningUser.value = false
   clientConcat.value = ''
+  customerLoyaltyPoints.value = 0
   clientForm.value.name = ''
   clientForm.value.whatsapp = ''
   clientForm.value.email = ''
   clientForm.value.address = ''
-  emailLookupStatus.value = ''
-  emailLookupFound.value = false
   localStorage.removeItem('naumil_customer_session')
   localStorage.removeItem('naumil_user')
 
   try {
     await axios.post('/api/v1/customer/logout')
   } catch (e) {}
-}
-
-const onSelectSuggestedClient = (e) => {
-  const selectedId = e.target.value
-  const found = registeredClients.value.find(c => c.id == selectedId)
-  if (found) {
-    clientForm.value.name = found.name
-    clientForm.value.whatsapp = found.whatsapp
-    clientForm.value.email = found.email
-    clientForm.value.address = found.address || ''
-    clientConcat.value = `${found.name} (${found.email})`
-    isReturningUser.value = true
-  }
 }
 
 // Categories & Filtering
@@ -744,6 +887,9 @@ const addToCartFromModal = () => {
 
 const removeFromCart = (index) => {
   cart.value.splice(index, 1)
+  if (cart.value.length === 0) {
+    localStorage.removeItem('naumil_campaign_cart_' + props.token)
+  }
 }
 
 // Cart Totals
@@ -852,9 +998,21 @@ onUnmounted(() => {
 
 // Submit Order Logic
 const submitOrder = async () => {
-  if (!clientForm.value.name || !clientForm.value.whatsapp || !clientForm.value.email || !clientForm.value.address) {
-    alert('Mohon lengkapi Nama Lengkap, Nomor HP/WhatsApp, Email Aktif, dan Alamat Pengiriman.')
-    return
+  if (checkoutMode.value === 'loyalty') {
+    if (!isReturningUser.value) {
+      alert('Silakan Masuk atau Daftarkan Akun Pelanggan Setia terlebih dahulu, atau pilih opsi "Beli Makanan Saja".')
+      return
+    }
+    if (!clientForm.value.address) {
+      alert('Mohon isi Alamat Pengiriman Lengkap.')
+      return
+    }
+  } else {
+    // Guest checkout
+    if (!clientForm.value.name || !clientForm.value.whatsapp || !clientForm.value.email || !clientForm.value.address) {
+      alert('Mohon lengkapi Nama Lengkap, Nomor HP/WhatsApp, Email Aktif, dan Alamat Pengiriman.')
+      return
+    }
   }
 
   if (cart.value.length === 0) {
@@ -867,6 +1025,7 @@ const submitOrder = async () => {
     const payload = {
       store_id: store.value.id,
       campaign_id: campaign.value.id,
+      order_type: checkoutMode.value, // 'loyalty' or 'guest'
       customer_name: clientForm.value.name,
       customer_whatsapp: clientForm.value.whatsapp,
       customer_email: clientForm.value.email,
@@ -882,26 +1041,23 @@ const submitOrder = async () => {
 
     const res = await axios.post('/api/v1/orders', payload)
     if (res.data.success) {
-      // 1. Cache user in browser
-      const clientData = res.data.data.client || {
-        name: clientForm.value.name,
-        whatsapp: clientForm.value.whatsapp,
-        email: clientForm.value.email,
-        address: clientForm.value.address
-      }
-      localStorage.setItem('naumil_customer_session', JSON.stringify(clientData))
-      localStorage.setItem('naumil_user', JSON.stringify(clientData))
-      clientConcat.value = `${clientData.name} (${clientData.email})`
-      isReturningUser.value = true
+      // Clear cart cache
+      localStorage.removeItem('naumil_campaign_cart_' + props.token)
+      cart.value = []
 
-      // 2. Confetti celebration
+      // Cache user in browser if loyalty
+      if (checkoutMode.value === 'loyalty' && res.data.data.client) {
+        applyLoyaltyUser(res.data.data.client)
+      }
+
+      // Confetti celebration
       confetti({
         particleCount: 120,
         spread: 80,
         origin: { y: 0.6 }
       })
 
-      // 3. Navigate or open Mayar small popup
+      // Navigate or open Mayar small popup
       const orderNumber = res.data.data.order_number
       const paymentUrl = res.data.data.payment_url
 
@@ -964,8 +1120,15 @@ const cleanPhone = (phone) => {
 
 onMounted(() => {
   fetchCampaign()
-  fetchClients()
   checkBrowserCache()
+
+  // Restore draft cart if any
+  const savedCart = localStorage.getItem('naumil_campaign_cart_' + props.token)
+  if (savedCart && cart.value.length === 0) {
+    try {
+      cart.value = JSON.parse(savedCart)
+    } catch (e) {}
+  }
 })
 
 onUnmounted(() => {

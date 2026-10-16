@@ -28,6 +28,7 @@
                     <th>Nama Menu & Deskripsi</th>
                     <th>Kategori</th>
                     <th>Harga Standard</th>
+                    <th>Reward Poin</th>
                     <th>Stok (Sisa / Awal)</th>
                     <th>Topping & Upsize</th>
                     <th>Status</th>
@@ -52,6 +53,15 @@
                         </td>
                         <td class="font-mono fw-bold text-success">
                             Rp {{ number_format($menu->price, 0, ',', '.') }}
+                        </td>
+                        <td>
+                            @if(($menu->reward_points ?? 0) > 0)
+                                <span class="badge bg-warning text-dark font-mono">
+                                    <i class="fa-solid fa-coins me-1"></i> +{{ $menu->reward_points }} Pts
+                                </span>
+                            @else
+                                <span class="text-muted small">-</span>
+                            @endif
                         </td>
                         <td>
                             <span class="badge {{ $menu->current_stock < 10 ? 'bg-danger' : 'bg-success' }}">

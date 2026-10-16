@@ -64,6 +64,18 @@ class Store extends Model
         return $this->hasMany(Order::class);
     }
 
+    public function loyaltyCustomers()
+    {
+        return $this->belongsToMany(Client::class, 'client_stores')
+                    ->withPivot('points')
+                    ->withTimestamps();
+    }
+
+    public function loyaltyPromos()
+    {
+        return $this->hasMany(LoyaltyPromo::class);
+    }
+
     public function getFrontendUrlAttribute(): string
     {
         return url('/' . ($this->slug ?: Str::slug($this->name)));

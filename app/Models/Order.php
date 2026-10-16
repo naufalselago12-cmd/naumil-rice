@@ -48,6 +48,11 @@ class Order extends Model
         'payment_proof',
         'subtotal',
         'discount_amount',
+        'is_loyalty_order',
+        'loyalty_promo_id',
+        'loyalty_benefit_choice',
+        'points_earned',
+        'points_used',
         'total_amount',
         'notes',
         'rejection_reason',
@@ -57,6 +62,9 @@ class Order extends Model
         'subtotal' => 'float',
         'discount_amount' => 'float',
         'total_amount' => 'float',
+        'is_loyalty_order' => 'boolean',
+        'points_earned' => 'integer',
+        'points_used' => 'integer',
         'payment_payload' => 'array',
     ];
 
@@ -84,6 +92,11 @@ class Order extends Model
     public function client()
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function loyaltyPromo()
+    {
+        return $this->belongsTo(LoyaltyPromo::class, 'loyalty_promo_id');
     }
 
     public function items()

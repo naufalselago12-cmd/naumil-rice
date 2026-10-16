@@ -50,6 +50,7 @@ class StoreBackendMenuController extends Controller
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'initial_stock' => 'required|integer|min:0',
+            'reward_points' => 'nullable|integer|min:0',
             'image_url' => 'nullable|string',
             'image_file' => 'nullable|image|max:3072',
             'is_active' => 'nullable',
@@ -74,6 +75,7 @@ class StoreBackendMenuController extends Controller
                 'price' => $validated['price'],
                 'initial_stock' => $validated['initial_stock'],
                 'current_stock' => $validated['initial_stock'],
+                'reward_points' => (int) ($validated['reward_points'] ?? 0),
                 'image' => $imagePath,
                 'is_active' => $request->boolean('is_active'),
             ]);
@@ -128,6 +130,7 @@ class StoreBackendMenuController extends Controller
             'price' => 'required|numeric|min:0',
             'initial_stock' => 'required|integer|min:0',
             'current_stock' => 'required|integer|min:0',
+            'reward_points' => 'nullable|integer|min:0',
             'image_url' => 'nullable|string',
             'image_file' => 'nullable|image|max:3072',
             'is_active' => 'nullable',
@@ -154,6 +157,7 @@ class StoreBackendMenuController extends Controller
                 'price' => $validated['price'],
                 'initial_stock' => $validated['initial_stock'],
                 'current_stock' => $validated['current_stock'],
+                'reward_points' => (int) ($validated['reward_points'] ?? 0),
                 'image' => $imagePath,
                 'is_active' => $request->boolean('is_active'),
             ]);
@@ -189,6 +193,6 @@ class StoreBackendMenuController extends Controller
         $menu->delete();
 
         return redirect()->route('store.backend.menus.index', ['store_slug' => $store->slug])
-            ->with('success', 'Menu berhasil dihapus.');
+            ->with('success', 'Menu berhasil dihapus dari sistem.');
     }
 }

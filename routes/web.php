@@ -19,6 +19,8 @@ use App\Http\Controllers\StoreBackend\StoreBackendOrderController;
 use App\Http\Controllers\StoreBackend\StoreBackendKdsController;
 use App\Http\Controllers\StoreBackend\StoreBackendReportController;
 use App\Http\Controllers\StoreBackend\StoreBackendSettingsController;
+use App\Http\Controllers\StoreBackend\StoreBackendLoyaltyCustomerController;
+use App\Http\Controllers\StoreBackend\StoreBackendLoyaltyPromoController;
 
 // Public Front Controller
 use App\Http\Controllers\StoreFrontController;
@@ -95,6 +97,14 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
 
         // Reports
         Route::get('/reports', [StoreBackendReportController::class, 'index'])->name('reports');
+
+        // Loyalty Customers Management
+        Route::get('/loyalty-customers', [StoreBackendLoyaltyCustomerController::class, 'index'])->name('loyaltyCustomers.index');
+        Route::get('/loyalty-customers/{customer}', [StoreBackendLoyaltyCustomerController::class, 'show'])->name('loyaltyCustomers.show');
+        Route::post('/loyalty-customers/{customer}/adjust-points', [StoreBackendLoyaltyCustomerController::class, 'adjustPoints'])->name('loyaltyCustomers.adjustPoints');
+
+        // Loyalty Promos Management
+        Route::resource('loyalty-promos', StoreBackendLoyaltyPromoController::class)->names('loyaltyPromos');
 
         // Store Profile, QRIS & Payment Gateway Settings
         Route::get('/settings', [StoreBackendSettingsController::class, 'index'])->name('settings');
@@ -182,6 +192,15 @@ Route::get('/trace/{orderNumber?}', function ($orderNumber = null) {
 // Customer Account Activation Link
 Route::get('/customer/activate/{token}', [\App\Http\Controllers\CustomerAuthController::class, 'activate'])->name('customer.activate');
 
+// Customer Loyalty Profile Page (Frontend)
+Route::get('/customer/profile', [\App\Http\Controllers\CustomerAuthController::class, 'profileView'])->name('customer.profile');
+Route::get('/loyalty', function () {
+    return redirect()->route('customer.profile');
+});
+Route::get('/loyalty/profile', function () {
+    return redirect()->route('customer.profile');
+});
+
 // Payment Gateway Callback / Popup Auto-Close
 Route::get('/payment/mayar/return', [\App\Http\Controllers\PaymentReturnController::class, 'handle'])->name('payment.mayar.return');
 
@@ -189,4 +208,4 @@ Route::get('/payment/mayar/return', [\App\Http\Controllers\PaymentReturnControll
 // Menampilkan seluruh data yang terikat ke toko tersebut
 Route::get('/{store_slug}', [StoreFrontController::class, 'show'])
     ->name('store.front')
-    ->where('store_slug', '^(?!superadmin|backend|admin|api|campaign|po|trace|stores|storage|build|favicon|customer|payment).*$');
+    ->where('store_slug', '^(?!superadmin|backend|admin|api|campaign|po|trace|stores|storage|build|favicon|customer|payment|loyalty).*$');

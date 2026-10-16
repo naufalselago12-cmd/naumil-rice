@@ -100,6 +100,19 @@ class StoreFrontController extends Controller
             ->select('id', 'name', 'code', 'slug', 'address')
             ->get();
 
+        // 5. All active stores for loyalty customer multi-selection
+        $allStores = Store::where('status', 'active')
+            ->select('id', 'name', 'code', 'slug', 'address')
+            ->get();
+
+        // 6. Active loyalty promos for this store
+        $loyaltyPromos = \App\Models\LoyaltyPromo::where('store_id', $store->id)
+            ->where('is_active', true)
+            ->with('menus')
+            ->get()
+            ->filter(fn($p) => $p->isCurrentlyActive())
+            ->values();
+
         return Inertia::render('StoreFront', [
             'store' => [
                 'id' => $store->id,
@@ -121,6 +134,8 @@ class StoreFrontController extends Controller
             'menus' => $menus,
             'campaigns' => $campaigns,
             'otherStores' => $otherStores,
+            'allStores' => $allStores,
+            'loyaltyPromos' => $loyaltyPromos,
         ]);
     }
 }

@@ -30,9 +30,27 @@ Route::prefix('v1')->group(function () {
     // 5. Payment Gateway Webhook (Mayar.id)
     Route::post('/payment/mayar/webhook/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);
 
-    // 6. Customer Authentication & Quick Login
+    // 6. Customer Authentication & Loyalty Program
+    Route::post('/customer/register-loyalty', [\App\Http\Controllers\CustomerAuthController::class, 'registerLoyalty']);
+    Route::post('/customer/login', [\App\Http\Controllers\CustomerAuthController::class, 'loginLoyalty']);
+    Route::post('/customer/login-loyalty', [\App\Http\Controllers\CustomerAuthController::class, 'loginLoyalty']);
+    Route::post('/customer/resend-activation', [\App\Http\Controllers\CustomerAuthController::class, 'resendActivation']);
+    Route::post('/customer/update-stores', [\App\Http\Controllers\CustomerAuthController::class, 'updateStoreAffiliations']);
+    Route::post('/customer/update-profile', [\App\Http\Controllers\CustomerAuthController::class, 'updateProfile']);
+    Route::get('/customer/profile-data', [\App\Http\Controllers\CustomerAuthController::class, 'getProfileData']);
     Route::post('/customer/lookup-by-email', [\App\Http\Controllers\CustomerAuthController::class, 'lookupByEmail']);
     Route::get('/customer/current-session', [\App\Http\Controllers\CustomerAuthController::class, 'currentSession']);
     Route::post('/customer/logout', [\App\Http\Controllers\CustomerAuthController::class, 'logout']);
+
+    // 7. Store Loyalty Promos (Public / Storefront)
+    Route::get('/stores/{store_id}/loyalty-promos', function ($store_id) {
+        $promos = \App\Models\LoyaltyPromo::where('store_id', $store_id)
+            ->where('is_active', true)
+            ->with('menus')
+            ->get()
+            ->filter(fn($p) => $p->isCurrentlyActive())
+            ->values();
+        return response()->json(['success' => true, 'data' => $promos]);
+    });
 });
 

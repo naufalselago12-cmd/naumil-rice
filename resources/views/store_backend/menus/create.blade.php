@@ -53,18 +53,28 @@
                                   placeholder="Deskripsi cita rasa, aroma bumbu, porsi nasi daun jeruk, dll...">{{ old('description') }}</textarea>
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-bold">Stok Awal Porsi <span class="text-danger">*</span></label>
                         <input type="number" name="initial_stock" class="form-control" value="100" min="0" required>
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">
+                            <i class="fa-solid fa-coins text-warning me-1"></i> Reward Poin (Opsional)
+                        </label>
+                        <div class="input-group">
+                            <input type="number" name="reward_points" class="form-control" placeholder="0" value="{{ old('reward_points', 0) }}" min="0">
+                            <span class="input-group-text font-mono small">Pts</span>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
                         <label class="form-label fw-bold">Unggah Foto Makanan</label>
                         <input type="file" name="image_file" class="form-control" accept="image/*">
                     </div>
 
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">Atau URL Gambar Makanan</label>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Atau URL Gambar</label>
                         <input type="url" name="image_url" class="form-control" 
                                placeholder="https://images.unsplash.com/..." 
                                value="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80">

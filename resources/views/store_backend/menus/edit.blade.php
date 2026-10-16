@@ -64,12 +64,22 @@
                         <input type="number" name="initial_stock" class="form-control" value="{{ old('initial_stock', $menu->initial_stock) }}" min="0" required>
                     </div>
 
-                    <div class="col-md-3">
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">
+                            <i class="fa-solid fa-coins text-warning me-1"></i> Reward Poin
+                        </label>
+                        <div class="input-group">
+                            <input type="number" name="reward_points" class="form-control" placeholder="0" value="{{ old('reward_points', $menu->reward_points ?? 0) }}" min="0">
+                            <span class="input-group-text font-mono small">Pts</span>
+                        </div>
+                    </div>
+
+                    <div class="col-md-2">
                         <label class="form-label fw-bold">Ganti Foto (Upload)</label>
                         <input type="file" name="image_file" class="form-control" accept="image/*">
                     </div>
 
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label fw-bold">Atau URL Gambar</label>
                         <input type="url" name="image_url" class="form-control" value="{{ old('image_url', $menu->image) }}">
                     </div>

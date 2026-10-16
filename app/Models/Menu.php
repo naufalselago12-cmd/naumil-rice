@@ -17,6 +17,7 @@ class Menu extends Model
         'price',
         'initial_stock',
         'current_stock',
+        'reward_points',
         'image',
         'is_active',
     ];
@@ -25,6 +26,7 @@ class Menu extends Model
         'price' => 'float',
         'initial_stock' => 'integer',
         'current_stock' => 'integer',
+        'reward_points' => 'integer',
         'is_active' => 'boolean',
     ];
 
@@ -62,6 +64,13 @@ class Menu extends Model
     {
         return $this->belongsToMany(Campaign::class, 'campaign_menus')
                     ->withPivot('custom_price', 'discount_price', 'max_quota')
+                    ->withTimestamps();
+    }
+
+    public function loyaltyPromos()
+    {
+        return $this->belongsToMany(LoyaltyPromo::class, 'loyalty_promo_menus')
+                    ->withPivot('discount_percent', 'discount_amount')
                     ->withTimestamps();
     }
 }

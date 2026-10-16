@@ -9,6 +9,7 @@ use App\Models\OrderStatusLog;
 use App\Models\Client;
 use App\Models\Menu;
 use App\Models\Campaign;
+use App\Models\LoyaltyPromo;
 use App\Events\NewOrderCreated;
 use App\Events\OrderStatusUpdated;
 use Illuminate\Http\Request;
@@ -37,6 +38,9 @@ class OrderApiController extends Controller
         $validated = $request->validate([
             'store_id' => 'required|exists:stores,id',
             'campaign_id' => 'nullable|exists:campaigns,id',
+            'order_type' => 'nullable|in:guest,loyalty',
+            'loyalty_promo_id' => 'nullable|exists:loyalty_promos,id',
+            'loyalty_benefit_choice' => 'nullable|in:discount,points',
             'customer_name' => 'required|string|max:255',
             'customer_whatsapp' => 'required|string|max:50',
             'customer_email' => 'required|email|max:255',
@@ -51,43 +55,63 @@ class OrderApiController extends Controller
         ]);
 
         return DB::transaction(function () use ($validated, $request) {
-            // 1. Check or register Client (Nama Lengkap, No HP, Email, Alamat Lengkap)
-            $client = Client::where('whatsapp', $validated['customer_whatsapp'])
-                ->orWhere('email', $validated['customer_email'])
-                ->first();
+            $orderType = $validated['order_type'] ?? 'guest';
+            $isLoyalty = false;
+            $client = null;
 
-            if ($client) {
-                $client->update([
-                    'name' => $validated['customer_name'],
-                    'whatsapp' => $validated['customer_whatsapp'],
-                    'email' => $validated['customer_email'],
-                    'address' => $validated['customer_address'],
-                    'last_order_at' => now(),
-                ]);
-            } else {
-                $client = Client::create([
-                    'name' => $validated['customer_name'],
-                    'whatsapp' => $validated['customer_whatsapp'],
-                    'email' => $validated['customer_email'],
-                    'address' => $validated['customer_address'],
-                    'is_active' => false,
-                    'last_order_at' => now(),
-                ]);
+            // 1. Check if customer is ordering as a Pelanggan Setia
+            if ($orderType === 'loyalty') {
+                $sessionClientId = session('customer_client_id');
+                if ($sessionClientId) {
+                    $client = Client::find($sessionClientId);
+                }
+                if (!$client) {
+                    $client = Client::where('email', strtolower(trim($validated['customer_email'])))->first();
+                }
+
+                if ($client && $client->is_loyalty_member && $client->is_active) {
+                    $isLoyalty = true;
+                    $client->update([
+                        'name' => $validated['customer_name'],
+                        'whatsapp' => $validated['customer_whatsapp'],
+                        'address' => $validated['customer_address'],
+                        'last_order_at' => now(),
+                    ]);
+                    // Auto affiliate to this store
+                    $client->stores()->syncWithoutDetaching([$validated['store_id']]);
+                }
             }
 
-            // Send activation link email if customer account is not active yet
-            if (!$client->is_active) {
-                app(\App\Services\CustomerNotificationService::class)->sendActivationEmail($client);
+            // 2. If guest order (Beli makanan saja)
+            if (!$isLoyalty) {
+                // Find or create guest client without requiring email verification
+                $client = Client::where('whatsapp', $validated['customer_whatsapp'])
+                    ->orWhere('email', $validated['customer_email'])
+                    ->first();
+
+                if ($client) {
+                    $client->update([
+                        'name' => $validated['customer_name'],
+                        'whatsapp' => $validated['customer_whatsapp'],
+                        'email' => $validated['customer_email'],
+                        'address' => $validated['customer_address'],
+                        'last_order_at' => now(),
+                    ]);
+                } else {
+                    $client = Client::create([
+                        'name' => $validated['customer_name'],
+                        'whatsapp' => $validated['customer_whatsapp'],
+                        'email' => $validated['customer_email'],
+                        'address' => $validated['customer_address'],
+                        'is_active' => false,
+                        'is_loyalty_member' => false,
+                        'last_order_at' => now(),
+                    ]);
+                }
+                // NOTE: Guest orders DO NOT require email verification, so NO activation email is sent!
             }
 
-            // Automatically log in customer into session
-            session([
-                'customer_client_id' => $client->id,
-                'customer_email' => $client->email,
-                'customer_name' => $client->name,
-            ]);
-
-            // 2. Check campaign if provided
+            // 3. Check campaign if provided
             $campaign = null;
             if (!empty($validated['campaign_id'])) {
                 $campaign = Campaign::with('menus')->find($validated['campaign_id']);
@@ -99,8 +123,9 @@ class OrderApiController extends Controller
                 }
             }
 
-            // 3. Calculate items and totals
+            // 4. Calculate items, totals, and loyalty reward points
             $subtotal = 0;
+            $totalBasePoints = 0;
             $itemsData = [];
 
             foreach ($validated['items'] as $itemInput) {
@@ -139,6 +164,11 @@ class OrderApiController extends Controller
                 $lineSubtotal = $linePrice * $itemInput['quantity'];
                 $subtotal += $lineSubtotal;
 
+                // Points earned per menu (only for loyalty members)
+                if ($isLoyalty && ($menu->reward_points ?? 0) > 0) {
+                    $totalBasePoints += ((int)$menu->reward_points * $itemInput['quantity']);
+                }
+
                 $itemsData[] = [
                     'menu_id' => $menu->id,
                     'menu_name' => $menu->name,
@@ -155,24 +185,78 @@ class OrderApiController extends Controller
                 }
             }
 
-            // 4. Calculate campaign level discount
+            // 5. Calculate discounts and loyalty point benefits
             $discountAmount = 0;
             if ($campaign) {
                 if ($campaign->discount_type === 'min_purchase' && $subtotal >= $campaign->min_purchase_amount) {
-                    $discountAmount = min($subtotal, $campaign->discount_value);
+                    $discountAmount += min($subtotal, $campaign->discount_value);
                 } elseif ($campaign->discount_type === 'percentage') {
-                    $discountAmount = ($subtotal * $campaign->discount_value) / 100;
+                    $discountAmount += ($subtotal * $campaign->discount_value) / 100;
                 }
             }
 
+            $pointsEarned = 0;
+            $appliedPromoId = null;
+            $benefitChoice = null;
+
+            if ($isLoyalty) {
+                $pointsEarned = $totalBasePoints;
+
+                if (!empty($validated['loyalty_promo_id'])) {
+                    $loyaltyPromo = LoyaltyPromo::with('menus')
+                        ->where('id', $validated['loyalty_promo_id'])
+                        ->where('store_id', $validated['store_id'])
+                        ->first();
+
+                    if ($loyaltyPromo && $loyaltyPromo->isCurrentlyActive()) {
+                        $appliedPromoId = $loyaltyPromo->id;
+                        $benefitChoice = $validated['loyalty_benefit_choice'] ?? 'discount';
+
+                        // If promo allows choice and customer picked 'points' (Poin Lebih Banyak)
+                        if ($loyaltyPromo->allow_benefit_choice && $benefitChoice === 'points') {
+                            $multiplier = max(1.0, (float)($loyaltyPromo->extra_points_multiplier ?: 2.0));
+                            $bonus = (int)($loyaltyPromo->extra_points_bonus ?: 0);
+                            $pointsEarned = (int)round(($totalBasePoints * $multiplier) + $bonus);
+                            // No additional monetary discount applied when extra points is chosen
+                        } else {
+                            // Customer chose discount
+                            $loyaltyDiscount = 0;
+                            if ($loyaltyPromo->promo_type === 'all_menu_percent') {
+                                $pct = (float)$loyaltyPromo->discount_percent;
+                                $loyaltyDiscount = ($subtotal * $pct) / 100;
+                            } elseif ($loyaltyPromo->promo_type === 'per_menu') {
+                                foreach ($itemsData as $itemLine) {
+                                    $pMenu = $loyaltyPromo->menus->where('id', $itemLine['menu_id'])->first();
+                                    if ($pMenu && $pMenu->pivot) {
+                                        if ($pMenu->pivot->discount_percent > 0) {
+                                            $loyaltyDiscount += ($itemLine['subtotal'] * $pMenu->pivot->discount_percent) / 100;
+                                        } elseif ($pMenu->pivot->discount_amount > 0) {
+                                            $loyaltyDiscount += ($pMenu->pivot->discount_amount * $itemLine['quantity']);
+                                        }
+                                    }
+                                }
+                            } elseif ($loyaltyPromo->promo_type === 'min_purchase_discount') {
+                                if ($subtotal >= $loyaltyPromo->min_purchase_amount) {
+                                    $loyaltyDiscount = (float)$loyaltyPromo->discount_amount;
+                                }
+                            }
+
+                            $discountAmount += $loyaltyDiscount;
+                            $benefitChoice = 'discount';
+                        }
+                    }
+                }
+            }
+
+            $discountAmount = min($subtotal, $discountAmount);
             $totalAmount = max(0, $subtotal - $discountAmount);
 
-            // 5. Generate unique order number
+            // 6. Generate unique order number
             $datePrefix = Carbon::now()->format('ymd');
             $randomSuffix = strtoupper(Str::random(4));
             $orderNumber = "NR-PO-{$datePrefix}-{$randomSuffix}";
 
-            // 6. Create Order
+            // 7. Create Order
             $order = Order::create([
                 'order_number' => $orderNumber,
                 'store_id' => $validated['store_id'],
@@ -183,26 +267,36 @@ class OrderApiController extends Controller
                 'payment_status' => 'unpaid',
                 'subtotal' => $subtotal,
                 'discount_amount' => $discountAmount,
+                'is_loyalty_order' => $isLoyalty,
+                'loyalty_promo_id' => $appliedPromoId,
+                'loyalty_benefit_choice' => $benefitChoice,
+                'points_earned' => $pointsEarned,
+                'points_used' => 0,
                 'total_amount' => $totalAmount,
                 'notes' => $validated['notes'] ?? null,
             ]);
 
-            // 7. Create Order Items
+            // 8. Create Order Items
             foreach ($itemsData as $itemData) {
                 $order->items()->create($itemData);
             }
 
-            // 8. Create Status Log
+            // 9. Credit loyalty points to customer if earned
+            if ($isLoyalty && $pointsEarned > 0) {
+                $client->addPoints($pointsEarned, "Reward poin dari pesanan #{$orderNumber}", $validated['store_id'], $order->id);
+            }
+
+            // 10. Create Status Log
             OrderStatusLog::create([
                 'order_id' => $order->id,
                 'status' => Order::STATUS_CONFIRMED,
-                'note' => 'Pre-Order berhasil disubmit oleh ' . $client->name,
+                'note' => 'Pre-Order berhasil disubmit oleh ' . $client->name . ($isLoyalty ? ' (Pelanggan Setia - Reward: +' . $pointsEarned . ' Pts)' : ' (Tamu)'),
             ]);
 
             // Load full relationships
-            $order->load(['store', 'client', 'items.menu', 'statusLogs', 'campaign']);
+            $order->load(['store', 'client', 'items.menu', 'statusLogs', 'campaign', 'loyaltyPromo']);
 
-            // 9. If Payment Gateway (Mayar.id), create payment invoice link
+            // 11. If Payment Gateway (Mayar.id), create payment invoice link
             $paymentUrl = null;
             $paymentMessage = null;
             if (in_array($validated['payment_method'], ['Payment Gateway', 'Payment Gateway (Mayar.id)'])) {
@@ -216,7 +310,7 @@ class OrderApiController extends Controller
                 }
             }
 
-            // 10. Broadcast WebSocket event
+            // 12. Broadcast WebSocket event
             try {
                 broadcast(new NewOrderCreated($order));
             } catch (\Exception $e) {

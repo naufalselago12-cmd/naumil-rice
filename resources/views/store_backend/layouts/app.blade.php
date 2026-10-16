@@ -274,6 +274,24 @@
                 </a>
             </li>
 
+            <li class="sidebar-header">PROGRAM PELANGGAN SETIA</li>
+
+            <li class="nav-item">
+                <a href="{{ route('store.backend.loyaltyCustomers.index', $currentStore->slug) }}" 
+                   class="nav-link-side {{ request()->routeIs('store.backend.loyaltyCustomers*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-crown text-warning"></i>
+                    <span>Pelanggan Setia & Poin</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ route('store.backend.loyaltyPromos.index', $currentStore->slug) }}" 
+                   class="nav-link-side {{ request()->routeIs('store.backend.loyaltyPromos*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-tags text-info"></i>
+                    <span>Promo Pelanggan Setia</span>
+                </a>
+            </li>
+
             <li class="sidebar-header">OPERASIONAL & TRANSAKSI</li>
 
             <li class="nav-item">

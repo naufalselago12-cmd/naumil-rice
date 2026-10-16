@@ -156,22 +156,29 @@
         </div>
       </section>
 
-      <!-- Super Admin Quick Portal Banner -->
-      <section class="superadmin-banner-section py-4 my-5 bg-dark text-white">
-        <div class="container d-flex flex-wrap justify-content-between align-items-center gap-3">
-          <div class="d-flex align-items-center gap-3">
-            <div class="p-3 rounded-circle bg-danger text-white">
-              <i class="fa-solid fa-crown fs-4"></i>
+      <!-- Loyalty Member Portal Banner (Replaces Super Admin) -->
+      <section class="loyalty-banner-section my-5">
+        <div class="container">
+          <div class="p-4 rounded-4 shadow-sm" style="background: linear-gradient(135deg, #881337 0%, #be123c 60%, #9f1239 100%); color: white;">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+              <div class="d-flex align-items-center gap-3">
+                <div class="p-3 rounded-circle bg-warning text-dark shadow-sm">
+                  <i class="fa-solid fa-crown fs-3"></i>
+                </div>
+                <div>
+                  <div class="badge bg-warning text-dark fw-bold mb-1 font-mono">REWARD & PROMO SPESIAL</div>
+                  <h4 class="fw-bold mb-1 text-white">Program Pelanggan Setia Naumil Rice</h4>
+                  <p class="text-white-50 small mb-0">
+                    Kumpulkan <strong>Credit Points</strong> di setiap pembelian menu, nikmati diskon khusus member, dan ikuti promo eksklusif cabang langganan Anda!
+                  </p>
+                </div>
+              </div>
+              <div>
+                <Link href="/customer/profile" class="btn btn-warning px-4 py-2 fw-bold shadow-sm">
+                  <i class="fa-solid fa-crown me-1"></i> Buka Portal Pelanggan Setia
+                </Link>
+              </div>
             </div>
-            <div>
-              <h5 class="fw-bold mb-0">Super Admin Master Portal</h5>
-              <p class="text-muted small mb-0">Kelola seluruh cabang, daftarkan cabang baru, dan atur penugasan user admin per toko.</p>
-            </div>
-          </div>
-          <div>
-            <a href="/superadmin" class="btn btn-danger px-4 py-2 fw-bold">
-              <i class="fa-solid fa-shield-halved me-1"></i> Masuk Super Admin (/superadmin)
-            </a>
           </div>
         </div>
       </section>
