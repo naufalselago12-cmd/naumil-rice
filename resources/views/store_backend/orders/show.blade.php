@@ -182,6 +182,16 @@
                     </span>
                 </div>
 
+                @if($order->payment_proof)
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">Bukti Transfer QRIS:</small>
+                    <a href="{{ $order->payment_proof_url }}" target="_blank" class="d-inline-block">
+                        <img src="{{ $order->payment_proof_url }}" alt="Bukti Transfer QRIS" class="img-fluid rounded border shadow-sm" style="max-height: 180px;">
+                    </a>
+                    <small class="text-muted d-block mt-1"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Klik untuk melihat ukuran penuh</small>
+                </div>
+                @endif
+
                 <div class="mb-3">
                     <small class="text-muted d-block">Total Tagihan:</small>
                     <div class="fs-4 font-mono fw-bold text-success">

@@ -309,61 +309,67 @@
           </div>
 
           <div class="p-4">
-            <!-- 1. Returning User Banner (from Browser Cache) -->
+            <!-- 1. Returning User Banner (Concat Info) -->
             <div v-if="isReturningUser" class="alert-returning mb-4">
               <div class="d-flex align-items-center justify-content-between">
                 <div>
                   <span class="fw-bold d-block text-success">
-                    <i class="fa-solid fa-circle-check me-1"></i> Selamat datang kembali, {{ clientForm.name }}!
+                    <i class="fa-solid fa-circle-check me-1"></i> Masuk sebagai: {{ clientConcat || (clientForm.name + ' (' + clientForm.email + ')') }}
                   </span>
-                  <small class="text-muted">Data WhatsApp & Email terisi otomatis dari cache browser Anda.</small>
+                  <small class="text-muted">Data otomatis terisi dari akun pelanggan terverifikasi.</small>
                 </div>
-                <button class="btn-text-sm" @click="clearReturningUser">Ganti Data</button>
+                <button type="button" class="btn-text-sm" @click="clearReturningUser">Ganti Akun</button>
               </div>
             </div>
 
-            <!-- 2. Suggestion Dropdown if NOT cached -->
-            <div v-else-if="registeredClients.length > 0" class="suggestion-box mb-4">
-              <label class="form-label text-primary">
-                <i class="fa-solid fa-user-clock me-1"></i> Pernah memesan sebelumnya? Pilih profil Anda:
-              </label>
-              <select class="form-select" @change="onSelectSuggestedClient($event)">
-                <option value="">-- Atau isi data baru di bawah --</option>
-                <option v-for="cl in registeredClients" :key="cl.id" :value="cl.id">
-                  {{ cl.display_label }}
-                </option>
-              </select>
+            <!-- Quick Email Lookup Banner if not returning -->
+            <div v-else class="suggestion-box mb-4 p-3 bg-light rounded border">
+              <span class="d-block small text-primary fw-bold mb-1">
+                <i class="fa-solid fa-user-clock me-1"></i> Pernah memesan sebelumnya?
+              </span>
+              <p class="small text-muted mb-0">Cukup masukkan Email terdaftar Anda di formulir bawah untuk otomatis memuat data profil.</p>
             </div>
 
-            <!-- 3. Client Registration Form (Mandatory: Name, WA, Email) -->
+            <!-- 2. Client Registration Form (Mandatory: Name, WA, Email, Address) -->
             <div class="form-section mb-4">
               <h5 class="section-subtitle">
                 <i class="fa-solid fa-id-card text-danger me-2"></i> Identitas Pemesan (Wajib Diisi)
               </h5>
 
-              <div class="form-group">
+              <div class="form-group mb-3">
+                <label class="form-label">Email Aktif <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="email" v-model="clientForm.email" @blur="onEmailLookup" @keyup.enter="onEmailLookup" class="form-input" 
+                         placeholder="dimas@gmail.com" required />
+                  <button class="btn-sm btn-outline-primary px-3" type="button" @click="onEmailLookup" :disabled="lookingUpEmail || !clientForm.email">
+                    <i v-if="lookingUpEmail" class="fa-solid fa-spinner fa-spin"></i>
+                    <span v-else><i class="fa-solid fa-magnifying-glass me-1"></i> Cek</span>
+                  </button>
+                </div>
+                <small v-if="emailLookupStatus" :class="emailLookupFound ? 'text-success fw-bold' : 'text-muted'" class="d-block mt-1" style="font-size: 0.78rem;">
+                  <i :class="emailLookupFound ? 'fa-solid fa-check-circle me-1' : 'fa-solid fa-circle-info me-1'"></i> {{ emailLookupStatus }}
+                </small>
+              </div>
+
+              <div class="form-group mb-3">
                 <label class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
                 <input type="text" v-model="clientForm.name" class="form-input" 
                        placeholder="Contoh: Dimas Wicaksono" required />
               </div>
 
-              <div class="form-row-2 mb-3">
-                <div class="form-group mb-0">
-                  <label class="form-label">No. WhatsApp <span class="text-danger">*</span></label>
-                  <input type="tel" v-model="clientForm.whatsapp" class="form-input" 
-                         placeholder="081234567890" required />
-                </div>
-                <div class="form-group mb-0">
-                  <label class="form-label">Email Aktif <span class="text-danger">*</span></label>
-                  <input type="email" v-model="clientForm.email" class="form-input" 
-                         placeholder="dimas@gmail.com" required />
-                </div>
+              <div class="form-group mb-3">
+                <label class="form-label">No. HP / WhatsApp <span class="text-danger">*</span></label>
+                <input type="tel" v-model="clientForm.whatsapp" class="form-input" 
+                       placeholder="081234567890" required />
               </div>
 
               <div class="form-group mb-0">
-                <label class="form-label">Alamat Pengiriman / Catatan Lokasi</label>
+                <label class="form-label">Alamat Pengiriman Lengkap <span class="text-danger">*</span></label>
                 <textarea v-model="clientForm.address" rows="2" class="form-textarea" 
-                          placeholder="Alamat kantor, nomor lantai, atau patokan penjemputan..."></textarea>
+                          placeholder="Jalan, nomor rumah, RT/RW, patokan penjemputan..." required></textarea>
+                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
+                  <i class="fa-solid fa-envelope-circle-check text-primary me-1"></i> Link aktivasi akun akan dikirim via email. Notifikasi otomatis dikirim saat menu <strong>Ready</strong>.
+                </small>
               </div>
             </div>
 
@@ -464,8 +470,25 @@
               </div>
             </div>
 
+            <!-- Mayar Payment Gateway Waiting Box -->
+            <div v-if="mayarPaymentWaiting" class="card p-3 mb-3 border-success bg-light text-start shadow-sm">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="fw-bold text-success"><i class="fa-solid fa-credit-card me-1"></i> Pembayaran Mayar.id Dibuka</span>
+                <span class="badge bg-warning text-dark font-mono"><i class="fa-solid fa-spinner fa-spin me-1"></i> Menunggu Bayar</span>
+              </div>
+              <p class="small text-muted mb-2">
+                Jendela pembayaran dibuka otomatis dalam window kecil. Anda juga dapat mengklik tombol di bawah jika jendela belum muncul:
+              </p>
+              <button type="button" class="btn btn-danger w-100 py-2 fw-bold text-white mb-2 border-0" @click="openMayarPopup(paymentGatewayUrl, currentOrderNumber)">
+                <i class="fa-solid fa-window-restore me-1"></i> Buka Window Bayar Mayar
+              </button>
+              <small class="text-muted d-block text-center" style="font-size: 0.78rem;">
+                <i class="fa-solid fa-circle-notch fa-spin text-success me-1"></i> Window kecil otomatis tertutup dan halaman langsung menuju tracing order setelah pembayaran berhasil.
+              </small>
+            </div>
+
             <!-- Submit Order Button -->
-            <button :disabled="submitting" class="btn-primary w-100 py-3 fs-6" @click="submitOrder">
+            <button :disabled="submitting || mayarPaymentWaiting" class="btn-primary w-100 py-3 fs-6" @click="submitOrder">
               <span v-if="submitting">
                 <i class="fa-solid fa-spinner fa-spin me-2"></i> Memproses Pesanan...
               </span>
@@ -519,6 +542,13 @@ const modalQty = ref(1)
 const showCheckoutModal = ref(false)
 const isReturningUser = ref(false)
 const registeredClients = ref([])
+const clientConcat = ref('')
+const lookingUpEmail = ref(false)
+const emailLookupStatus = ref('')
+const emailLookupFound = ref(false)
+const mayarPaymentWaiting = ref(false)
+const paymentGatewayUrl = ref('')
+const currentOrderNumber = ref('')
 
 const clientForm = ref({
   name: '',
@@ -567,30 +597,85 @@ const fetchClients = async () => {
   }
 }
 
-const checkBrowserCache = () => {
-  const cached = localStorage.getItem('naumil_user')
-  if (cached) {
-    try {
-      const user = JSON.parse(cached)
-      if (user.name && user.whatsapp && user.email) {
-        clientForm.value.name = user.name
-        clientForm.value.whatsapp = user.whatsapp
-        clientForm.value.email = user.email
-        clientForm.value.address = user.address || ''
-        isReturningUser.value = true
-      }
-    } catch (e) {
-      localStorage.removeItem('naumil_user')
+const onEmailLookup = async () => {
+  const email = (clientForm.value.email || '').trim().toLowerCase()
+  if (!email || !email.includes('@')) {
+    emailLookupStatus.value = ''
+    return
+  }
+  try {
+    lookingUpEmail.value = true
+    const res = await axios.post('/api/v1/customer/lookup-by-email', { email })
+    if (res.data?.found && res.data?.client) {
+      clientForm.value.name = res.data.client.name
+      clientForm.value.whatsapp = res.data.client.whatsapp
+      clientForm.value.address = res.data.client.address || ''
+      clientConcat.value = `${res.data.client.name} (${res.data.client.email})`
+      isReturningUser.value = true
+      emailLookupFound.value = true
+      emailLookupStatus.value = `Akun terverifikasi: ${res.data.client.name} (${res.data.client.email})`
+      localStorage.setItem('naumil_customer_session', JSON.stringify(res.data.client))
+      localStorage.setItem('naumil_user', JSON.stringify(res.data.client))
+    } else {
+      emailLookupFound.value = false
+      emailLookupStatus.value = 'Email baru / belum terdaftar. Silakan lengkapi data pemesan.'
     }
+  } catch (e) {
+    console.error('Email lookup error', e)
+  } finally {
+    lookingUpEmail.value = false
   }
 }
 
-const clearReturningUser = () => {
+const checkBrowserCache = async () => {
+  const cached = localStorage.getItem('naumil_customer_session') || localStorage.getItem('naumil_user')
+  if (cached) {
+    try {
+      const user = JSON.parse(cached)
+      if (user.email) {
+        clientForm.value.name = user.name || ''
+        clientForm.value.whatsapp = user.whatsapp || ''
+        clientForm.value.email = user.email || ''
+        clientForm.value.address = user.address || ''
+        clientConcat.value = `${user.name} (${user.email})`
+        isReturningUser.value = true
+        return
+      }
+    } catch (e) {
+      localStorage.removeItem('naumil_customer_session')
+      localStorage.removeItem('naumil_user')
+    }
+  }
+
+  try {
+    const res = await axios.get('/api/v1/customer/current-session')
+    if (res.data?.authenticated && res.data?.client) {
+      const user = res.data.client
+      clientForm.value.name = user.name || ''
+      clientForm.value.whatsapp = user.whatsapp || ''
+      clientForm.value.email = user.email || ''
+      clientForm.value.address = user.address || ''
+      clientConcat.value = `${user.name} (${user.email})`
+      isReturningUser.value = true
+    }
+  } catch (e) {}
+}
+
+const clearReturningUser = async () => {
   isReturningUser.value = false
+  clientConcat.value = ''
   clientForm.value.name = ''
   clientForm.value.whatsapp = ''
   clientForm.value.email = ''
   clientForm.value.address = ''
+  emailLookupStatus.value = ''
+  emailLookupFound.value = false
+  localStorage.removeItem('naumil_customer_session')
+  localStorage.removeItem('naumil_user')
+
+  try {
+    await axios.post('/api/v1/customer/logout')
+  } catch (e) {}
 }
 
 const onSelectSuggestedClient = (e) => {
@@ -601,6 +686,8 @@ const onSelectSuggestedClient = (e) => {
     clientForm.value.whatsapp = found.whatsapp
     clientForm.value.email = found.email
     clientForm.value.address = found.address || ''
+    clientConcat.value = `${found.name} (${found.email})`
+    isReturningUser.value = true
   }
 }
 
@@ -687,10 +774,86 @@ const finalPayableTotal = computed(() => {
   return Math.max(0, cartSubtotal.value - calculatedDiscount.value)
 })
 
+// Mayar.id Popup Window & Auto-close Polling
+let mayarPopup = null
+let paymentPollingInterval = null
+let messageListener = null
+
+const openMayarPopup = (paymentUrl, orderNumber) => {
+  if (!paymentUrl) return
+  paymentGatewayUrl.value = paymentUrl
+  currentOrderNumber.value = orderNumber
+  mayarPaymentWaiting.value = true
+
+  const w = 480
+  const h = 720
+  const left = window.screenX + (window.outerWidth - w) / 2
+  const top = window.screenY + (window.outerHeight - h) / 2
+
+  mayarPopup = window.open(
+    paymentUrl,
+    'MayarPaymentPopup',
+    `width=${w},height=${h},top=${top},left=${left},resizable=yes,scrollbars=yes,status=no`
+  )
+
+  startPaymentMonitoring(orderNumber)
+}
+
+const startPaymentMonitoring = (orderNumber) => {
+  stopPaymentMonitoring()
+
+  messageListener = (event) => {
+    if (event.data?.type === 'MAYAR_PAYMENT_SUCCESS' && (!event.data?.orderNumber || event.data?.orderNumber === orderNumber)) {
+      onPaymentSuccess(orderNumber)
+    }
+  }
+  window.addEventListener('message', messageListener)
+
+  paymentPollingInterval = setInterval(async () => {
+    try {
+      const res = await axios.get(`/api/v1/orders/trace/${orderNumber}`)
+      if (res.data?.success && res.data?.data?.order) {
+        const order = res.data.data.order
+        if (order.payment_status === 'paid' || res.data.data.current_stage_index > 0) {
+          onPaymentSuccess(orderNumber)
+        }
+      }
+    } catch (e) {
+      console.error('Payment polling error', e)
+    }
+  }, 2500)
+}
+
+const onPaymentSuccess = (orderNumber) => {
+  stopPaymentMonitoring()
+  if (mayarPopup && !mayarPopup.closed) {
+    try {
+      mayarPopup.close()
+    } catch (e) {}
+  }
+  mayarPaymentWaiting.value = false
+  router.visit('/trace/' + orderNumber)
+}
+
+const stopPaymentMonitoring = () => {
+  if (paymentPollingInterval) {
+    clearInterval(paymentPollingInterval)
+    paymentPollingInterval = null
+  }
+  if (messageListener) {
+    window.removeEventListener('message', messageListener)
+    messageListener = null
+  }
+}
+
+onUnmounted(() => {
+  stopPaymentMonitoring()
+})
+
 // Submit Order Logic
 const submitOrder = async () => {
-  if (!clientForm.value.name || !clientForm.value.whatsapp || !clientForm.value.email) {
-    alert('Mohon lengkapi Nama, No. WhatsApp, dan Email Anda.')
+  if (!clientForm.value.name || !clientForm.value.whatsapp || !clientForm.value.email || !clientForm.value.address) {
+    alert('Mohon lengkapi Nama Lengkap, Nomor HP/WhatsApp, Email Aktif, dan Alamat Pengiriman.')
     return
   }
 
@@ -720,12 +883,16 @@ const submitOrder = async () => {
     const res = await axios.post('/api/v1/orders', payload)
     if (res.data.success) {
       // 1. Cache user in browser
-      localStorage.setItem('naumil_user', JSON.stringify({
+      const clientData = res.data.data.client || {
         name: clientForm.value.name,
         whatsapp: clientForm.value.whatsapp,
         email: clientForm.value.email,
         address: clientForm.value.address
-      }))
+      }
+      localStorage.setItem('naumil_customer_session', JSON.stringify(clientData))
+      localStorage.setItem('naumil_user', JSON.stringify(clientData))
+      clientConcat.value = `${clientData.name} (${clientData.email})`
+      isReturningUser.value = true
 
       // 2. Confetti celebration
       confetti({
@@ -734,16 +901,17 @@ const submitOrder = async () => {
         origin: { y: 0.6 }
       })
 
-      // 3. Navigate to payment portal or live tracing page
+      // 3. Navigate or open Mayar small popup
       const orderNumber = res.data.data.order_number
       const paymentUrl = res.data.data.payment_url
-      setTimeout(() => {
-        if (paymentUrl) {
-          window.location.href = paymentUrl
-        } else {
+
+      if (paymentUrl) {
+        openMayarPopup(paymentUrl, orderNumber)
+      } else {
+        setTimeout(() => {
           router.visit('/trace/' + orderNumber)
-        }
-      }, 1200)
+        }, 1000)
+      }
     }
   } catch (err) {
     alert(err.response?.data?.message || 'Gagal mengirim pesanan. Silakan coba lagi.')

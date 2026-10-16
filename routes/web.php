@@ -179,8 +179,14 @@ Route::get('/trace/{orderNumber?}', function ($orderNumber = null) {
     ]);
 })->name('trace');
 
+// Customer Account Activation Link
+Route::get('/customer/activate/{token}', [\App\Http\Controllers\CustomerAuthController::class, 'activate'])->name('customer.activate');
+
+// Payment Gateway Callback / Popup Auto-Close
+Route::get('/payment/mayar/return', [\App\Http\Controllers\PaymentReturnController::class, 'handle'])->name('payment.mayar.return');
+
 // 5. Store Frontend Landing Page (base_url/{nama_toko})
 // Menampilkan seluruh data yang terikat ke toko tersebut
 Route::get('/{store_slug}', [StoreFrontController::class, 'show'])
     ->name('store.front')
-    ->where('store_slug', '^(?!superadmin|backend|admin|api|campaign|po|trace|stores|storage|build|favicon).*$');
+    ->where('store_slug', '^(?!superadmin|backend|admin|api|campaign|po|trace|stores|storage|build|favicon|customer|payment).*$');

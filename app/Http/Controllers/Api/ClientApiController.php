@@ -46,7 +46,7 @@ class ClientApiController extends Controller
             'name' => 'required|string|max:255',
             'whatsapp' => 'required|string|max:50',
             'email' => 'required|email|max:255',
-            'address' => 'nullable|string',
+            'address' => 'required|string|max:1000',
         ]);
 
         // Find existing by whatsapp or email, or create
@@ -59,7 +59,7 @@ class ClientApiController extends Controller
                 'name' => $validated['name'],
                 'whatsapp' => $validated['whatsapp'],
                 'email' => $validated['email'],
-                'address' => $validated['address'] ?? $client->address,
+                'address' => $validated['address'],
                 'last_order_at' => now(),
             ]);
         } else {
@@ -67,10 +67,23 @@ class ClientApiController extends Controller
                 'name' => $validated['name'],
                 'whatsapp' => $validated['whatsapp'],
                 'email' => $validated['email'],
-                'address' => $validated['address'] ?? null,
+                'address' => $validated['address'],
+                'is_active' => false,
                 'last_order_at' => now(),
             ]);
         }
+
+        // Send activation email if not yet active
+        if (!$client->is_active) {
+            app(\App\Services\CustomerNotificationService::class)->sendActivationEmail($client);
+        }
+
+        // Auto login session
+        session([
+            'customer_client_id' => $client->id,
+            'customer_email' => $client->email,
+            'customer_name' => $client->name,
+        ]);
 
         return response()->json([
             'success' => true,

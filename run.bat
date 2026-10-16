@@ -17,7 +17,7 @@ cd /d "%~dp0"
 
 set "MODE=concurrent"
 set "OPEN_BROWSER=1"
-set "WITH_REVERB=0"
+set "WITH_REVERB=1"
 set "WITH_QUEUE=0"
 
 :parse_args
@@ -103,7 +103,7 @@ echo  [*] Vite Dev Server  : http://127.0.0.1:5173
 echo  [*] Super Admin      : http://127.0.0.1:8000/superadmin
 echo  [*] Tebet Store      : http://127.0.0.1:8000/tebet
 echo  [*] Sudirman Store   : http://127.0.0.1:8000/sudirman
-if "%WITH_REVERB%"=="1" echo  [*] Reverb WebSocket : ws://127.0.0.1:8080
+if "%WITH_REVERB%"=="1" echo  [*] Reverb WebSocket : ws://127.0.0.1:8085
 if "%WITH_QUEUE%"=="1"  echo  [*] Queue Worker     : Aktif (database)
 echo ----------------------------------------------------------------------
 
@@ -122,7 +122,7 @@ if "%MODE%"=="separate" (
     start "Naumil Rice - Laravel Server" cmd /k "title Naumil Laravel Server && php artisan serve --port=8000"
     start "Naumil Rice - Vite Dev" cmd /k "title Naumil Vite Dev && npm run dev"
     if "%WITH_REVERB%"=="1" (
-        start "Naumil Rice - Reverb WebSocket" cmd /k "title Naumil Reverb WebSocket && php artisan reverb:start"
+        start "Naumil Rice - Reverb WebSocket" cmd /k "title Naumil Reverb WebSocket && php artisan reverb:start --port=8085"
     )
     if "%WITH_QUEUE%"=="1" (
         start "Naumil Rice - Queue Worker" cmd /k "title Naumil Queue Worker && php artisan queue:listen --tries=1"
@@ -138,12 +138,12 @@ if not exist "node_modules\concurrently\dist\bin\concurrently.js" (
 )
 
 if "%WITH_REVERB%"=="1" if "%WITH_QUEUE%"=="1" (
-    call %RUN_CONCURRENT% -k --prefix-colors "cyan.bold,magenta.bold,yellow.bold,green.bold" --names "SERVER,VITE,REVERB,QUEUE" "php artisan serve --port=8000" "npm run dev" "php artisan reverb:start" "php artisan queue:listen --tries=1"
+    call %RUN_CONCURRENT% -k --prefix-colors "cyan.bold,magenta.bold,yellow.bold,green.bold" --names "SERVER,VITE,REVERB,QUEUE" "php artisan serve --port=8000" "npm run dev" "php artisan reverb:start --port=8085" "php artisan queue:listen --tries=1"
     exit /b %errorlevel%
 )
 
 if "%WITH_REVERB%"=="1" (
-    call %RUN_CONCURRENT% -k --prefix-colors "cyan.bold,magenta.bold,yellow.bold" --names "SERVER,VITE,REVERB" "php artisan serve --port=8000" "npm run dev" "php artisan reverb:start"
+    call %RUN_CONCURRENT% -k --prefix-colors "cyan.bold,magenta.bold,yellow.bold" --names "SERVER,VITE,REVERB" "php artisan serve --port=8000" "npm run dev" "php artisan reverb:start --port=8085"
     exit /b %errorlevel%
 )
 

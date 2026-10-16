@@ -40,7 +40,7 @@ class OrderApiController extends Controller
             'customer_name' => 'required|string|max:255',
             'customer_whatsapp' => 'required|string|max:50',
             'customer_email' => 'required|email|max:255',
-            'customer_address' => 'nullable|string',
+            'customer_address' => 'required|string|max:1000',
             'payment_method' => 'required|in:QRIS Statik,QRIS Dinamis,Payment Gateway,Payment Gateway (Mayar.id),Bayar Terima Makanan',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
@@ -51,7 +51,7 @@ class OrderApiController extends Controller
         ]);
 
         return DB::transaction(function () use ($validated, $request) {
-            // 1. Check or register Client
+            // 1. Check or register Client (Nama Lengkap, No HP, Email, Alamat Lengkap)
             $client = Client::where('whatsapp', $validated['customer_whatsapp'])
                 ->orWhere('email', $validated['customer_email'])
                 ->first();
@@ -61,7 +61,7 @@ class OrderApiController extends Controller
                     'name' => $validated['customer_name'],
                     'whatsapp' => $validated['customer_whatsapp'],
                     'email' => $validated['customer_email'],
-                    'address' => $validated['customer_address'] ?? $client->address,
+                    'address' => $validated['customer_address'],
                     'last_order_at' => now(),
                 ]);
             } else {
@@ -69,10 +69,23 @@ class OrderApiController extends Controller
                     'name' => $validated['customer_name'],
                     'whatsapp' => $validated['customer_whatsapp'],
                     'email' => $validated['customer_email'],
-                    'address' => $validated['customer_address'] ?? null,
+                    'address' => $validated['customer_address'],
+                    'is_active' => false,
                     'last_order_at' => now(),
                 ]);
             }
+
+            // Send activation link email if customer account is not active yet
+            if (!$client->is_active) {
+                app(\App\Services\CustomerNotificationService::class)->sendActivationEmail($client);
+            }
+
+            // Automatically log in customer into session
+            session([
+                'customer_client_id' => $client->id,
+                'customer_email' => $client->email,
+                'customer_name' => $client->name,
+            ]);
 
             // 2. Check campaign if provided
             $campaign = null;
@@ -205,7 +218,7 @@ class OrderApiController extends Controller
 
             // 10. Broadcast WebSocket event
             try {
-                broadcast(new NewOrderCreated($order))->toOthers();
+                broadcast(new NewOrderCreated($order));
             } catch (\Exception $e) {
                 // If reverb daemon not running, gracefully ignore without interrupting response
             }
@@ -260,6 +273,62 @@ class OrderApiController extends Controller
             $currentStageIndex = $order->status === Order::STATUS_REJECT ? -1 : 0;
         }
 
+        // Calculate store active preparation queue
+        $activeStatuses = [
+            Order::STATUS_CONFIRMED,
+            Order::STATUS_PROCESSING,
+            Order::STATUS_PACKAGING,
+        ];
+
+        $storeActiveOrders = Order::where('store_id', $order->store_id)
+            ->whereIn('status', $activeStatuses)
+            ->orderBy('id', 'asc')
+            ->pluck('id')
+            ->toArray();
+
+        $queueInfo = [
+            'is_in_queue' => false,
+            'queue_number' => null,
+            'orders_ahead' => 0,
+            'total_active_queue' => count($storeActiveOrders),
+            'estimated_minutes' => 0,
+            'queue_badge' => '',
+            'queue_message' => '',
+        ];
+
+        $pos = array_search($order->id, $storeActiveOrders);
+        if ($pos !== false) {
+            $queueNumber = $pos + 1;
+            $ordersAhead = $pos;
+            $estimatedMinutes = ($ordersAhead * 10) + 15;
+
+            $queueInfo = [
+                'is_in_queue' => true,
+                'queue_number' => $queueNumber,
+                'orders_ahead' => $ordersAhead,
+                'total_active_queue' => count($storeActiveOrders),
+                'estimated_minutes' => $estimatedMinutes,
+                'queue_badge' => "Antrean #{$queueNumber}",
+                'queue_message' => $ordersAhead === 0
+                    ? 'Pesanan Anda berada di urutan pertama (sedang dimasak/dipersiapkan oleh dapur)!'
+                    : "Anda berada di nomor antrean #{$queueNumber}. Ada {$ordersAhead} pesanan lain sedang disiapkan di depan Anda.",
+            ];
+        } else {
+            if ($order->status === Order::STATUS_READY) {
+                $queueInfo['queue_badge'] = 'Pesanan Siap (Ready)';
+                $queueInfo['queue_message'] = 'Pesanan Anda telah selesai dimasak dan siap dinikmati!';
+            } elseif ($order->status === Order::STATUS_DELIVERY) {
+                $queueInfo['queue_badge'] = 'Dalam Pengantaran';
+                $queueInfo['queue_message'] = 'Pesanan Anda sedang dibawa kurir menuju lokasi!';
+            } elseif ($order->status === Order::STATUS_REJECT) {
+                $queueInfo['queue_badge'] = 'Dibatalkan / Tolak';
+                $queueInfo['queue_message'] = 'Pesanan ini tidak dapat dilanjutkan oleh dapur.';
+            } else {
+                $queueInfo['queue_badge'] = $order->status;
+                $queueInfo['queue_message'] = 'Pesanan tercatat di antrean sistem.';
+            }
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -268,6 +337,7 @@ class OrderApiController extends Controller
                 'current_stage_index' => $currentStageIndex,
                 'is_rejected' => $order->status === Order::STATUS_REJECT,
                 'rejection_reason' => $order->rejection_reason,
+                'queue_info' => $queueInfo,
             ]
         ]);
     }
@@ -287,20 +357,37 @@ class OrderApiController extends Controller
         }
 
         // Show active queue: Confirmed, On Proses, On Packaging, On Delivery, and recent Ready
-        $orders = $query->whereIn('status', [
-            Order::STATUS_CONFIRMED,
-            Order::STATUS_PROCESSING,
-            Order::STATUS_PACKAGING,
-            Order::STATUS_DELIVERY,
-            Order::STATUS_READY,
-        ])
-        ->where('created_at', '>=', now()->subHours(24))
-        ->get();
+        $orders = $query->where(function ($q) {
+            $q->whereIn('status', [
+                Order::STATUS_CONFIRMED,
+                Order::STATUS_PROCESSING,
+                Order::STATUS_PACKAGING,
+                Order::STATUS_DELIVERY,
+            ])->orWhere(function ($q2) {
+                $q2->where('status', Order::STATUS_READY)
+                   ->where('updated_at', '>=', now()->subHours(12));
+            });
+        })->get();
+
+        $activeQueueIndex = 1;
+        $orders = $orders->map(function ($ord) use (&$activeQueueIndex) {
+            $isInActive = in_array($ord->status, [
+                Order::STATUS_CONFIRMED,
+                Order::STATUS_PROCESSING,
+                Order::STATUS_PACKAGING,
+            ]);
+
+            $ord->queue_number = $isInActive ? $activeQueueIndex++ : null;
+            $ord->waiting_minutes = abs((int) round($ord->created_at ? $ord->created_at->diffInMinutes(now()) : 0));
+            $ord->total_portions = $ord->items->sum('quantity');
+            return $ord;
+        });
 
         return response()->json([
             'success' => true,
             'data' => $orders,
             'total_queue' => $orders->count(),
+            'active_cooking_queue' => $activeQueueIndex - 1,
         ]);
     }
 
@@ -333,7 +420,7 @@ class OrderApiController extends Controller
 
         // Broadcast to WebSocket channel
         try {
-            broadcast(new OrderStatusUpdated($order))->toOthers();
+            broadcast(new OrderStatusUpdated($order));
         } catch (\Exception $e) {
             // Gracefully ignore if broadcast queue is offline
         }
@@ -342,6 +429,63 @@ class OrderApiController extends Controller
             'success' => true,
             'message' => 'Status pesanan berhasil diperbarui menjadi: ' . $order->status,
             'data' => $order
+        ]);
+    }
+
+    /**
+     * Upload QRIS payment proof by customer
+     * Sets payment_status to 'paid'
+     */
+    public function uploadPaymentProof(Request $request, string $orderNumber)
+    {
+        $validated = $request->validate([
+            'proof_image' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120',
+        ]);
+
+        $order = Order::with(['store', 'client'])->where('order_number', $orderNumber)->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pesanan tidak ditemukan dengan nomor: ' . $orderNumber
+            ], 404);
+        }
+
+        $file = $request->file('proof_image');
+        $fileName = 'proof_' . $order->order_number . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $path = $file->storeAs('payment_proofs', $fileName, 'public');
+
+        $order->payment_proof = $path;
+        $order->payment_status = 'paid';
+
+        // Advance to processing if currently confirmed
+        if ($order->status === Order::STATUS_CONFIRMED) {
+            $order->status = Order::STATUS_PROCESSING;
+        }
+
+        $order->save();
+
+        OrderStatusLog::create([
+            'order_id' => $order->id,
+            'status' => $order->status,
+            'note' => 'Bukti pembayaran QRIS berhasil diunggah oleh pelanggan. Status Pembayaran: Paid.',
+        ]);
+
+        $order->load(['store', 'client', 'items.menu', 'statusLogs', 'campaign']);
+
+        // Broadcast to WebSocket channel
+        try {
+            broadcast(new OrderStatusUpdated($order));
+        } catch (\Exception $e) {}
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bukti pembayaran QRIS berhasil diunggah! Status pembayaran kini Paid.',
+            'data' => [
+                'order' => $order,
+                'payment_status' => $order->payment_status,
+                'payment_proof_url' => $order->payment_proof_url,
+            ]
         ]);
     }
 }

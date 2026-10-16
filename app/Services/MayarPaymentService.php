@@ -53,7 +53,7 @@ class MayarPaymentService
             'mobile' => $customerMobile ?: '628120000000',
             'amount' => (int) round($order->total_amount),
             'description' => "Pesanan #{$order->order_number} ({$store->name})",
-            'redirectUrl' => url('/trace/' . $order->order_number),
+            'redirectUrl' => url('/payment/mayar/return?order=' . $order->order_number),
             'expiredAt' => now()->addHours(24)->toIso8601String(),
         ];
 

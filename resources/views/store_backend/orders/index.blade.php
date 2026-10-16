@@ -105,6 +105,11 @@
                             <span class="badge {{ $ord->payment_status === 'paid' ? 'bg-success' : 'bg-warning text-dark' }} d-block mt-1">
                                 {{ strtoupper($ord->payment_status) }}
                             </span>
+                            @if($ord->payment_proof)
+                                <a href="{{ $ord->payment_proof_url }}" target="_blank" class="badge bg-info text-white text-decoration-none d-block mt-1">
+                                    <i class="fa-solid fa-image me-1"></i> Bukti QRIS
+                                </a>
+                            @endif
                         </td>
                         <td>
                             <span class="badge {{ $statusBadgeClass }}">{{ $ord->status }}</span>

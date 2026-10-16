@@ -41,12 +41,71 @@
             </div>
 
             <div class="text-end">
-              <span :class="['badge', getStatusBadgeClass(orderData.order?.status), 'fs-6 p-2']">
-                <i class="fa-solid fa-circle-dot live-pulse me-1"></i> {{ orderData.order?.status }}
-              </span>
-              <small class="text-muted d-block mt-1 font-mono">
+              <div class="d-flex align-items-center justify-content-end gap-2 flex-wrap mb-1">
+                <span :class="['badge', getStatusBadgeClass(orderData.order?.status), 'fs-6 p-2']">
+                  <i class="fa-solid fa-circle-dot live-pulse me-1"></i> {{ orderData.order?.status }}
+                </span>
+                <span v-if="orderData.order?.payment_status === 'paid'" class="badge bg-success font-mono fs-6 p-2">
+                  <i class="fa-solid fa-circle-check me-1"></i> Paid
+                </span>
+                <span v-else class="badge bg-warning text-dark font-mono fs-6 p-2">
+                  <i class="fa-solid fa-clock me-1"></i> Unpaid
+                </span>
+              </div>
+              <small class="text-muted d-block font-mono">
                 Live Sync Realtime
               </small>
+            </div>
+          </div>
+        </div>
+
+        <!-- QUEUE POSITION & LIVE COOKING STATUS CARD -->
+        <div v-if="orderData.queue_info && !orderData.is_rejected" class="card p-4 mb-4 border-2 shadow-sm" :class="orderData.queue_info.is_in_queue ? 'border-primary bg-primary-subtle' : 'border-success bg-success-subtle'">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="rounded-circle p-3 d-flex align-items-center justify-content-center text-white" 
+                   :class="orderData.queue_info.is_in_queue ? 'bg-primary' : 'bg-success'"
+                   style="width: 58px; height: 58px;">
+                <i v-if="orderData.queue_info.is_in_queue" class="fa-solid fa-fire fs-3"></i>
+                <i v-else-if="orderData.order?.status === 'Order Ready'" class="fa-solid fa-circle-check fs-3"></i>
+                <i v-else class="fa-solid fa-motorcycle fs-3"></i>
+              </div>
+              <div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <span v-if="orderData.queue_info.is_in_queue" class="badge bg-danger fs-6 font-mono px-3 py-1">
+                    <i class="fa-solid fa-fire me-1"></i> Nomor Antrean #{{ orderData.queue_info.queue_number }}
+                  </span>
+                  <span v-else class="badge bg-success fs-6 font-mono px-3 py-1">
+                    {{ orderData.queue_info.queue_badge }}
+                  </span>
+                  
+                  <span v-if="orderData.queue_info.is_in_queue && orderData.queue_info.orders_ahead === 0" class="badge bg-primary text-white">
+                    Sedang Dimasak Sekarang
+                  </span>
+                  <span v-else-if="orderData.queue_info.is_in_queue" class="badge bg-warning text-dark font-mono">
+                    {{ orderData.queue_info.orders_ahead }} pesanan di depan Anda
+                  </span>
+                </div>
+                <h4 class="fw-bold mb-1 mt-2 text-dark fs-5">
+                  {{ orderData.queue_info.queue_message }}
+                </h4>
+                <small class="text-muted d-block font-mono">
+                  Dapur Cabang: <strong>{{ orderData.order?.store?.name }}</strong> &bull; Total antrean aktif: {{ orderData.queue_info.total_active_queue }} pesanan
+                </small>
+              </div>
+            </div>
+
+            <!-- Estimated Time Box -->
+            <div v-if="orderData.queue_info.is_in_queue && orderData.queue_info.estimated_minutes" class="text-md-end text-start p-3 bg-white rounded border shadow-xs" style="min-width: 170px;">
+              <small class="text-muted d-block text-uppercase fw-semibold" style="font-size: 0.75rem;">Estimasi Penyajian</small>
+              <div class="font-mono fw-bold fs-4 text-primary">
+                ~{{ orderData.queue_info.estimated_minutes }} <span class="fs-6 text-muted">Menit</span>
+              </div>
+              <small class="text-muted" style="font-size: 0.75rem;">Realtime KDS Monitor</small>
+            </div>
+            <div v-else-if="orderData.order?.status === 'Order Ready'" class="p-3 bg-white rounded border border-success text-center shadow-xs">
+              <span class="badge bg-success fs-7 mb-1">SIAP DISANTAP</span>
+              <div class="fw-bold text-success">Silakan diambil / siap dinikmati!</div>
             </div>
           </div>
         </div>
@@ -149,19 +208,39 @@
               <span>Total Pembayaran:</span>
               <span class="text-primary font-mono">Rp {{ formatNumber(orderData.order?.total_amount) }}</span>
             </div>
+            <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+              <span class="text-muted small">Status Pembayaran:</span>
+              <span v-if="orderData.order?.payment_status === 'paid'" class="badge bg-success font-mono fs-6 px-3 py-1">
+                <i class="fa-solid fa-circle-check me-1"></i> Paid
+              </span>
+              <span v-else class="badge bg-warning text-dark font-mono fs-6 px-3 py-1">
+                <i class="fa-solid fa-clock me-1"></i> Unpaid
+              </span>
+            </div>
           </div>
         </div>
 
         <!-- PAYMENT STATUS & ONLINE PAYMENT / QRIS SECTION -->
         <!-- 1. If Paid -->
         <div v-if="orderData.order?.payment_status === 'paid'" class="card p-4 mb-4 border-success bg-success-subtle shadow-sm">
-          <div class="d-flex align-items-center gap-3">
-            <div class="rounded-circle bg-success text-white p-2 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
-              <i class="fa-solid fa-check fs-5"></i>
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="rounded-circle bg-success text-white p-2 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                <i class="fa-solid fa-check fs-5"></i>
+              </div>
+              <div>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-success text-white fs-6 font-mono px-3 py-1">Paid</span>
+                  <h5 class="fw-bold mb-0 text-success">Pembayaran Lunas</h5>
+                </div>
+                <small class="text-muted d-block mt-1">Metode: {{ orderData.order?.payment_method }} • Pembayaran terkonfirmasi.</small>
+              </div>
             </div>
-            <div>
-              <h5 class="fw-bold mb-0 text-success">Pembayaran Lunas (PAID)</h5>
-              <small class="text-muted">Metode: {{ orderData.order?.payment_method }} • Pembayaran terkonfirmasi.</small>
+            <div v-if="orderData.order?.payment_proof_url" class="text-end">
+              <a :href="orderData.order.payment_proof_url" target="_blank" class="btn btn-outline-success btn-sm fw-semibold d-flex align-items-center gap-2">
+                <i class="fa-solid fa-file-image"></i>
+                <span>Lihat Bukti QRIS</span>
+              </a>
             </div>
           </div>
         </div>
@@ -184,11 +263,14 @@
 
         <!-- 3. If QRIS (Statik / Dinamis) -->
         <div v-else-if="orderData.order?.payment_method === 'QRIS Dinamis' || orderData.order?.payment_method === 'QRIS Statik'" class="card p-4 mb-4">
-          <h4 class="fw-bold fs-6 mb-3">
-            <i class="fa-solid fa-qrcode text-primary me-2"></i> Pembayaran QRIS Toko
-          </h4>
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h4 class="fw-bold fs-6 mb-0">
+              <i class="fa-solid fa-qrcode text-primary me-2"></i> Pembayaran QRIS Toko
+            </h4>
+            <span class="badge bg-warning text-dark font-mono"><i class="fa-solid fa-clock me-1"></i> Menunggu Bukti QRIS</span>
+          </div>
 
-          <div class="text-center p-3 bg-light rounded border">
+          <div class="text-center p-3 bg-light rounded border mb-4">
             <p class="text-muted small mb-2">Scan QRIS berikut untuk menyelesaikan pembayaran pesanan Anda:</p>
             <div class="qris-box-wrapper d-inline-block p-2 bg-white rounded border shadow-sm">
               <img :src="orderData.order?.store?.qris_image || 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=NAUMIL_RICE'" 
@@ -197,6 +279,62 @@
             <div class="mt-2 font-mono fw-bold text-primary fs-5">
               Rp {{ formatNumber(orderData.order?.total_amount) }}
             </div>
+          </div>
+
+          <!-- Upload Bukti QRIS Form -->
+          <div class="upload-proof-box p-3 border rounded bg-white shadow-sm">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="fa-solid fa-file-arrow-up text-primary fs-5"></i>
+              <h5 class="fw-bold fs-6 mb-0 text-dark">Upload Bukti Pembayaran QRIS</h5>
+            </div>
+            <p class="text-muted small mb-3">
+              Setelah melakukan transfer/scan QRIS, silakan upload bukti pembayaran (screenshot/foto struk) di bawah ini. Status pembayaran pesanan Anda akan langsung otomatis berubah menjadi <strong>Paid</strong>.
+            </p>
+
+            <div v-if="uploadSuccess" class="alert alert-success d-flex align-items-center gap-2 p-2 mb-3">
+              <i class="fa-solid fa-circle-check fs-5"></i>
+              <div>
+                <strong>Berhasil!</strong> Bukti QRIS berhasil diunggah. Status pesanan Anda kini <strong>Paid</strong>.
+              </div>
+            </div>
+
+            <div v-if="uploadError" class="alert alert-danger d-flex align-items-center gap-2 p-2 mb-3">
+              <i class="fa-solid fa-circle-exclamation fs-5"></i>
+              <div>{{ uploadError }}</div>
+            </div>
+
+            <!-- Upload Input Area -->
+            <div v-if="!proofPreview" class="upload-dropzone p-4 text-center rounded bg-light mb-3" @click="triggerFileInput" style="cursor: pointer; border: 2px dashed #cbd5e1;">
+              <input ref="fileInputRef" type="file" accept="image/jpeg,image/png,image/jpg,image/webp" class="d-none" @change="handleFileChange" />
+              <i class="fa-solid fa-cloud-arrow-up fs-1 text-primary mb-2"></i>
+              <div class="fw-bold text-dark mb-1">Klik untuk Memilih Foto Bukti QRIS</div>
+              <small class="text-muted d-block">Format: JPG, PNG, WEBP (Maksimal 5MB)</small>
+            </div>
+
+            <!-- Preview Selected File -->
+            <div v-else class="preview-box p-3 border rounded bg-light mb-3">
+              <div class="d-flex align-items-center gap-3">
+                <img :src="proofPreview" alt="Pratinjau Bukti" class="rounded border" style="width: 80px; height: 80px; object-fit: cover;" />
+                <div class="flex-grow-1">
+                  <div class="fw-bold text-dark text-truncate" style="max-width: 260px;">{{ selectedFile?.name }}</div>
+                  <small class="text-muted d-block">{{ formatFileSize(selectedFile?.size) }}</small>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle mt-1">Siap Diunggah</span>
+                </div>
+                <button type="button" class="btn btn-outline-danger btn-sm" @click="clearSelectedFile" :disabled="uploading">
+                  <i class="fa-solid fa-trash me-1"></i> Ganti
+                </button>
+              </div>
+            </div>
+
+            <button type="button" class="btn btn-primary w-100 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm" 
+                    :disabled="!selectedFile || uploading" @click="uploadProof">
+              <span v-if="uploading">
+                <i class="fa-solid fa-spinner fa-spin me-1"></i> Mengunggah Bukti & Mengubah Jadi Paid...
+              </span>
+              <span v-else>
+                <i class="fa-solid fa-check-circle me-1"></i> Unggah Bukti & Ubah Status Jadi Paid
+              </span>
+            </button>
           </div>
         </div>
 
@@ -248,6 +386,94 @@ const loading = ref(false)
 const notFound = ref(false)
 const orderData = ref(null)
 
+const selectedFile = ref(null)
+const proofPreview = ref(null)
+const fileInputRef = ref(null)
+const uploading = ref(false)
+const uploadError = ref('')
+const uploadSuccess = ref(false)
+
+const triggerFileInput = () => {
+  if (fileInputRef.value) fileInputRef.value.click()
+}
+
+const handleFileChange = (e) => {
+  uploadError.value = ''
+  uploadSuccess.value = false
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
+  if (!allowed.includes(file.type)) {
+    uploadError.value = 'Format file tidak didukung. Mohon upload foto gambar (JPG, PNG, atau WEBP).'
+    return
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    uploadError.value = 'Ukuran file melebihi batas 5MB.'
+    return
+  }
+
+  selectedFile.value = file
+  proofPreview.value = URL.createObjectURL(file)
+}
+
+const clearSelectedFile = () => {
+  selectedFile.value = null
+  if (proofPreview.value) {
+    URL.revokeObjectURL(proofPreview.value)
+    proofPreview.value = null
+  }
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+const formatFileSize = (bytes) => {
+  if (!bytes) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const uploadProof = async () => {
+  if (!selectedFile.value || !orderData.value?.order) return
+  try {
+    uploading.value = true
+    uploadError.value = ''
+    uploadSuccess.value = false
+
+    const formData = new FormData()
+    formData.append('proof_image', selectedFile.value)
+
+    const orderNum = orderData.value.order.order_number
+    const res = await axios.post(`/api/v1/orders/${orderNum}/upload-proof`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+
+    if (res.data.success) {
+      uploadSuccess.value = true
+      orderData.value.order.payment_status = 'paid'
+      orderData.value.order.payment_proof = res.data.data.order?.payment_proof
+      orderData.value.order.payment_proof_url = res.data.data.payment_proof_url
+      if (orderData.value.order.status === 'Order Konfirmed') {
+        orderData.value.order.status = 'Order On Proses'
+        orderData.value.current_stage_index = 1
+      }
+      clearSelectedFile()
+    } else {
+      uploadError.value = res.data.message || 'Gagal mengunggah bukti QRIS.'
+    }
+  } catch (err) {
+    uploadError.value = err.response?.data?.message || 'Terjadi kesalahan saat mengunggah bukti pembayaran.'
+  } finally {
+    uploading.value = false
+  }
+}
+
 let pollTimer = null
 
 const stagesList = [
@@ -278,6 +504,54 @@ const stagesList = [
   }
 ]
 
+let pusherInstance = null
+let currentSubscribedOrder = null
+let globalOrdersChannel = null
+
+const initTraceWebSocket = (orderNum) => {
+  if (typeof window === 'undefined' || typeof window.Pusher === 'undefined') {
+    return
+  }
+
+  try {
+    if (!pusherInstance) {
+      pusherInstance = new window.Pusher('l0eg4pqm0kfrx3ctzlls', {
+        wsHost: window.location.hostname || '127.0.0.1',
+        wsPort: 8085,
+        wssPort: 8085,
+        forceTLS: false,
+        enabledTransports: ['ws', 'wss'],
+        disableStats: true,
+        cluster: 'mt1'
+      })
+    }
+
+    // Subscribe to specific order channel
+    if (orderNum && orderNum !== currentSubscribedOrder) {
+      if (currentSubscribedOrder) {
+        pusherInstance.unsubscribe(`order.${currentSubscribedOrder}`)
+      }
+      currentSubscribedOrder = orderNum
+      const orderChannel = pusherInstance.subscribe(`order.${orderNum}`)
+      orderChannel.bind('order.status.updated', () => {
+        silentRefresh()
+      })
+    }
+
+    // Subscribe to global orders channel
+    if (!globalOrdersChannel) {
+      globalOrdersChannel = pusherInstance.subscribe('orders')
+      globalOrdersChannel.bind('order.status.updated', (data) => {
+        if (data.order && data.order.order_number === orderSearchInput.value?.trim()) {
+          silentRefresh()
+        }
+      })
+    }
+  } catch (err) {
+    console.warn('Trace WebSocket error, relying on auto-polling fallback', err)
+  }
+}
+
 const handleSearch = () => {
   const code = orderSearchInput.value.trim()
   if (code) {
@@ -294,6 +568,7 @@ const loadTrace = async (orderNum) => {
     const res = await axios.get(`/api/v1/orders/trace/${orderNum.trim()}`)
     if (res.data.success) {
       orderData.value = res.data.data
+      initTraceWebSocket(orderNum.trim())
     }
   } catch (err) {
     notFound.value = true
@@ -360,12 +635,19 @@ onMounted(() => {
   if (props.orderNumber) {
     loadTrace(props.orderNumber)
   }
-  // 3-second live heartbeat polling
+  // 3-second live heartbeat polling backup
   pollTimer = setInterval(silentRefresh, 3000)
 })
 
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
+  if (pusherInstance) {
+    try {
+      if (currentSubscribedOrder) pusherInstance.unsubscribe(`order.${currentSubscribedOrder}`)
+      if (globalOrdersChannel) pusherInstance.unsubscribe('orders')
+      pusherInstance.disconnect()
+    } catch (e) {}
+  }
 })
 </script>
 

@@ -298,27 +298,58 @@
 
             <!-- Customer Details Form -->
             <div class="customer-form-section border-top pt-4">
-              <h6 class="fw-bold mb-3"><i class="fa-solid fa-address-card text-primary me-2"></i> Data Pemesan & Pengiriman</h6>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0"><i class="fa-solid fa-address-card text-primary me-2"></i> Data Pelanggan & Pengiriman</h6>
+                <button v-if="isCustomerLoggedIn" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;" @click="logoutCustomer">
+                  <i class="fa-solid fa-arrow-right-from-bracket me-1"></i> Ganti Akun
+                </button>
+              </div>
+
+              <!-- Logged-in Customer Banner (Concat Info) -->
+              <div v-if="isCustomerLoggedIn && customerConcat" class="alert alert-success d-flex align-items-center justify-content-between p-2 mb-3 rounded border" style="font-size: 0.85rem;">
+                <div>
+                  <i class="fa-solid fa-circle-check text-success me-1"></i>
+                  <span>Masuk sebagai: <strong>{{ customerConcat }}</strong></span>
+                </div>
+                <span class="badge bg-success text-white">Akun Aktif</span>
+              </div>
+
+              <!-- Quick Helper for Returning Customer -->
+              <div v-else class="p-2 mb-3 rounded bg-light border text-muted" style="font-size: 0.8rem;">
+                <i class="fa-solid fa-info-circle text-primary me-1"></i>
+                <span>Pernah pesan sebelumnya? Cukup masukkan <strong>Email terdaftar</strong> Anda di bawah untuk memuat data secara otomatis.</span>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label small fw-bold">Email Aktif <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="email" v-model="customerForm.email" @blur="onEmailLookup" @keyup.enter="onEmailLookup" class="form-control" placeholder="nama@gmail.com" required />
+                  <button class="btn btn-outline-primary btn-sm px-3" type="button" @click="onEmailLookup" :disabled="lookingUpEmail || !customerForm.email">
+                    <i v-if="lookingUpEmail" class="fa-solid fa-spinner fa-spin"></i>
+                    <span v-else><i class="fa-solid fa-magnifying-glass me-1"></i> Cek Email</span>
+                  </button>
+                </div>
+                <small v-if="emailLookupStatus" :class="emailLookupFound ? 'text-success fw-bold' : 'text-muted'" class="d-block mt-1" style="font-size: 0.78rem;">
+                  <i :class="emailLookupFound ? 'fa-solid fa-check-circle me-1' : 'fa-solid fa-circle-info me-1'"></i> {{ emailLookupStatus }}
+                </small>
+              </div>
 
               <div class="mb-3">
                 <label class="form-label small fw-bold">Nama Lengkap Pemesan <span class="text-danger">*</span></label>
                 <input type="text" v-model="customerForm.name" class="form-input" placeholder="Contoh: Muhammad Naufal" required />
               </div>
 
-              <div class="row g-2 mb-3">
-                <div class="col-md-6">
-                  <label class="form-label small fw-bold">Nomor WhatsApp Aktif <span class="text-danger">*</span></label>
-                  <input type="text" v-model="customerForm.whatsapp" class="form-input font-mono" placeholder="081298765432" required />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label small fw-bold">Email (Opsional)</label>
-                  <input type="email" v-model="customerForm.email" class="form-input" placeholder="nama@gmail.com" />
-                </div>
+              <div class="mb-3">
+                <label class="form-label small fw-bold">Nomor HP / WhatsApp Aktif <span class="text-danger">*</span></label>
+                <input type="text" v-model="customerForm.whatsapp" class="form-input font-mono" placeholder="081298765432" required />
               </div>
 
               <div class="mb-3">
                 <label class="form-label small fw-bold">Alamat Pengiriman Lengkap <span class="text-danger">*</span></label>
                 <textarea v-model="customerForm.address" rows="2" class="form-input" placeholder="Jalan, No. Rumah, RT/RW, Patokan..." required></textarea>
+                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
+                  <i class="fa-solid fa-paper-plane text-primary me-1"></i> Link aktivasi akan dikirimkan ke email Anda. Saat menu <strong>Ready</strong>, notifikasi otomatis dikirimkan ke email ini.
+                </small>
               </div>
 
               <!-- Payment Method Selector -->
@@ -391,37 +422,107 @@
           <h3 class="fw-bold mb-1">Pesanan Berhasil Dibuat!</h3>
           <p class="text-muted small mb-3">Pesanan Anda telah masuk ke sistem antrean dapur {{ store.name }}.</p>
 
-          <div class="p-3 rounded bg-light border mb-3">
+          <div class="p-3 rounded bg-light border mb-2">
             <small class="text-muted d-block">Nomor Pesanan (Order ID):</small>
             <strong class="fs-4 font-mono text-danger">{{ createdOrderData.order_number }}</strong>
           </div>
 
-          <!-- Mayar.id Payment Gateway Pay Button if payment_url is returned -->
-          <div v-if="createdOrderData.payment_url" class="p-3 border rounded bg-white mb-3 shadow-sm text-start">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <h6 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-credit-card text-success me-1"></i> Pembayaran Online Mayar.id</h6>
-              <span class="badge bg-success text-white">Menunggu Pembayaran</span>
-            </div>
-            <p class="text-muted small mb-3">
-              Silakan selesaikan pembayaran tagihan ini secara aman melalui portal Mayar.id (QRIS otomatis, Virtual Account, & E-Wallet):
-            </p>
-            <a :href="createdOrderData.payment_url" target="_blank" class="btn btn-danger w-100 py-2 fw-bold text-white fs-6 d-flex align-items-center justify-content-center gap-2 mb-2 shadow-sm text-decoration-none">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i>
-              <span>Bayar Sekarang (Rp {{ formatPrice(createdOrderData.total_amount) }})</span>
-            </a>
-            <small class="text-muted d-block text-center mt-1">Setelah dibayar, status pesanan otomatis berubah jadi <strong>Diproses</strong>.</small>
+          <!-- Status Pembayaran Badge -->
+          <div class="d-flex justify-content-between align-items-center p-2 px-3 rounded bg-light border mb-3">
+            <span class="small text-muted">Status Pembayaran:</span>
+            <span v-if="createdOrderData.payment_status === 'paid'" class="badge bg-success font-mono fs-6 px-3 py-1">
+              <i class="fa-solid fa-circle-check me-1"></i> Paid
+            </span>
+            <span v-else class="badge bg-warning text-dark font-mono fs-6 px-3 py-1">
+              <i class="fa-solid fa-clock me-1"></i> Unpaid
+            </span>
           </div>
 
-          <!-- Dynamic QRIS Display if QRIS payment -->
-          <div v-else-if="createdOrderData.payment_method === 'QRIS Dinamis' || createdOrderData.payment_method === 'QRIS Statik'" class="qris-payment-box p-3 border rounded bg-white mb-3">
-            <h6 class="fw-bold mb-2"><i class="fa-solid fa-qrcode text-primary me-1"></i> Scan QRIS Toko</h6>
-            <div class="p-2 bg-white d-inline-block border rounded mb-2">
-              <img :src="store.qris_image || dynamicQrisUrl" alt="QRIS Toko" class="img-fluid" style="max-width: 220px;" />
+          <!-- 1. If Paid -->
+          <div v-if="createdOrderData.payment_status === 'paid'" class="p-3 border border-success rounded bg-success-subtle mb-3 text-start shadow-sm">
+            <div class="d-flex align-items-center gap-2">
+              <i class="fa-solid fa-circle-check text-success fs-3"></i>
+              <div>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-success text-white font-mono">Paid</span>
+                  <strong class="text-success">Pembayaran Lunas</strong>
+                </div>
+                <small class="text-muted d-block mt-1">Pembayaran telah terkonfirmasi dan pesanan segera disiapkan dapur.</small>
+              </div>
             </div>
-            <div class="font-mono fw-bold fs-5 text-success">
-              Rp {{ formatPrice(createdOrderData.total_amount) }}
+          </div>
+
+          <!-- 2. Mayar.id Payment Gateway Pay Button if payment_url is returned and unpaid -->
+          <div v-else-if="createdOrderData.payment_url" class="p-3 border rounded bg-white mb-3 shadow-sm text-start">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <h6 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-credit-card text-success me-1"></i> Pembayaran Online Mayar.id</h6>
+              <span class="badge bg-warning text-dark font-mono">
+                <i class="fa-solid fa-spinner fa-spin me-1"></i> Menunggu Bayar
+              </span>
             </div>
-            <small class="text-muted d-block mt-1">Scan menggunakan BCA, Gopay, OVO, ShopeePay, atau m-Banking apapun.</small>
+            <p class="text-muted small mb-3">
+              Jendela pembayaran Mayar.id dibuka otomatis dalam window kecil. Anda juga dapat membukanya kembali melalui tombol di bawah:
+            </p>
+            <button type="button" @click="openMayarPopup(createdOrderData.payment_url, createdOrderData.order_number)" class="btn btn-danger w-100 py-2 fw-bold text-white fs-6 d-flex align-items-center justify-content-center gap-2 mb-2 shadow-sm border-0">
+              <i class="fa-solid fa-window-restore"></i>
+              <span>Buka Window Bayar Mayar (Rp {{ formatPrice(createdOrderData.total_amount) }})</span>
+            </button>
+            <div class="p-2 rounded bg-light border text-center text-muted" style="font-size: 0.78rem;">
+              <i class="fa-solid fa-circle-notch fa-spin text-success me-1"></i>
+              <span>Setelah pembayaran berhasil, window kecil akan tertutup otomatis dan halaman langsung mengarah ke pelacakan pesanan.</span>
+            </div>
+          </div>
+
+          <!-- 3. Dynamic QRIS Display if QRIS payment and unpaid -->
+          <div v-else-if="createdOrderData.payment_method === 'QRIS Dinamis' || createdOrderData.payment_method === 'QRIS Statik'" class="qris-payment-box p-3 border rounded bg-white mb-3 text-start">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <h6 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-qrcode text-primary me-1"></i> Scan QRIS Toko</h6>
+              <span class="badge bg-warning text-dark font-mono">Menunggu Bukti QRIS</span>
+            </div>
+            <div class="text-center p-2 bg-light rounded border mb-3">
+              <div class="p-2 bg-white d-inline-block border rounded mb-2 shadow-sm">
+                <img :src="store.qris_image || dynamicQrisUrl" alt="QRIS Toko" class="img-fluid" style="max-width: 200px;" />
+              </div>
+              <div class="font-mono fw-bold fs-5 text-primary">
+                Rp {{ formatPrice(createdOrderData.total_amount) }}
+              </div>
+              <small class="text-muted d-block mt-1">Scan menggunakan BCA, Gopay, OVO, ShopeePay, atau m-Banking apapun.</small>
+            </div>
+
+            <!-- Upload QRIS Proof in Modal -->
+            <div class="p-3 border rounded bg-light">
+              <div class="fw-bold small text-dark mb-1">
+                <i class="fa-solid fa-file-arrow-up text-primary me-1"></i> Upload Bukti QRIS (Ubah Jadi Paid):
+              </div>
+              <small class="text-muted d-block mb-2">Upload bukti transfer agar status pesanan langsung menjadi <strong>Paid</strong>.</small>
+
+              <div v-if="modalUploadError" class="alert alert-danger p-2 small mb-2">
+                {{ modalUploadError }}
+              </div>
+
+              <div v-if="!modalProofPreview" class="text-center p-3 rounded bg-white mb-2" @click="triggerModalFileInput" style="cursor: pointer; border: 2px dashed #cbd5e1;">
+                <input ref="modalFileInputRef" type="file" accept="image/jpeg,image/png,image/jpg,image/webp" class="d-none" @change="handleModalFileChange" />
+                <i class="fa-solid fa-cloud-arrow-up text-primary fs-3 mb-1"></i>
+                <div class="small fw-bold text-dark">Klik untuk Memilih Foto Bukti QRIS</div>
+                <small class="text-muted" style="font-size: 0.72rem;">Format: JPG, PNG, WEBP (Maks 5MB)</small>
+              </div>
+
+              <div v-else class="d-flex align-items-center gap-2 p-2 bg-white border rounded mb-2">
+                <img :src="modalProofPreview" alt="Pratinjau" class="rounded border" style="width: 50px; height: 50px; object-fit: cover;" />
+                <div class="flex-grow-1 overflow-hidden">
+                  <div class="small fw-bold text-truncate">{{ modalSelectedFile?.name }}</div>
+                  <small class="text-muted" style="font-size: 0.72rem;">Siap diunggah</small>
+                </div>
+                <button type="button" class="btn btn-outline-danger btn-sm p-1 px-2" @click="clearModalSelectedFile" :disabled="modalUploading">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+
+              <button v-if="modalSelectedFile" type="button" class="btn btn-primary w-100 btn-sm fw-bold" :disabled="modalUploading" @click="uploadModalProof">
+                <span v-if="modalUploading"><i class="fa-solid fa-spinner fa-spin me-1"></i> Mengunggah...</span>
+                <span v-else><i class="fa-solid fa-check-circle me-1"></i> Unggah Bukti & Ubah Status Jadi Paid</span>
+              </button>
+            </div>
           </div>
 
           <!-- Fallback if Mayar Payment Gateway selected but payment_url failed to generate -->
@@ -455,7 +556,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppLayout from '@/Layouts/AppLayout.vue'
@@ -588,7 +689,7 @@ const cartTotalPrice = computed(() => {
   return cartItems.value.reduce((acc, it) => acc + it.subtotal, 0)
 })
 
-// Checkout & Submit Order
+// Checkout & Customer Form State
 const customerForm = ref({
   name: '',
   whatsapp: '',
@@ -597,12 +698,171 @@ const customerForm = ref({
   paymentMethod: props.store.payment_type === 'payment_gateway' ? 'Payment Gateway (Mayar.id)' : 'QRIS Dinamis'
 })
 
+const isCustomerLoggedIn = ref(false)
+const customerConcat = ref('')
+const lookingUpEmail = ref(false)
+const emailLookupStatus = ref('')
+const emailLookupFound = ref(false)
+
+// Session & Email Quick Login
+const loadCustomerSession = async () => {
+  // 1. Try browser storage first
+  const cached = localStorage.getItem('naumil_customer_session')
+  if (cached) {
+    try {
+      const client = JSON.parse(cached)
+      if (client.email) {
+        applyClientData(client)
+        return
+      }
+    } catch (e) {
+      localStorage.removeItem('naumil_customer_session')
+    }
+  }
+
+  // 2. Try server session
+  try {
+    const res = await axios.get('/api/v1/customer/current-session')
+    if (res.data?.authenticated && res.data?.client) {
+      applyClientData(res.data.client)
+    }
+  } catch (e) {}
+}
+
+const applyClientData = (client) => {
+  customerForm.value.email = client.email || ''
+  customerForm.value.name = client.name || ''
+  customerForm.value.whatsapp = client.whatsapp || ''
+  customerForm.value.address = client.address || ''
+  isCustomerLoggedIn.value = true
+  customerConcat.value = `${client.name} (${client.email})`
+  emailLookupFound.value = true
+  emailLookupStatus.value = `Akun terverifikasi: ${client.name} (${client.email})`
+  localStorage.setItem('naumil_customer_session', JSON.stringify(client))
+}
+
+const onEmailLookup = async () => {
+  const email = (customerForm.value.email || '').trim().toLowerCase()
+  if (!email || !email.includes('@')) {
+    emailLookupStatus.value = ''
+    return
+  }
+
+  try {
+    lookingUpEmail.value = true
+    const res = await axios.post('/api/v1/customer/lookup-by-email', { email })
+    if (res.data.found && res.data.client) {
+      applyClientData(res.data.client)
+    } else {
+      emailLookupFound.value = false
+      emailLookupStatus.value = 'Email baru / belum terdaftar. Silakan lengkapi nama, nomor HP, dan alamat.'
+    }
+  } catch (err) {
+    console.error('Email lookup error', err)
+  } finally {
+    lookingUpEmail.value = false
+  }
+}
+
+const logoutCustomer = async () => {
+  localStorage.removeItem('naumil_customer_session')
+  isCustomerLoggedIn.value = false
+  customerConcat.value = ''
+  customerForm.value.email = ''
+  customerForm.value.name = ''
+  customerForm.value.whatsapp = ''
+  customerForm.value.address = ''
+  emailLookupStatus.value = ''
+  emailLookupFound.value = false
+
+  try {
+    await axios.post('/api/v1/customer/logout')
+  } catch (e) {}
+}
+
+onMounted(() => {
+  loadCustomerSession()
+})
+
+// Mayar.id Popup Window & Auto-close Polling
+let mayarPopup = null
+let paymentPollingInterval = null
+let messageListener = null
+
+const openMayarPopup = (paymentUrl, orderNumber) => {
+  if (!paymentUrl) return
+  const w = 480
+  const h = 720
+  const left = window.screenX + (window.outerWidth - w) / 2
+  const top = window.screenY + (window.outerHeight - h) / 2
+
+  mayarPopup = window.open(
+    paymentUrl,
+    'MayarPaymentPopup',
+    `width=${w},height=${h},top=${top},left=${left},resizable=yes,scrollbars=yes,status=no`
+  )
+
+  startPaymentMonitoring(orderNumber)
+}
+
+const startPaymentMonitoring = (orderNumber) => {
+  stopPaymentMonitoring()
+
+  // 1. PostMessage handler from callback window
+  messageListener = (event) => {
+    if (event.data?.type === 'MAYAR_PAYMENT_SUCCESS' && (!event.data?.orderNumber || event.data?.orderNumber === orderNumber)) {
+      onPaymentSuccess(orderNumber)
+    }
+  }
+  window.addEventListener('message', messageListener)
+
+  // 2. Real-time Polling /trace endpoint
+  paymentPollingInterval = setInterval(async () => {
+    try {
+      const res = await axios.get(`/api/v1/orders/trace/${orderNumber}`)
+      if (res.data?.success && res.data?.data?.order) {
+        const order = res.data.data.order
+        if (order.payment_status === 'paid' || res.data.data.current_stage_index > 0) {
+          onPaymentSuccess(orderNumber)
+        }
+      }
+    } catch (e) {
+      console.error('Payment polling error', e)
+    }
+  }, 2500)
+}
+
+const onPaymentSuccess = (orderNumber) => {
+  stopPaymentMonitoring()
+  if (mayarPopup && !mayarPopup.closed) {
+    try {
+      mayarPopup.close()
+    } catch (e) {}
+  }
+  router.visit('/trace/' + orderNumber)
+}
+
+const stopPaymentMonitoring = () => {
+  if (paymentPollingInterval) {
+    clearInterval(paymentPollingInterval)
+    paymentPollingInterval = null
+  }
+  if (messageListener) {
+    window.removeEventListener('message', messageListener)
+    messageListener = null
+  }
+}
+
+onUnmounted(() => {
+  stopPaymentMonitoring()
+})
+
 const submittingOrder = ref(false)
 const createdOrderData = ref(null)
 
 const submitOrder = async () => {
-  if (!customerForm.value.name || !customerForm.value.whatsapp || !customerForm.value.address) {
-    alert('Mohon lengkapi Nama, Nomor WhatsApp, dan Alamat Pengiriman.')
+  if (!customerForm.value.name || !customerForm.value.email || !customerForm.value.whatsapp || !customerForm.value.address) {
+    alert('Mohon lengkapi Nama Lengkap, Email Aktif, Nomor HP / WhatsApp, dan Alamat Pengiriman.')
     return
   }
 
@@ -617,12 +877,10 @@ const submitOrder = async () => {
     const payload = {
       store_id: props.store.id,
       campaign_id: props.campaigns && props.campaigns.length > 0 ? props.campaigns[0].id : null,
-      client: {
-        name: customerForm.value.name,
-        whatsapp: customerForm.value.whatsapp,
-        email: customerForm.value.email || (customerForm.value.whatsapp + '@naumilrice.com'),
-        address: customerForm.value.address,
-      },
+      customer_name: customerForm.value.name,
+      customer_email: customerForm.value.email,
+      customer_whatsapp: customerForm.value.whatsapp,
+      customer_address: customerForm.value.address,
       payment_method: customerForm.value.paymentMethod,
       notes: 'Order via Storefront ' + props.store.name,
       items: cartItems.value.map(it => ({
@@ -638,6 +896,18 @@ const submitOrder = async () => {
       createdOrderData.value = res.data.data
       cartItems.value = []
       showCartModal.value = false
+
+      // Auto-login customer in browser storage & state
+      if (res.data.data.client) {
+        applyClientData(res.data.data.client)
+      }
+
+      // If Mayar payment gateway, automatically open small popup window
+      if (res.data.data.payment_url) {
+        setTimeout(() => {
+          openMayarPopup(res.data.data.payment_url, res.data.data.order_number)
+        }, 300)
+      }
     } else {
       alert(res.data.message || 'Gagal membuat pesanan.')
     }
@@ -655,8 +925,81 @@ const dynamicQrisUrl = computed(() => {
   return `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrisData + createdOrderData.value.order_number)}`
 })
 
+const modalSelectedFile = ref(null)
+const modalProofPreview = ref(null)
+const modalFileInputRef = ref(null)
+const modalUploading = ref(false)
+const modalUploadError = ref('')
+
+const triggerModalFileInput = () => {
+  if (modalFileInputRef.value) modalFileInputRef.value.click()
+}
+
+const handleModalFileChange = (e) => {
+  modalUploadError.value = ''
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
+  if (!allowed.includes(file.type)) {
+    modalUploadError.value = 'Format file tidak didukung. Mohon upload gambar JPG, PNG, atau WEBP.'
+    return
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    modalUploadError.value = 'Ukuran file melebihi batas 5MB.'
+    return
+  }
+
+  modalSelectedFile.value = file
+  modalProofPreview.value = URL.createObjectURL(file)
+}
+
+const clearModalSelectedFile = () => {
+  modalSelectedFile.value = null
+  if (modalProofPreview.value) {
+    URL.revokeObjectURL(modalProofPreview.value)
+    modalProofPreview.value = null
+  }
+  if (modalFileInputRef.value) {
+    modalFileInputRef.value.value = ''
+  }
+}
+
+const uploadModalProof = async () => {
+  if (!modalSelectedFile.value || !createdOrderData.value) return
+  try {
+    modalUploading.value = true
+    modalUploadError.value = ''
+
+    const formData = new FormData()
+    formData.append('proof_image', modalSelectedFile.value)
+
+    const orderNum = createdOrderData.value.order_number
+    const res = await axios.post(`/api/v1/orders/${orderNum}/upload-proof`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+
+    if (res.data.success) {
+      createdOrderData.value.payment_status = 'paid'
+      createdOrderData.value.payment_proof = res.data.data.order?.payment_proof
+      createdOrderData.value.payment_proof_url = res.data.data.payment_proof_url
+      clearModalSelectedFile()
+    } else {
+      modalUploadError.value = res.data.message || 'Gagal mengunggah bukti QRIS.'
+    }
+  } catch (err) {
+    modalUploadError.value = err.response?.data?.message || 'Terjadi kesalahan saat mengunggah bukti pembayaran.'
+  } finally {
+    modalUploading.value = false
+  }
+}
+
 const resetAndCloseSuccessModal = () => {
   createdOrderData.value = null
+  clearModalSelectedFile()
 }
 
 const formatPrice = (val) => {

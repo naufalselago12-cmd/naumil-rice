@@ -25,6 +25,15 @@ class Order extends Model
         self::STATUS_REJECT,
     ];
 
+    protected static function booted()
+    {
+        static::updated(function (Order $order) {
+            if ($order->isDirty('status') && $order->status === self::STATUS_READY) {
+                app(\App\Services\CustomerNotificationService::class)->sendOrderReadyNotification($order);
+            }
+        });
+    }
+
     protected $fillable = [
         'order_number',
         'store_id',
@@ -36,6 +45,7 @@ class Order extends Model
         'payment_url',
         'payment_id',
         'payment_payload',
+        'payment_proof',
         'subtotal',
         'discount_amount',
         'total_amount',
@@ -49,6 +59,17 @@ class Order extends Model
         'total_amount' => 'float',
         'payment_payload' => 'array',
     ];
+
+    protected $appends = ['payment_proof_url'];
+
+    public function getPaymentProofUrlAttribute(): ?string
+    {
+        if (!$this->payment_proof) return null;
+        if (str_starts_with($this->payment_proof, 'http://') || str_starts_with($this->payment_proof, 'https://')) {
+            return $this->payment_proof;
+        }
+        return asset('storage/' . $this->payment_proof);
+    }
 
     public function store()
     {

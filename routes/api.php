@@ -23,9 +23,16 @@ Route::prefix('v1')->group(function () {
     // 4. Orders
     Route::post('/orders', [OrderApiController::class, 'store']);
     Route::get('/orders/trace/{orderNumber}', [OrderApiController::class, 'trace']);
+    Route::post('/orders/{orderNumber}/upload-proof', [OrderApiController::class, 'uploadPaymentProof']);
     Route::get('/orders/kds', [OrderApiController::class, 'kdsQueue']);
     Route::patch('/orders/{id}/status', [OrderApiController::class, 'updateStatus']);
 
     // 5. Payment Gateway Webhook (Mayar.id)
     Route::post('/payment/mayar/webhook/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);
+
+    // 6. Customer Authentication & Quick Login
+    Route::post('/customer/lookup-by-email', [\App\Http\Controllers\CustomerAuthController::class, 'lookupByEmail']);
+    Route::get('/customer/current-session', [\App\Http\Controllers\CustomerAuthController::class, 'currentSession']);
+    Route::post('/customer/logout', [\App\Http\Controllers\CustomerAuthController::class, 'logout']);
 });
+
