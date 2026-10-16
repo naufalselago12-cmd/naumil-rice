@@ -233,6 +233,9 @@
                     <!-- Webhook Callback URL Copyable Box -->
                     @php
                         $webhookUrl = url('/api/v1/payment/mayar/webhook/' . $store->slug);
+                        if (!empty($store->mayar_webhook_token)) {
+                            $webhookUrl .= '?token=' . urlencode($store->mayar_webhook_token);
+                        }
                     @endphp
                     <div class="p-3 bg-white border rounded mb-3">
                         <label class="form-label small fw-bold text-dark mb-1 d-flex align-items-center justify-content-between">

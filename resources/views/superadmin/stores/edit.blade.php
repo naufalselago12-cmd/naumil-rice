@@ -184,8 +184,14 @@
                         <input type="password" name="mayar_webhook_token" class="form-control form-control-dark font-mono small" 
                                placeholder="Token webhook rahasia" value="{{ old('mayar_webhook_token', $store->mayar_webhook_token) }}">
                     </div>
+                    @php
+                        $webhookUrl = url('/api/v1/payment/mayar/webhook/' . $store->slug);
+                        if (!empty($store->mayar_webhook_token)) {
+                            $webhookUrl .= '?token=' . urlencode($store->mayar_webhook_token);
+                        }
+                    @endphp
                     <div class="p-2 rounded bg-black bg-opacity-25 border border-secondary font-mono small text-muted">
-                        Webhook Callback: <code>{{ url('/api/v1/payment/mayar/webhook/' . $store->slug) }}</code>
+                        Webhook Callback: <code>{{ $webhookUrl }}</code>
                     </div>
                 </div>
             </div>
