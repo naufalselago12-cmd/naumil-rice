@@ -53,6 +53,27 @@
               <span class="d-inline-mobile">Masuk</span>
             </Link>
           </template>
+
+          <!-- Elegant Cart Button with Logo & Badge in Top Right -->
+          <div class="nav-cart-wrapper">
+            <button type="button" class="btn-nav-cart" @click="handleNavCartClick" title="Lihat Keranjang Belanja">
+              <div class="nav-cart-icon-box">
+                <i class="fa-solid fa-basket-shopping"></i>
+                <span v-if="globalCartCount > 0" class="nav-cart-badge font-mono animate-bounce-subtle">
+                  {{ globalCartCount > 99 ? '99+' : globalCartCount }}
+                </span>
+              </div>
+              <span class="nav-cart-text d-none-mobile">
+                <span class="nav-cart-label">Keranjang</span>
+                <span v-if="globalCartTotal > 0" class="nav-cart-total font-mono">
+                  Rp {{ formatNavPrice(globalCartTotal) }}
+                </span>
+                <span v-else class="text-muted" style="font-size: 0.72rem;">
+                  0 Item
+                </span>
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </header>
@@ -168,8 +189,63 @@ const handleCustomerLogout = async () => {
   router.visit('/')
 }
 
+const globalCartCount = ref(0)
+const globalCartTotal = ref(0)
+
+const formatNavPrice = (val) => {
+  return new Intl.NumberFormat('id-ID').format(Math.round(val || 0))
+}
+
+const syncGlobalCart = () => {
+  try {
+    const raw = localStorage.getItem('naumil_customer_cart_backup')
+    if (raw) {
+      const items = JSON.parse(raw)
+      if (Array.isArray(items)) {
+        globalCartCount.value = items.reduce((acc, it) => acc + (Number(it.qty || it.quantity) || 1), 0)
+        globalCartTotal.value = items.reduce((acc, it) => acc + (Number(it.subtotal) || 0), 0)
+        return
+      }
+    }
+  } catch (e) {}
+  globalCartCount.value = 0
+  globalCartTotal.value = 0
+}
+
+const handleNavCartClick = () => {
+  // Dispatch custom event for current page to open its cart modal
+  window.dispatchEvent(new CustomEvent('open-naumil-cart', {
+    detail: { count: globalCartCount.value, total: globalCartTotal.value }
+  }))
+
+  // If on non-storefront pages (e.g. root /, trace, or customer profile)
+  const path = window.location.pathname
+  if (path === '/' || path.startsWith('/trace') || path.startsWith('/customer')) {
+    const returnUrl = localStorage.getItem('naumil_return_store_url')
+    const lastStore = localStorage.getItem('naumil_last_store_slug')
+    if (returnUrl && returnUrl !== window.location.href) {
+      window.location.href = returnUrl
+    } else if (lastStore) {
+      window.location.href = '/' + lastStore
+    } else {
+      window.location.href = '/'
+    }
+  }
+}
+
 onMounted(() => {
   syncCustomerSession()
+  syncGlobalCart()
+
+  // Listen to cart update events dispatched from StoreFront or Campaign
+  window.addEventListener('naumil-cart-updated', (e) => {
+    if (e.detail) {
+      globalCartCount.value = Number(e.detail.count) || 0
+      globalCartTotal.value = Number(e.detail.total) || 0
+    } else {
+      syncGlobalCart()
+    }
+  })
 })
 </script>
 

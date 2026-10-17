@@ -36,7 +36,23 @@
                 </div>
               </div>
 
-              <div class="store-actions">
+              <div class="store-actions d-flex align-items-center gap-2">
+                <!-- Elegant Campaign Header Cart Button with Badge -->
+                <button type="button" class="btn-store-cart shadow-sm" @click="showCheckoutModal = true" title="Buka Ringkasan Keranjang Pre-Order">
+                  <div class="store-cart-icon-wrapper">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span v-if="totalCartQty > 0" class="store-cart-badge font-mono animate-bounce-subtle">
+                      {{ totalCartQty }}
+                    </span>
+                  </div>
+                  <div class="store-cart-content">
+                    <span class="store-cart-title">Keranjang PO</span>
+                    <span class="store-cart-sub font-mono">
+                      {{ totalCartQty > 0 ? 'Rp ' + formatNumber(finalPayableTotal) : '0 Menu' }}
+                    </span>
+                  </div>
+                </button>
+
                 <a v-if="store.phone" :href="'https://wa.me/' + cleanPhone(store.phone)" target="_blank" class="btn-wa-sm">
                   <i class="fa-brands fa-whatsapp text-success fs-5"></i> Hubungi Toko
                 </a>
@@ -640,11 +656,25 @@ const isExpired = ref(false)
 const activeCategory = ref('all')
 const cart = ref([])
 
-// Save cart to local storage so draft is preserved during member activation
+// Save cart to local storage and sync with navbar cart badge
 watch(cart, (newVal) => {
   if (newVal && newVal.length > 0) {
     localStorage.setItem('naumil_campaign_cart_' + props.token, JSON.stringify(newVal))
+    localStorage.setItem('naumil_customer_cart_backup', JSON.stringify(newVal))
+    if (store.value?.slug) localStorage.setItem('naumil_last_store_slug', store.value.slug)
+    localStorage.setItem('naumil_return_store_url', window.location.href)
+  } else {
+    localStorage.removeItem('naumil_campaign_cart_' + props.token)
   }
+
+  try {
+    window.dispatchEvent(new CustomEvent('naumil-cart-updated', {
+      detail: {
+        count: totalCartQty.value,
+        total: cartSubtotal.value
+      }
+    }))
+  } catch (e) {}
 }, { deep: true })
 
 // Modal States
@@ -1129,6 +1159,23 @@ onMounted(() => {
       cart.value = JSON.parse(savedCart)
     } catch (e) {}
   }
+
+  // Listen for open cart event from header navbar
+  window.addEventListener('open-naumil-cart', () => {
+    showCheckoutModal.value = true
+  })
+
+  // Initial cart sync to navbar
+  setTimeout(() => {
+    try {
+      window.dispatchEvent(new CustomEvent('naumil-cart-updated', {
+        detail: {
+          count: totalCartQty.value,
+          total: cartSubtotal.value
+        }
+      }))
+    } catch (e) {}
+  }, 100)
 })
 
 onUnmounted(() => {

@@ -354,6 +354,32 @@ class OrderApiController extends Controller
             ], 404);
         }
 
+        // Auto-sync payment status with Mayar if order is still unpaid
+        if ($order->payment_status === 'unpaid' 
+            && in_array($order->payment_method, ['Payment Gateway', 'Payment Gateway (Mayar.id)'])
+            && $order->store
+            && !empty($order->store->mayar_api_key)) {
+            try {
+                $mayarService = new \App\Services\MayarPaymentService();
+                $check = $mayarService->checkPaymentStatus($order->store, $order);
+                if ($check['success'] && $check['is_paid']) {
+                    $order->update([
+                        'payment_status' => 'paid',
+                        'status' => in_array($order->status, [Order::STATUS_CONFIRMED, 'pending']) ? Order::STATUS_PROCESSING : $order->status,
+                    ]);
+                    \App\Models\OrderStatusLog::create([
+                        'order_id' => $order->id,
+                        'status' => $order->status,
+                        'note' => 'Pembayaran terkonfirmasi lunas via Mayar.id (sinkronisasi live trace).',
+                    ]);
+                    try {
+                        broadcast(new \App\Events\OrderStatusUpdated($order))->toOthers();
+                    } catch (\Throwable $e) {}
+                    $order->refresh();
+                }
+            } catch (\Throwable $e) {}
+        }
+
         $stages = [
             Order::STATUS_CONFIRMED,
             Order::STATUS_PROCESSING,

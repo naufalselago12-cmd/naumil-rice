@@ -242,15 +242,24 @@
                             <span><i class="fa-solid fa-bullhorn text-primary me-1"></i> Webhook Callback URL Toko Ini (Masukkan di Mayar.id):</span>
                             <span class="badge bg-light text-dark font-mono border">POST Callback</span>
                         </label>
-                        <div class="input-group">
+                        <div class="input-group mb-2">
                             <input type="text" id="webhookUrlInput" class="form-control font-mono small bg-light" readonly value="{{ $webhookUrl }}">
                             <button type="button" class="btn btn-outline-primary" onclick="copyWebhookUrl()">
                                 <i class="fa-solid fa-copy me-1"></i> Salin URL
                             </button>
+                            <a href="{{ url('/api/v1/payment/mayar/webhook/' . $store->slug) }}" target="_blank" class="btn btn-outline-secondary" title="Cek apakah endpoint aktif">
+                                <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Cek Endpoint
+                            </a>
                         </div>
-                        <small class="text-muted d-block mt-1">
-                            Salin URL di atas dan tempelkan ke <strong>Settings &gt; Webhook URL</strong> di dashboard Mayar.id Anda agar pembayaran pelanggan otomatis terverifikasi.
-                        </small>
+                        <div class="p-2 rounded bg-light border small text-muted">
+                            <i class="fa-solid fa-circle-check text-success me-1"></i>
+                            <strong>Multi-Strategi Auto-Verifikasi:</strong> Endpoint ini otomatis mendeteksi Order berdasarkan <em>Candidate ID (Invoice/Transaction), Nomor Order (NR-PO-...), Slug Invoice Mayar, dan Kontak & Nominal Pelanggan</em>.
+                            @if(str_contains(url('/'), '127.0.0.1') || str_contains(url('/'), 'localhost'))
+                                <span class="d-block text-warning mt-1 fw-bold">
+                                    <i class="fa-solid fa-triangle-exclamation me-1"></i> Catatan Localhost: Mayar.id membutuhkan URL berdomain publik/internet. Gunakan Ngrok atau pasang domain produksi Anda agar webhook dari Mayar dapat terkirim.
+                                </span>
+                            @endif
+                        </div>
                     </div>
 
                     <!-- Test Connection Button & Alert -->

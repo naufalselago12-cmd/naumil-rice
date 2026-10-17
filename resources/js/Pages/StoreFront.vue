@@ -35,7 +35,23 @@
             </div>
 
             <!-- Header Quick Actions -->
-            <div class="d-flex flex-wrap gap-2">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <!-- Elegant Store Header Cart Button with Badge -->
+              <button type="button" class="btn-store-cart shadow-sm" @click="showCartModal = true" title="Buka Keranjang Pesanan">
+                <div class="store-cart-icon-wrapper">
+                  <i class="fa-solid fa-cart-shopping"></i>
+                  <span v-if="cartTotalQuantity > 0" class="store-cart-badge font-mono animate-bounce-subtle">
+                    {{ cartTotalQuantity }}
+                  </span>
+                </div>
+                <div class="store-cart-content">
+                  <span class="store-cart-title">Keranjang</span>
+                  <span class="store-cart-sub font-mono">
+                    {{ cartTotalQuantity > 0 ? 'Rp ' + formatPrice(cartFinalPrice) : '0 Menu' }}
+                  </span>
+                </div>
+              </button>
+
               <Link v-if="isCustomerLoggedIn" href="/customer/profile" class="btn btn-sm btn-warning text-dark fw-bold" title="Kunjungi Profil & Saldo Poin">
                 <i class="fa-solid fa-crown me-1"></i> Profil Pelanggan Setia ({{ customerPoints }} Pts)
               </Link>
@@ -47,13 +63,13 @@
                 <i class="fa-solid fa-right-from-bracket me-1"></i> Keluar
               </button>
 
-              <Link href="/" class="btn-secondary" title="Ganti ke cabang lain">
+              <Link href="/" class="btn btn-sm btn-secondary" title="Ganti ke cabang lain">
                 <i class="fa-solid fa-store me-1"></i> Ganti Cabang
               </Link>
-              <a v-if="store.phone" :href="'https://wa.me/' + cleanPhone(store.phone)" target="_blank" class="btn-secondary">
+              <a v-if="store.phone" :href="'https://wa.me/' + cleanPhone(store.phone)" target="_blank" class="btn btn-sm btn-secondary">
                 <i class="fa-brands fa-whatsapp text-success me-1"></i> WhatsApp
               </a>
-              <a v-if="store.can_manage_backend" :href="store.backend_url" target="_blank" class="btn-primary" title="Masuk ke Backend Toko Ini">
+              <a v-if="store.can_manage_backend" :href="store.backend_url" target="_blank" class="btn btn-sm btn-primary" title="Masuk ke Backend Toko Ini">
                 <i class="fa-solid fa-gauge me-1"></i> Backend Cabang
               </a>
             </div>
@@ -928,13 +944,24 @@ const modalCalculatedPrice = computed(() => {
 const cartItems = ref([])
 const showCartModal = ref(false)
 
-// Save cart to local storage whenever items change
+// Save cart to local storage whenever items change & sync with navbar
 watch(cartItems, (newVal) => {
   if (newVal && newVal.length > 0) {
     localStorage.setItem('naumil_customer_cart_backup', JSON.stringify(newVal))
     localStorage.setItem('naumil_last_store_slug', props.store.slug)
     localStorage.setItem('naumil_return_store_url', window.location.href)
+  } else {
+    localStorage.removeItem('naumil_customer_cart_backup')
   }
+
+  try {
+    window.dispatchEvent(new CustomEvent('naumil-cart-updated', {
+      detail: {
+        count: cartTotalQuantity.value,
+        total: cartFinalPrice.value
+      }
+    }))
+  } catch (e) {}
 }, { deep: true })
 
 const addConfiguredItemToCart = () => {
@@ -1267,6 +1294,23 @@ onMounted(() => {
       }
     } catch (e) {}
   }
+
+  // Listen for open cart event from header navbar
+  window.addEventListener('open-naumil-cart', () => {
+    showCartModal.value = true
+  })
+
+  // Initial cart sync to navbar
+  setTimeout(() => {
+    try {
+      window.dispatchEvent(new CustomEvent('naumil-cart-updated', {
+        detail: {
+          count: cartTotalQuantity.value,
+          total: cartFinalPrice.value
+        }
+      }))
+    } catch (e) {}
+  }, 100)
 })
 
 // Mayar.id Popup Window & Auto-close Polling

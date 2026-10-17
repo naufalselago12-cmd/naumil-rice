@@ -91,6 +91,7 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
         Route::get('/orders', [StoreBackendOrderController::class, 'index'])->name('orders.index');
         Route::get('/orders/{order}', [StoreBackendOrderController::class, 'show'])->name('orders.show');
         Route::patch('/orders/{order}/status', [StoreBackendOrderController::class, 'updateStatus'])->name('orders.updateStatus');
+        Route::post('/orders/{order}/sync-mayar', [StoreBackendOrderController::class, 'syncMayarPayment'])->name('orders.syncMayar');
 
         // Kitchen Display System (KDS)
         Route::get('/kds', [StoreBackendKdsController::class, 'index'])->name('kds');
@@ -203,6 +204,11 @@ Route::get('/loyalty/profile', function () {
 
 // Payment Gateway Callback / Popup Auto-Close
 Route::get('/payment/mayar/return', [\App\Http\Controllers\PaymentReturnController::class, 'handle'])->name('payment.mayar.return');
+
+// Mayar Webhook & Callback Aliases (accepts GET/POST on web paths)
+Route::match(['get', 'post'], '/payment/mayar/webhook/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);
+Route::match(['get', 'post'], '/payment/mayar/callback/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);
+Route::match(['get', 'post'], '/api/payment/mayar/webhook/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);
 
 // 5. Store Frontend Landing Page (base_url/{nama_toko})
 // Menampilkan seluruh data yang terikat ke toko tersebut

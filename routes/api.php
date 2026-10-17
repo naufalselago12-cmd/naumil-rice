@@ -29,6 +29,8 @@ Route::prefix('v1')->group(function () {
 
     // 5. Payment Gateway Webhook (Mayar.id)
     Route::match(['get', 'post'], '/payment/mayar/webhook/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);
+    Route::match(['get', 'post'], '/payment/mayar/callback/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);
+    Route::match(['get', 'post'], '/mayar/webhook/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);
 
     // 6. Customer Authentication & Loyalty Program
     Route::post('/customer/register-loyalty', [\App\Http\Controllers\CustomerAuthController::class, 'registerLoyalty']);

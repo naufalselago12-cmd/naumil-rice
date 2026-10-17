@@ -72,13 +72,18 @@ class MayarPaymentService
                 
                 // Mayar link is usually in data.link or data.paymentUrl or data.url
                 $paymentUrl = $data['link'] ?? $data['paymentUrl'] ?? $data['url'] ?? null;
-                $paymentId = $data['id'] ?? $data['transactionId'] ?? null;
+                $paymentId = $data['id'] ?? $data['transactionId'] ?? $data['transaction_id'] ?? null;
 
                 if ($paymentUrl) {
                     $order->update([
                         'payment_url' => $paymentUrl,
                         'payment_id' => $paymentId,
-                        'payment_payload' => $json,
+                        'payment_payload' => array_merge($json, [
+                            'extracted_id' => $data['id'] ?? null,
+                            'extracted_transaction_id' => $data['transaction_id'] ?? $data['transactionId'] ?? null,
+                            'extracted_payment_link_id' => $data['paymentLinkId'] ?? null,
+                            'extracted_link' => $paymentUrl,
+                        ]),
                     ]);
 
                     return [
@@ -181,5 +186,101 @@ class MayarPaymentService
                 'message' => 'Gagal menghubungi server Mayar: ' . $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Actively query Mayar API to verify invoice/payment status for an Order
+     */
+    public function checkPaymentStatus(Store $store, Order $order): array
+    {
+        $apiKey = trim($store->mayar_api_key ?? '');
+        if (empty($apiKey)) {
+            return ['success' => false, 'message' => 'API Key belum dikonfigurasi.'];
+        }
+
+        // Collect all potential IDs for this invoice/payment
+        $payload = is_array($order->payment_payload) ? $order->payment_payload : [];
+        $payloadData = $payload['data'] ?? [];
+
+        $candidateIds = array_unique(array_filter([
+            $order->payment_id,
+            $payloadData['id'] ?? null,
+            $payloadData['transaction_id'] ?? null,
+            $payloadData['transactionId'] ?? null,
+            $payloadData['paymentLinkId'] ?? null,
+            $payload['extracted_id'] ?? null,
+            $payload['extracted_transaction_id'] ?? null,
+            $payload['extracted_payment_link_id'] ?? null,
+        ]));
+
+        $baseUrl = self::getBaseUrl($store->mayar_environment ?? 'sandbox');
+
+        foreach ($candidateIds as $cid) {
+            if (empty($cid) || strlen($cid) < 5) continue;
+
+            // Try invoice detail endpoint: /hl/v1/invoice/{id}
+            try {
+                $response = Http::timeout(8)
+                    ->withToken($apiKey)
+                    ->get("{$baseUrl}/invoice/{$cid}");
+
+                if ($response->successful()) {
+                    $json = $response->json();
+                    $data = $json['data'] ?? [];
+                    $status = strtoupper($data['status'] ?? $data['paymentStatus'] ?? '');
+
+                    $isPaid = in_array($status, ['SUCCESS', 'PAID', 'SETTLED', 'COMPLETED', 'VERIFIED', 'LUNAS'])
+                        || !empty($data['paidAt'])
+                        || !empty($data['paid_at'])
+                        || ($data['isPaid'] ?? false) === true;
+
+                    if ($isPaid) {
+                        return [
+                            'success' => true,
+                            'is_paid' => true,
+                            'status' => $status ?: 'PAID',
+                            'data' => $json,
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Continue to next candidate
+            }
+
+            // Try payment detail endpoint: /hl/v1/payment/{id}
+            try {
+                $response = Http::timeout(8)
+                    ->withToken($apiKey)
+                    ->get("{$baseUrl}/payment/{$cid}");
+
+                if ($response->successful()) {
+                    $json = $response->json();
+                    $data = $json['data'] ?? [];
+                    $status = strtoupper($data['status'] ?? $data['paymentStatus'] ?? '');
+
+                    $isPaid = in_array($status, ['SUCCESS', 'PAID', 'SETTLED', 'COMPLETED', 'VERIFIED', 'LUNAS'])
+                        || !empty($data['paidAt'])
+                        || !empty($data['paid_at'])
+                        || ($data['isPaid'] ?? false) === true;
+
+                    if ($isPaid) {
+                        return [
+                            'success' => true,
+                            'is_paid' => true,
+                            'status' => $status ?: 'PAID',
+                            'data' => $json,
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Continue to next candidate
+            }
+        }
+
+        return [
+            'success' => false,
+            'is_paid' => false,
+            'message' => 'Status pembayaran belum terkonfirmasi lunas dari server Mayar.',
+        ];
     }
 }

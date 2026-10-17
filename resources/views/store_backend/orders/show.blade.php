@@ -182,6 +182,38 @@
                     </span>
                 </div>
 
+                @if(strtolower($order->payment_method) === 'mayar' || !empty($order->payment_id))
+                <div class="mb-3 p-2.5 bg-light rounded border">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted fw-bold"><i class="fa-solid fa-bolt text-warning me-1"></i> Gateway Mayar.id</small>
+                        @if($order->payment_status === 'paid')
+                            <span class="badge bg-success-subtle text-success border border-success-subtle small">Lunas</span>
+                        @endif
+                    </div>
+                    @if($order->payment_id)
+                        <div class="font-mono small text-truncate text-muted mb-2" title="{{ $order->payment_id }}">
+                            Ref: {{ $order->payment_id }}
+                        </div>
+                    @endif
+                    @php
+                        $mayarUrl = is_array($order->payment_payload) ? ($order->payment_payload['payment_url'] ?? $order->payment_payload['extracted_link'] ?? ($order->payment_payload['data']['link'] ?? null)) : null;
+                    @endphp
+                    @if($mayarUrl)
+                        <a href="{{ $mayarUrl }}" target="_blank" class="btn btn-sm btn-outline-primary w-100 mb-2">
+                            <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka Link Invoice Mayar
+                        </a>
+                    @endif
+                    @if($order->payment_status !== 'paid')
+                        <form action="{{ route('store.backend.orders.syncMayar', ['store_slug' => $store->slug, 'order' => $order->id]) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-warning w-100 fw-bold">
+                                <i class="fa-solid fa-rotate me-1"></i> Cek & Sinkronkan Status Mayar
+                            </button>
+                        </form>
+                    @endif
+                </div>
+                @endif
+
                 @if($order->payment_proof)
                 <div class="mb-3">
                     <small class="text-muted d-block mb-1">Bukti Transfer QRIS:</small>

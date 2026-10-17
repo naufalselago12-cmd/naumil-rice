@@ -28,6 +28,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'store.scope' => \App\Http\Middleware\StoreScopeMiddleware::class,
         ]);
 
+        $middleware->validateCsrfTokens(except: [
+            'payment/mayar/*',
+            'api/v1/payment/mayar/*',
+            'api/payment/mayar/*',
+            'mayar/*',
+            'api/v1/mayar/*',
+        ]);
+
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
