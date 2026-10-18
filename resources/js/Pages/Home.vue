@@ -15,7 +15,7 @@
               Setiap cabang Naumil Rice dilengkapi dapur mandiri, menu otentik nusantara, batch Open Pre-Order teratur, dan sistem QRIS dinamis resmi.
             </p>
             <div class="hero-actions">
-              <a href="#stores-list" class="btn-primary">
+              <a href="#stores-list" class="btn btn-primary">
                 <i class="fa-solid fa-store"></i> Pilih Cabang Toko
               </a>
               <Link href="/trace" class="btn-secondary">
@@ -52,7 +52,7 @@
             <div class="lookup-form">
               <input type="text" v-model="trackOrderInput" placeholder="Contoh: NR-PO-SDR-261012-001" 
                      class="form-input text-uppercase font-mono" @keyup.enter="goToTrace" />
-              <button class="btn-primary" @click="goToTrace">
+              <button class="btn btn-primary" @click="goToTrace">
                 <i class="fa-solid fa-arrow-right"></i> Lacak
               </button>
             </div>
@@ -132,14 +132,14 @@
                 <!-- Action CTA Buttons -->
                 <div class="d-flex flex-column gap-2">
                   <!-- Main Button: base_url/(nama_toko) -->
-                  <Link :href="'/' + (store.slug || store.code)" class="btn-primary w-100 text-center py-2">
+                  <Link :href="'/' + (store.slug || store.code)" class="btn btn-primary w-100 text-center py-2">
                     <i class="fa-solid fa-utensils me-1"></i> Kunjungi Toko & Pesan
                   </Link>
 
                   <!-- Secondary Buttons: WA & Store Backend -->
                   <div class="d-flex gap-2">
                     <a v-if="store.phone" :href="'https://wa.me/' + cleanPhone(store.phone)" target="_blank" 
-                       class="btn-secondary flex-grow-1 text-center py-2" title="WhatsApp Cabang">
+                       class="btn btn-secondary flex-grow-1 text-center py-2" title="WhatsApp Cabang">
                       <i class="fa-brands fa-whatsapp text-success"></i> WhatsApp
                     </a>
                     

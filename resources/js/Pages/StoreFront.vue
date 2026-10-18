@@ -205,7 +205,7 @@
                     </span>
                   </div>
 
-                  <button class="btn-primary w-100 py-2 d-flex justify-content-center align-items-center gap-2" 
+                  <button class="btn btn-primary w-100 py-2 d-flex justify-content-center align-items-center gap-2" 
                           @click="openCustomizeModal(menu)" :disabled="menu.current_stock <= 0">
                     <i class="fa-solid fa-cart-plus"></i>
                     <span>{{ menu.current_stock > 0 ? 'Pesan / Kustomisasi' : 'Stok Habis' }}</span>
@@ -225,8 +225,9 @@
               <i class="fa-solid fa-bag-shopping"></i>
               <span class="bubble-count">{{ cartTotalQuantity }}</span>
             </div>
-            <div>
-              <div class="fw-bold text-white fs-6">Total Belanja: Rp {{ formatPrice(cartFinalPrice) }}</div>
+            <!-- Informasi Floating Cart Button (disembunyikan di versi mobile) -->
+            <div class="floating-cart-info d-none d-md-block">
+              <div class="fw-bold fs-6 font-mono">Total Belanja: Rp {{ formatPrice(cartFinalPrice) }}</div>
               <small class="text-light opacity-75">
                 {{ cartItems.length }} varian menu dipilih
                 <span v-if="finalEarnedPoints > 0" class="badge bg-warning text-dark ms-1">
@@ -235,7 +236,7 @@
               </small>
             </div>
           </div>
-          <button class="btn btn-light fw-bold px-4 py-2" @click="showCartModal = true">
+          <button class="btn btn-floating-checkout fw-bold px-4 py-2" @click="showCartModal = true">
             <i class="fa-solid fa-arrow-right me-1"></i> Lihat Keranjang & Checkout
           </button>
         </div>
@@ -320,8 +321,10 @@
           </div>
 
           <div class="modal-footer-custom p-3 border-top d-flex gap-2">
-            <button class="btn-secondary" @click="closeCustomizeModal">Batal</button>
-            <button class="btn-primary flex-grow-1" @click="addConfiguredItemToCart">
+            <button type="button" class="btn btn-secondary px-4 py-2" @click="closeCustomizeModal">
+              <i class="fa-solid fa-xmark me-1"></i> Batal
+            </button>
+            <button type="button" class="btn btn-primary flex-grow-1 py-2 fw-bold" @click="addConfiguredItemToCart">
               <i class="fa-solid fa-cart-plus me-1"></i> Tambahkan ke Keranjang
             </button>
           </div>
@@ -573,9 +576,9 @@
                         <textarea v-model="loyaltyRegisterForm.address" rows="2" class="form-input" placeholder="Jalan, No. Rumah, RT/RW, Patokan..." required></textarea>
                       </div>
 
-                      <button type="button" class="btn btn-warning w-100 fw-bold py-2" @click="handleLoyaltyRegister" :disabled="registeringLoyalty">
-                        <i v-if="registeringLoyalty" class="fa-solid fa-spinner fa-spin me-1"></i>
-                        <i v-else class="fa-solid fa-paper-plane me-1"></i>
+                      <button type="button" class="btn btn-warning btn-loyalty-action w-100 fw-bold py-2-5 shadow-sm" @click="handleLoyaltyRegister" :disabled="registeringLoyalty">
+                        <i v-if="registeringLoyalty" class="fa-solid fa-spinner fa-spin me-2"></i>
+                        <i v-else class="fa-solid fa-paper-plane me-2"></i>
                         <span>{{ registeringLoyalty ? 'Mendaftarkan Akun...' : 'Daftar & Kirim Email Verifikasi' }}</span>
                       </button>
                     </div>
@@ -597,9 +600,9 @@
                       <input type="password" v-model="loyaltyLoginForm.password" class="form-input" placeholder="Password Anda" required />
                     </div>
 
-                    <button type="button" class="btn btn-primary w-100 fw-bold py-2" @click="handleLoyaltyLogin" :disabled="loggingInLoyalty">
-                      <i v-if="loggingInLoyalty" class="fa-solid fa-spinner fa-spin me-1"></i>
-                      <i v-else class="fa-solid fa-right-to-bracket me-1"></i>
+                    <button type="button" class="btn btn-primary btn-modal-confirm w-100 fw-bold py-2-5 shadow-sm" @click="handleLoyaltyLogin" :disabled="loggingInLoyalty">
+                      <i v-if="loggingInLoyalty" class="fa-solid fa-spinner fa-spin me-2"></i>
+                      <i v-else class="fa-solid fa-right-to-bracket me-2"></i>
                       <span>{{ loggingInLoyalty ? 'Memverifikasi...' : 'Masuk ke Akun Pelanggan Setia' }}</span>
                     </button>
                   </div>
@@ -701,11 +704,13 @@
             </div>
           </div>
 
-          <div class="modal-footer-custom p-3 border-top d-flex gap-2">
-            <button class="btn-secondary" @click="showCartModal = false">Lanjut Belanja</button>
-            <button class="btn-primary flex-grow-1" @click="submitOrder" :disabled="submittingOrder">
-              <i v-if="submittingOrder" class="fa-solid fa-spinner fa-spin me-1"></i>
-              <i v-else class="fa-solid fa-paper-plane me-1"></i>
+          <div class="modal-footer-custom p-3 p-md-4 border-top d-flex flex-column flex-sm-row gap-2 gap-sm-3 bg-white">
+            <button type="button" class="btn btn-secondary btn-modal-back px-4 py-2-5 order-2 order-sm-1" @click="showCartModal = false">
+              <i class="fa-solid fa-arrow-left me-2"></i> Lanjut Belanja
+            </button>
+            <button type="button" class="btn btn-primary btn-modal-confirm flex-grow-1 py-2-5 px-4 fw-bold order-1 order-sm-2" @click="submitOrder" :disabled="submittingOrder">
+              <i v-if="submittingOrder" class="fa-solid fa-spinner fa-spin me-2"></i>
+              <i v-else class="fa-solid fa-paper-plane me-2"></i>
               <span>{{ submittingOrder ? 'Memproses Pesanan...' : 'Konfirmasi & Buat Pesanan' }}</span>
             </button>
           </div>
@@ -820,11 +825,11 @@
             </div>
           </div>
 
-          <div class="d-flex flex-column gap-2">
-            <Link :href="'/trace/' + createdOrderData.order_number" class="btn-primary py-2 text-decoration-none">
-              <i class="fa-solid fa-location-crosshairs me-1"></i> Lacak Status Pesanan (Kitchen Tracking)
+          <div class="d-flex flex-column gap-2 mt-3">
+            <Link :href="'/trace/' + createdOrderData.order_number" class="btn btn-primary btn-modal-confirm py-2-5 text-decoration-none fw-bold">
+              <i class="fa-solid fa-location-crosshairs me-2"></i> Lacak Status Pesanan (Kitchen Tracking)
             </Link>
-            <button class="btn-secondary py-2" @click="resetAndCloseSuccessModal">
+            <button class="btn btn-secondary btn-modal-back py-2-5" @click="resetAndCloseSuccessModal">
               Tutup & Selesai
             </button>
           </div>
@@ -1788,22 +1793,138 @@ const cleanPhone = (phone) => {
 }
 
 .btn-qty {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1.5px solid #cbd5e1;
   background: white;
   font-weight: 800;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-qty:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+  transform: scale(1.05);
+}
+
+.btn-qty:active {
+  transform: scale(0.95);
 }
 
 .btn-close-custom {
-  background: transparent;
+  background: #f1f5f9;
   border: none;
-  font-size: 1.25rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.1rem;
   color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-close-custom:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  transform: rotate(90deg);
+}
+
+.modal-footer-custom {
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+}
+
+/* Custom Modern Button Styles */
+.btn-modal-back {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 1.5px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  font-weight: 600 !important;
+  padding: 0.75rem 1.4rem !important;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-modal-back:hover:not(:disabled) {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+}
+
+.btn-modal-confirm {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 14px !important;
+  font-weight: 700 !important;
+  padding: 0.75rem 1.6rem !important;
+  font-size: 0.98rem !important;
+  letter-spacing: -0.01em !important;
+  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.35) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-modal-confirm:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(225, 29, 72, 0.48) !important;
+  color: #ffffff !important;
+}
+
+.btn-loyalty-action {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 14px !important;
+  font-weight: 700 !important;
+  padding: 0.75rem 1.4rem !important;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.35) !important;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-loyalty-action:hover:not(:disabled) {
+  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 22px rgba(245, 158, 11, 0.45) !important;
+  color: #ffffff !important;
+}
+
+.btn-floating-checkout {
+  background: #ffffff !important;
+  color: #e11d48 !important;
+  border: none !important;
+  border-radius: 9999px !important;
+  font-weight: 700 !important;
+  padding: 0.65rem 1.4rem !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-floating-checkout:hover {
+  background: #fff1f2 !important;
+  color: #be123c !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22) !important;
+}
+
+.btn-floating-checkout:active {
+  transform: translateY(0) !important;
 }
 
 .success-icon-bubble {

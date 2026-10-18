@@ -10,7 +10,7 @@
         <div class="search-box mx-auto mt-3">
           <input type="text" v-model="orderSearchInput" placeholder="Masukkan Nomor Order (cth: NR-PO-261012-001)" 
                  class="form-input font-mono text-uppercase" @keyup.enter="handleSearch" />
-          <button class="btn-primary" @click="handleSearch">
+          <button class="btn btn-primary" @click="handleSearch">
             <i class="fa-solid fa-radar"></i> Lacak
           </button>
         </div>
@@ -359,7 +359,7 @@
           <p class="text-muted small mb-3">Tim dapur dan kurir cabang siap membantu Anda.</p>
           <a v-if="orderData.order?.store?.phone" 
              :href="'https://wa.me/' + cleanPhone(orderData.order.store.phone) + '?text=Halo%20Naumil%20Rice,%20saya%20ingin%20menanyakan%20status%20pesanan%20' + orderData.order.order_number" 
-             target="_blank" class="btn-primary mx-auto">
+             target="_blank" class="btn btn-primary mx-auto">
             <i class="fa-brands fa-whatsapp fs-5"></i> Hubungi WhatsApp Dapur
           </a>
         </div>

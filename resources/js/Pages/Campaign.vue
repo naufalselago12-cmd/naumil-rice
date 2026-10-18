@@ -13,7 +13,7 @@
           <i class="fa-solid fa-triangle-exclamation text-danger fa-3x mb-3"></i>
           <h3 class="fw-bold mb-2">Campaign Tidak Ditemukan</h3>
           <p class="text-muted mb-4">{{ errorMessage }}</p>
-          <Link href="/" class="btn-primary mx-auto">
+          <Link href="/" class="btn btn-primary mx-auto">
             <i class="fa-solid fa-arrow-left"></i> Kembali ke Beranda
           </Link>
         </div>
@@ -187,7 +187,7 @@
 
                   <!-- Add Button -->
                   <button :disabled="isExpired || menu.current_stock <= 0" 
-                          class="btn-primary btn-add" 
+                          class="btn btn-primary btn-add" 
                           @click="openOptionModal(menu)">
                     <template v-if="isExpired">Ditutup</template>
                     <template v-else-if="menu.current_stock <= 0">Habis</template>
@@ -289,7 +289,7 @@
               <small class="text-muted d-block">Subtotal Item:</small>
               <div class="fs-5 fw-bold text-primary">Rp {{ formatNumber(modalItemSubtotal) }}</div>
             </div>
-            <button class="btn-primary" @click="addToCartFromModal">
+            <button class="btn btn-primary" @click="addToCartFromModal">
               <i class="fa-solid fa-cart-plus me-1"></i> Tambahkan ke Pesanan
             </button>
           </div>
@@ -614,7 +614,7 @@
             </div>
 
             <!-- Submit Order Button -->
-            <button :disabled="submitting || mayarPaymentWaiting" class="btn-primary w-100 py-3 fs-6" @click="submitOrder">
+            <button :disabled="submitting || mayarPaymentWaiting" class="btn btn-primary w-100 py-3 fs-6" @click="submitOrder">
               <span v-if="submitting">
                 <i class="fa-solid fa-spinner fa-spin me-2"></i> Memproses Pesanan...
               </span>

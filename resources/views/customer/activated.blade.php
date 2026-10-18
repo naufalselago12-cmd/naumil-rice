@@ -233,7 +233,7 @@
       <i class="fa-solid fa-cart-shopping me-1"></i> Lanjutkan Pesanan Makanan Saya
     </a>
 
-    <a href="{{ url('/') }}" class="btn-primary" id="exploreBtn">
+    <a href="{{ url('/') }}" class="btn btn-primary" id="exploreBtn">
       🍚 Lihat Menu & Pesan Sekarang
     </a>
 

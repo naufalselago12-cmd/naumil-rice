@@ -49,7 +49,7 @@
               <a v-if="store.phone" :href="'https://wa.me/' + cleanPhone(store.phone)" target="_blank" class="btn-secondary flex-grow-1">
                 <i class="fa-brands fa-whatsapp text-success"></i> WhatsApp
               </a>
-              <Link href="/" class="btn-primary flex-grow-1">
+              <Link href="/" class="btn btn-primary flex-grow-1">
                 <i class="fa-solid fa-bullhorn"></i> Lihat PO
               </Link>
             </div>
