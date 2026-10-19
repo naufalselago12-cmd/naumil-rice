@@ -101,6 +101,19 @@
                   </div>
                 </div>
 
+                <div class="schedule-divider" v-if="campaign.max_quota"></div>
+
+                <div class="schedule-item" v-if="campaign.max_quota">
+                  <i class="fa-solid fa-boxes-stacked text-primary fs-4"></i>
+                  <div>
+                    <span class="schedule-label">Sisa Kuota Batch:</span>
+                    <strong :class="['schedule-value', isSoldOut ? 'text-danger' : 'text-primary']">
+                      {{ isSoldOut ? 'Habis (Sold Out)' : campaign.remaining_quota + ' / ' + campaign.max_quota + ' Porsi' }}
+                    </strong>
+                    <small class="text-muted d-block font-mono">Terpesan: {{ campaign.total_ordered }} porsi</small>
+                  </div>
+                </div>
+
                 <div class="schedule-divider" v-if="campaign.discount_type !== 'none'"></div>
 
                 <div class="schedule-item" v-if="campaign.discount_type !== 'none'">
@@ -120,6 +133,19 @@
                     </strong>
                     <small class="text-muted d-block">Otomatis terpotong di ringkasan</small>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Alert if Sold Out -->
+            <div v-if="isSoldOut && !isExpired" class="alert-expired card mt-4 border-danger">
+              <div class="d-flex align-items-center gap-3">
+                <i class="fa-solid fa-boxes-stacked text-danger fs-2"></i>
+                <div>
+                  <h4 class="fw-bold mb-1 text-danger">Seluruh Kuota Pre-Order Telah Habis (Sold Out)</h4>
+                  <p class="mb-0 text-muted">
+                    Maksimum kuota pemesanan untuk batch Open PO ini telah terpenuhi. Terima kasih atas antusiasme Anda! Nantikan batch berikutnya.
+                  </p>
                 </div>
               </div>
             </div>
@@ -165,8 +191,14 @@
                   HEMAT Rp {{ formatNumber(menu.discount_price) }}
                 </div>
 
-                <div class="stock-badge" :class="menu.current_stock < 10 ? 'low' : ''">
-                  Sisa {{ menu.current_stock }} Porsi
+                <div v-if="menu.is_sold_out || isSoldOut || (menu.remaining_quota !== null && menu.remaining_quota <= 0)" class="stock-badge low">
+                  Kuota Habis
+                </div>
+                <div v-else-if="menu.max_quota !== null" class="stock-badge" :class="menu.remaining_quota < 5 ? 'low' : ''">
+                  Sisa Kuota: {{ menu.remaining_quota }} Porsi
+                </div>
+                <div v-else class="stock-badge">
+                  PO Tersedia
                 </div>
               </div>
 
@@ -186,11 +218,11 @@
                   </div>
 
                   <!-- Add Button -->
-                  <button :disabled="isExpired || menu.current_stock <= 0" 
+                  <button :disabled="isExpired || isSoldOut || menu.is_sold_out || (menu.remaining_quota !== null && menu.remaining_quota <= 0)" 
                           class="btn btn-primary btn-add" 
                           @click="openOptionModal(menu)">
                     <template v-if="isExpired">Ditutup</template>
-                    <template v-else-if="menu.current_stock <= 0">Habis</template>
+                    <template v-else-if="isSoldOut || menu.is_sold_out || (menu.remaining_quota !== null && menu.remaining_quota <= 0)">Habis</template>
                     <template v-else>
                       <i class="fa-solid fa-plus"></i> Pesan
                     </template>
@@ -274,11 +306,17 @@
 
             <!-- Quantity Selector -->
             <div class="qty-selector-row">
-              <span class="fw-bold">Jumlah Porsi:</span>
+              <div>
+                <span class="fw-bold d-block">Jumlah Porsi:</span>
+                <small v-if="modalMaxQty !== null" class="text-muted" style="font-size: 0.78rem;">
+                  Sisa kuota: {{ modalMaxQty }} porsi
+                </small>
+              </div>
               <div class="qty-control">
-                <button class="qty-btn" @click="modalQty = Math.max(1, modalQty - 1)">-</button>
+                <button class="qty-btn" @click="decrementModalQty">-</button>
                 <span class="qty-num">{{ modalQty }}</span>
-                <button class="qty-btn" @click="modalQty++">+</button>
+                <button class="qty-btn" :disabled="modalMaxQty !== null && modalQty >= modalMaxQty" 
+                        @click="incrementModalQty">+</button>
               </div>
             </div>
           </div>
@@ -875,6 +913,21 @@ const filteredMenus = computed(() => {
   return menus.value.filter(m => m.category_name === activeCategory.value)
 })
 
+const isSoldOut = computed(() => {
+  return campaign.value?.is_sold_out || (campaign.value?.max_quota !== null && campaign.value?.remaining_quota !== undefined && campaign.value?.remaining_quota <= 0)
+})
+
+const modalMaxQty = computed(() => {
+  if (!activeMenuModal.value) return null
+  if (activeMenuModal.value.remaining_quota !== null && activeMenuModal.value.remaining_quota !== undefined) {
+    return activeMenuModal.value.remaining_quota
+  }
+  if (campaign.value?.remaining_quota !== null && campaign.value?.remaining_quota !== undefined) {
+    return campaign.value.remaining_quota
+  }
+  return null
+})
+
 // Customization Modal Logic
 const openOptionModal = (menu) => {
   activeMenuModal.value = menu
@@ -883,6 +936,16 @@ const openOptionModal = (menu) => {
   selectedCondition.value = menu.options?.conditions?.[0] || null
   modalSpecialNotes.value = ''
   modalQty.value = 1
+}
+
+const incrementModalQty = () => {
+  if (modalMaxQty.value === null || modalQty.value < modalMaxQty.value) {
+    modalQty.value++
+  }
+}
+
+const decrementModalQty = () => {
+  modalQty.value = Math.max(1, modalQty.value - 1)
 }
 
 const modalItemSubtotal = computed(() => {
@@ -895,6 +958,12 @@ const modalItemSubtotal = computed(() => {
 })
 
 const addToCartFromModal = () => {
+  if (modalMaxQty.value !== null && modalQty.value > modalMaxQty.value) {
+    alert(`Maaf, kuota pemesanan untuk menu ini hanya tersisa ${modalMaxQty.value} porsi.`)
+    modalQty.value = modalMaxQty.value
+    return
+  }
+
   const options = []
   if (selectedUpsize.value) options.push(selectedUpsize.value)
   if (selectedCondition.value) options.push(selectedCondition.value)

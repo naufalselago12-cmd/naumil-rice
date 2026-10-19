@@ -42,19 +42,28 @@
 
                     <div class="col-12"><hr class="my-3"></div>
 
-                    <!-- Date Configurations -->
-                    <div class="col-md-6">
+                    <!-- Date & Stock Quota Configurations -->
+                    <div class="col-md-4">
                         <label class="form-label fw-bold text-danger">Batas Waktu Close Order <span class="text-danger">*</span></label>
                         <input type="datetime-local" name="close_order_at" class="form-control" 
                                value="{{ \Carbon\Carbon::now()->addDays(3)->format('Y-m-d\TH:i') }}" required>
-                        <small class="text-muted">Setelah waktu ini, pelanggan tidak dapat membuat pesanan lagi.</small>
+                        <small class="text-muted">Setelah waktu ini, form PO ditutup otomatis.</small>
                     </div>
 
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label class="form-label fw-bold text-success">Waktu Makanan Siap / Dikirim <span class="text-danger">*</span></label>
                         <input type="datetime-local" name="ready_at" class="form-control" 
                                value="{{ \Carbon\Carbon::now()->addDays(4)->format('Y-m-d\TH:i') }}" required>
-                        <small class="text-muted">Jadwal dapur menyelesaikan pesanan & pick up kurir.</small>
+                        <small class="text-muted">Jadwal dapur menyelesaikan pesanan batch.</small>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold text-primary">
+                            <i class="fa-solid fa-boxes-stacked me-1"></i> Maks. Stok Campaign (Porsi)
+                        </label>
+                        <input type="number" name="max_quota" class="form-control" 
+                               placeholder="Contoh: 100 (Opsional)" value="{{ old('max_quota') }}" min="1">
+                        <small class="text-muted">Total kuota seluruh porsi untuk batch PO ini.</small>
                     </div>
 
                     <div class="col-12"><hr class="my-3"></div>
@@ -84,30 +93,75 @@
 
                     <!-- Select Menu for this campaign -->
                     <div class="col-12">
-                        <label class="form-label fw-bold"><i class="fa-solid fa-utensils me-1 text-primary"></i> Pilih Menu Makanan Cabang Dalam Batch PO Ini <span class="text-danger">*</span></label>
-                        <p class="text-muted small">Centang menu yang ingin dibuka untuk pemesanan pada batch ini:</p>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <label class="form-label fw-bold mb-0">
+                                    <i class="fa-solid fa-utensils me-1 text-primary"></i> Menu Makanan Dalam Batch Open PO <span class="text-danger">*</span>
+                                </label>
+                                <p class="text-muted small mb-0">Menu yang dicentang di sini akan otomatis disembunyikan dari menu reguler dan hanya tampil di Open PO.</p>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleSelectAllMenus()">
+                                Centang / Batal Semua
+                            </button>
+                        </div>
 
-                        <div class="row g-3">
-                            @forelse($menus as $menu)
-                                <div class="col-md-6">
-                                    <div class="card p-3 border rounded-3 bg-light h-100">
-                                        <div class="form-check">
-                                            <input class="form-check-input menu-checkbox" type="checkbox" 
-                                                   name="selected_menus[]" value="{{ $menu->id }}" id="menu{{ $menu->id }}" checked>
-                                            <label class="form-check-label fw-bold" for="menu{{ $menu->id }}">
-                                                {{ $menu->name }}
-                                            </label>
-                                        </div>
-                                        <div class="ms-4 mt-1 small text-muted">
-                                            Harga Standard: <span class="fw-bold text-dark font-mono">Rp {{ number_format($menu->price, 0, ',', '.') }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            @empty
-                                <div class="col-12 text-center py-3 text-muted">
-                                    Belum ada menu di cabang ini. Silakan buat menu terlebih dahulu.
-                                </div>
-                            @endforelse
+                        <div class="table-responsive border rounded-3">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 45px;">Pilih</th>
+                                        <th>Menu Makanan</th>
+                                        <th style="width: 140px;">Harga Standard</th>
+                                        <th style="width: 150px;">Diskon Menu (Rp)</th>
+                                        <th style="width: 160px;">Harga Khusus PO</th>
+                                        <th style="width: 160px;">Maks. Stok PO (Porsi)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($menus as $menu)
+                                        <tr>
+                                            <td>
+                                                <input class="form-check-input menu-checkbox" type="checkbox" 
+                                                       name="selected_menus[]" value="{{ $menu->id }}" id="menu_{{ $menu->id }}" checked>
+                                            </td>
+                                            <td>
+                                                <label class="d-flex align-items-center gap-2 mb-0 cursor-pointer" for="menu_{{ $menu->id }}">
+                                                    <img src="{{ $menu->image }}" alt="" class="rounded border" style="width: 42px; height: 42px; object-fit: cover;">
+                                                    <div>
+                                                        <div class="fw-bold">{{ $menu->name }}</div>
+                                                        <small class="text-muted">{{ $menu->category?->name ?: 'Umum' }} &bull; Stok Harian: {{ $menu->current_stock }}</small>
+                                                    </div>
+                                                </label>
+                                            </td>
+                                            <td class="fw-semibold font-mono">Rp {{ number_format($menu->price, 0, ',', '.') }}</td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">Rp</span>
+                                                    <input type="number" name="menu_discounts[{{ $menu->id }}]" 
+                                                           class="form-control" placeholder="0" value="0" min="0">
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">Rp</span>
+                                                    <input type="number" name="menu_custom_prices[{{ $menu->id }}]" 
+                                                           class="form-control" placeholder="{{ $menu->price }}" min="0">
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <input type="number" name="menu_max_quotas[{{ $menu->id }}]" 
+                                                       class="form-control form-control-sm" placeholder="Tak terbatas" min="1">
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-muted">
+                                                Belum ada menu di cabang ini. Silakan buat menu terlebih dahulu.
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -123,3 +177,13 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    function toggleSelectAllMenus() {
+        const checkboxes = document.querySelectorAll('.menu-checkbox');
+        const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !anyChecked);
+    }
+</script>
+@endpush

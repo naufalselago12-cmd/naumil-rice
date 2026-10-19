@@ -121,6 +121,20 @@ class OrderApiController extends Controller
                         'message' => 'Maaf, periode Open Pre-Order untuk campaign ini sudah ditutup.'
                     ], 422);
                 }
+
+                if ($campaign && $campaign->max_quota !== null) {
+                    $incomingTotalQty = collect($validated['items'])->sum('quantity');
+                    $alreadyOrdered = $campaign->total_ordered;
+                    if ($alreadyOrdered + $incomingTotalQty > $campaign->max_quota) {
+                        $remaining = max(0, $campaign->max_quota - $alreadyOrdered);
+                        return response()->json([
+                            'success' => false,
+                            'message' => $remaining > 0
+                                ? "Maaf, kuota pesanan untuk batch Open PO ini tersisa {$remaining} porsi. Jumlah pesanan Anda ({$incomingTotalQty} porsi) melebihi kuota yang tersedia."
+                                : "Maaf, seluruh kuota untuk batch Open PO ini telah habis terjual (Sold Out)."
+                        ], 422);
+                    }
+                }
             }
 
             // 4. Calculate items, totals, and loyalty reward points
@@ -140,6 +154,22 @@ class OrderApiController extends Controller
                     if ($campaignMenu && $campaignMenu->pivot) {
                         $basePrice = $campaignMenu->pivot->custom_price ?? $menu->price;
                         $discountPrice = $campaignMenu->pivot->discount_price ?? 0;
+
+                        // Check menu-specific quota inside campaign if set
+                        $menuMaxQuota = $campaignMenu->pivot->max_quota;
+                        if ($menuMaxQuota !== null) {
+                            $alreadyMenuOrdered = $campaign->getMenuOrderedQuantity($menu->id);
+                            $requestedQty = (int) $itemInput['quantity'];
+                            if ($alreadyMenuOrdered + $requestedQty > $menuMaxQuota) {
+                                $remainingMenuQuota = max(0, $menuMaxQuota - $alreadyMenuOrdered);
+                                return response()->json([
+                                    'success' => false,
+                                    'message' => $remainingMenuQuota > 0
+                                        ? "Maaf, kuota untuk menu '{$menu->name}' pada batch Open PO ini tersisa {$remainingMenuQuota} porsi. Anda memesan {$requestedQty} porsi."
+                                        : "Maaf, kuota pemesanan untuk menu '{$menu->name}' pada batch Open PO ini sudah habis terjual."
+                                ], 422);
+                            }
+                        }
                     }
                 }
 

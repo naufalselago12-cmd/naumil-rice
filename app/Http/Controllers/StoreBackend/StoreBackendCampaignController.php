@@ -54,10 +54,12 @@ class StoreBackendCampaignController extends Controller
             'min_purchase_amount' => 'nullable|numeric|min:0',
             'close_order_at' => 'required|date',
             'ready_at' => 'required|date|after_or_equal:close_order_at',
+            'max_quota' => 'nullable|integer|min:1',
             'selected_menus' => 'required|array|min:1',
             'selected_menus.*' => 'exists:menus,id',
             'menu_discounts' => 'nullable|array',
             'menu_custom_prices' => 'nullable|array',
+            'menu_max_quotas' => 'nullable|array',
         ]);
 
         $bannerImage = $validated['banner_url'] ?? 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&q=80';
@@ -81,6 +83,7 @@ class StoreBackendCampaignController extends Controller
                 'min_purchase_amount' => $validated['min_purchase_amount'] ?? 0,
                 'close_order_at' => Carbon::parse($validated['close_order_at']),
                 'ready_at' => Carbon::parse($validated['ready_at']),
+                'max_quota' => !empty($validated['max_quota']) ? (int)$validated['max_quota'] : null,
                 'qr_token' => $qrToken,
                 'is_active' => true,
             ]);
@@ -91,6 +94,7 @@ class StoreBackendCampaignController extends Controller
                     'menu_id' => $menuId,
                     'custom_price' => $validated['menu_custom_prices'][$menuId] ?? null,
                     'discount_price' => $validated['menu_discounts'][$menuId] ?? 0,
+                    'max_quota' => !empty($validated['menu_max_quotas'][$menuId]) ? (int)$validated['menu_max_quotas'][$menuId] : null,
                 ]);
             }
         });
@@ -143,11 +147,13 @@ class StoreBackendCampaignController extends Controller
             'min_purchase_amount' => 'nullable|numeric|min:0',
             'close_order_at' => 'required|date',
             'ready_at' => 'required|date|after_or_equal:close_order_at',
+            'max_quota' => 'nullable|integer|min:1',
             'is_active' => 'nullable',
             'selected_menus' => 'required|array|min:1',
             'selected_menus.*' => 'exists:menus,id',
             'menu_discounts' => 'nullable|array',
             'menu_custom_prices' => 'nullable|array',
+            'menu_max_quotas' => 'nullable|array',
         ]);
 
         $bannerImage = $campaign->banner_image;
@@ -169,6 +175,7 @@ class StoreBackendCampaignController extends Controller
                 'min_purchase_amount' => $validated['min_purchase_amount'] ?? 0,
                 'close_order_at' => Carbon::parse($validated['close_order_at']),
                 'ready_at' => Carbon::parse($validated['ready_at']),
+                'max_quota' => !empty($validated['max_quota']) ? (int)$validated['max_quota'] : null,
                 'is_active' => $request->boolean('is_active'),
             ]);
 
@@ -179,6 +186,7 @@ class StoreBackendCampaignController extends Controller
                     'menu_id' => $menuId,
                     'custom_price' => $validated['menu_custom_prices'][$menuId] ?? null,
                     'discount_price' => $validated['menu_discounts'][$menuId] ?? 0,
+                    'max_quota' => !empty($validated['menu_max_quotas'][$menuId]) ? (int)$validated['menu_max_quotas'][$menuId] : null,
                 ]);
             }
         });

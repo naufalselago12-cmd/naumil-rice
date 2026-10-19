@@ -65,18 +65,27 @@
                         <p class="text-muted small">QR code campaign akan otomatis expired bila masa close order telah berakhir.</p>
                     </div>
 
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Batas Waktu Close Order (Expired QR) <span class="text-danger">*</span></label>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold text-danger">Batas Waktu Close Order (Expired QR) <span class="text-danger">*</span></label>
                         <input type="datetime-local" name="close_order_at" class="form-control @error('close_order_at') is-invalid @enderror" 
                                value="{{ old('close_order_at', now()->addDays(2)->format('Y-m-d\TH:i')) }}" required>
                         @error('close_order_at') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Estimasi Tanggal & Jam Makanan Ready / Dikirim <span class="text-danger">*</span></label>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold text-success">Estimasi Makanan Ready / Dikirim <span class="text-danger">*</span></label>
                         <input type="datetime-local" name="ready_at" class="form-control @error('ready_at') is-invalid @enderror" 
                                value="{{ old('ready_at', now()->addDays(3)->setTime(11, 0)->format('Y-m-d\TH:i')) }}" required>
                         @error('ready_at') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold text-primary">
+                            <i class="fa-solid fa-boxes-stacked me-1"></i> Maks. Stok Campaign (Porsi)
+                        </label>
+                        <input type="number" name="max_quota" class="form-control" 
+                               placeholder="Contoh: 100 (Opsional)" value="{{ old('max_quota') }}" min="1">
+                        <small class="text-muted">Total kuota seluruh porsi pesanan batch ini.</small>
                     </div>
 
                     <div class="col-12"><hr class="my-3"></div>
@@ -117,7 +126,7 @@
                                 <h6 class="fw-bold text-success mb-1">
                                     <i class="fa-solid fa-utensils me-2"></i> Pilih Menu Makanan yang Diikutkan Open PO
                                 </h6>
-                                <p class="text-muted small mb-0">Centang menu yang ingin dibuka untuk pre-order dan tentukan diskon khusus per menu jika ada.</p>
+                                <p class="text-muted small mb-0">Centang menu yang ingin dibuka untuk pre-order dan tentukan diskon serta batas stok per menu.</p>
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleSelectAllMenus()">
                                 Centang / Batal Semua
@@ -130,9 +139,10 @@
                                     <tr>
                                         <th style="width: 50px;">Pilih</th>
                                         <th>Menu Makanan</th>
-                                        <th style="width: 140px;">Harga Standard</th>
-                                        <th style="width: 170px;">Diskon Menu (Rp)</th>
-                                        <th style="width: 170px;">Harga Khusus PO (Opsional)</th>
+                                        <th style="width: 130px;">Harga Standard</th>
+                                        <th style="width: 150px;">Diskon Menu (Rp)</th>
+                                        <th style="width: 150px;">Harga Khusus PO</th>
+                                        <th style="width: 150px;">Maks. Stok PO (Porsi)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -147,7 +157,7 @@
                                                     <img src="{{ $menu->image }}" alt="" class="rounded border" style="width: 44px; height: 44px; object-fit: cover;">
                                                     <div>
                                                         <div class="fw-bold">{{ $menu->name }}</div>
-                                                        <small class="text-muted">{{ $menu->category?->name ?: 'Umum' }}</small>
+                                                        <small class="text-muted">{{ $menu->category?->name ?: 'Umum' }} &bull; Stok Harian: {{ $menu->current_stock }}</small>
                                                     </div>
                                                 </label>
                                             </td>
@@ -166,10 +176,14 @@
                                                            class="form-control" placeholder="{{ $menu->price }}" min="0">
                                                 </div>
                                             </td>
+                                            <td>
+                                                <input type="number" name="menu_max_quotas[{{ $menu->id }}]" 
+                                                       class="form-control form-control-sm" placeholder="Tak terbatas" min="1">
+                                            </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="text-center py-4 text-muted">
+                                            <td colspan="6" class="text-center py-4 text-muted">
                                                 Belum ada menu di cabang ini. Silakan buat menu terlebih dahulu.
                                             </td>
                                         </tr>

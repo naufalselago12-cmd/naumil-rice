@@ -45,17 +45,31 @@
                         <input type="url" name="banner_url" class="form-control" value="{{ old('banner_url', $campaign->banner_image) }}">
                     </div>
 
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Batas Waktu Close Order <span class="text-danger">*</span></label>
+                    <!-- Date & Stock Quota Configurations -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold text-danger">Batas Waktu Close Order <span class="text-danger">*</span></label>
                         <input type="datetime-local" name="close_order_at" class="form-control" 
                                value="{{ old('close_order_at', $campaign->close_order_at->format('Y-m-d\TH:i')) }}" required>
+                        <small class="text-muted">Batas waktu pemesanan dibuka.</small>
                     </div>
 
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Estimasi Makanan Ready <span class="text-danger">*</span></label>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold text-success">Estimasi Makanan Ready <span class="text-danger">*</span></label>
                         <input type="datetime-local" name="ready_at" class="form-control" 
                                value="{{ old('ready_at', $campaign->ready_at->format('Y-m-d\TH:i')) }}" required>
+                        <small class="text-muted">Jadwal dapur menyelesaikan pesanan.</small>
                     </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold text-primary">
+                            <i class="fa-solid fa-boxes-stacked me-1"></i> Maks. Stok Campaign (Porsi)
+                        </label>
+                        <input type="number" name="max_quota" class="form-control" 
+                               placeholder="Contoh: 100 (Opsional)" value="{{ old('max_quota', $campaign->max_quota) }}" min="1">
+                        <small class="text-muted">Total kuota seluruh porsi pesanan batch ini.</small>
+                    </div>
+
+                    <div class="col-12"><hr class="my-3"></div>
 
                     <div class="col-md-4">
                         <label class="form-label fw-bold">Tipe Diskon Campaign</label>
@@ -88,16 +102,28 @@
                     <div class="col-12"><hr class="my-3"></div>
 
                     <div class="col-12">
-                        <h6 class="fw-bold text-success mb-2">Pilih Menu untuk Open PO</h6>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <h6 class="fw-bold text-success mb-1">
+                                    <i class="fa-solid fa-utensils me-2"></i> Pilih Menu Makanan untuk Open PO
+                                </h6>
+                                <p class="text-muted small mb-0">Menu yang dicentang di sini akan otomatis disembunyikan dari menu reguler dan hanya tampil di Open PO.</p>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleSelectAllMenus()">
+                                Centang / Batal Semua
+                            </button>
+                        </div>
+
                         <div class="table-responsive border rounded-3">
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
                                         <th style="width: 50px;">Pilih</th>
                                         <th>Menu</th>
-                                        <th>Harga Standard</th>
-                                        <th style="width: 170px;">Diskon Menu (Rp)</th>
-                                        <th style="width: 170px;">Harga Khusus PO</th>
+                                        <th style="width: 130px;">Harga Standard</th>
+                                        <th style="width: 150px;">Diskon Menu (Rp)</th>
+                                        <th style="width: 150px;">Harga Khusus PO</th>
+                                        <th style="width: 150px;">Maks. Stok PO (Porsi)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -110,23 +136,34 @@
                                             $pivot = $campaign->menus->where('id', $menu->id)->first()?->pivot;
                                             $disc = $pivot?->discount_price ?? 0;
                                             $custom = $pivot?->custom_price ?? '';
+                                            $quota = $pivot?->max_quota ?? '';
                                         @endphp
                                         <tr>
                                             <td>
-                                                <input class="form-check-input" type="checkbox" 
-                                                       name="selected_menus[]" value="{{ $menu->id }}" {{ $isChecked ? 'checked' : '' }}>
+                                                <input class="form-check-input menu-checkbox" type="checkbox" 
+                                                       name="selected_menus[]" value="{{ $menu->id }}" id="menu_{{ $menu->id }}" {{ $isChecked ? 'checked' : '' }}>
                                             </td>
                                             <td>
-                                                <div class="fw-bold">{{ $menu->name }}</div>
+                                                <label class="d-flex align-items-center gap-2 mb-0 cursor-pointer" for="menu_{{ $menu->id }}">
+                                                    <img src="{{ $menu->image }}" alt="" class="rounded border" style="width: 40px; height: 40px; object-fit: cover;">
+                                                    <div>
+                                                        <div class="fw-bold">{{ $menu->name }}</div>
+                                                        <small class="text-muted">{{ $menu->category?->name ?: 'Umum' }} &bull; Stok Harian: {{ $menu->current_stock }}</small>
+                                                    </div>
+                                                </label>
                                             </td>
-                                            <td>Rp {{ number_format($menu->price, 0, ',', '.') }}</td>
+                                            <td class="font-mono">Rp {{ number_format($menu->price, 0, ',', '.') }}</td>
                                             <td>
                                                 <input type="number" name="menu_discounts[{{ $menu->id }}]" 
                                                        class="form-control form-control-sm" value="{{ $disc }}" min="0">
                                             </td>
                                             <td>
                                                 <input type="number" name="menu_custom_prices[{{ $menu->id }}]" 
-                                                       class="form-control form-control-sm" value="{{ $custom }}" min="0">
+                                                       class="form-control form-control-sm" value="{{ $custom }}" placeholder="{{ $menu->price }}" min="0">
+                                            </td>
+                                            <td>
+                                                <input type="number" name="menu_max_quotas[{{ $menu->id }}]" 
+                                                       class="form-control form-control-sm" value="{{ $quota }}" placeholder="Tak terbatas" min="1">
                                             </td>
                                         </tr>
                                     @endforeach
@@ -147,3 +184,13 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    function toggleSelectAllMenus() {
+        const checkboxes = document.querySelectorAll('.menu-checkbox');
+        const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !anyChecked);
+    }
+</script>
+@endpush

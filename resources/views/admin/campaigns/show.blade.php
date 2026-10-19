@@ -93,6 +93,27 @@
                             <div class="fw-bold fs-6">{{ $campaign->ready_at->format('d M Y, H:i') }} WIB</div>
                         </div>
                     </div>
+                    <div class="col-sm-6">
+                        <div class="p-3 rounded bg-light border">
+                            <span class="text-muted small d-block mb-1"><i class="fa-solid fa-boxes-stacked text-primary me-1"></i> Kuota / Maks. Stok Batch:</span>
+                            <div class="fw-bold fs-6 text-primary">
+                                {{ $campaign->max_quota ? $campaign->max_quota . ' Porsi' : 'Tak Terbatas' }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="p-3 rounded bg-light border">
+                            <span class="text-muted small d-block mb-1"><i class="fa-solid fa-chart-pie text-success me-1"></i> Terpesan vs Sisa:</span>
+                            <div class="fw-bold fs-6 font-mono">
+                                {{ $campaign->total_ordered }} Porsi Terpesan
+                                @if($campaign->max_quota)
+                                    <span class="badge {{ $campaign->remaining_quota > 0 ? 'bg-success' : 'bg-danger' }} ms-1">
+                                        Sisa: {{ $campaign->remaining_quota }}
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
                     <div class="col-12">
                         <div class="p-3 rounded bg-light border">
                             <span class="text-muted small d-block mb-1"><i class="fa-solid fa-tags text-warning me-1"></i> Ketentuan Diskon:</span>
@@ -125,7 +146,10 @@
                             <th>Menu</th>
                             <th>Harga Standard</th>
                             <th>Diskon Menu</th>
-                            <th>Harga Akhir PO</th>
+                            <th>Harga PO</th>
+                            <th>Maks. Kuota</th>
+                            <th>Terpesan</th>
+                            <th>Sisa</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -135,6 +159,8 @@
                                 $base = $pivot->custom_price ?? $menu->price;
                                 $disc = $pivot->discount_price ?? 0;
                                 $final = max(0, $base - $disc);
+                                $ordered = $campaign->getMenuOrderedQuantity($menu->id);
+                                $remaining = $campaign->getMenuRemainingQuota($menu->id, $pivot->max_quota);
                             @endphp
                             <tr>
                                 <td>
@@ -154,7 +180,18 @@
                                         <span class="text-muted">-</span>
                                     @endif
                                 </td>
-                                <td class="fw-bold text-success fs-6">Rp {{ number_format($final, 0, ',', '.') }}</td>
+                                <td class="fw-bold text-success fs-6 font-mono">Rp {{ number_format($final, 0, ',', '.') }}</td>
+                                <td>{{ $pivot->max_quota ? $pivot->max_quota . ' Porsi' : 'Tak Terbatas' }}</td>
+                                <td class="font-mono">{{ $ordered }} Porsi</td>
+                                <td>
+                                    @if($pivot->max_quota !== null)
+                                        <span class="badge {{ $remaining > 0 ? 'bg-success' : 'bg-danger' }}">
+                                            {{ $remaining > 0 ? 'Sisa ' . $remaining : 'Habis' }}
+                                        </span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

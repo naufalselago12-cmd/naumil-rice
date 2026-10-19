@@ -13,6 +13,7 @@ class CampaignApiController extends Controller
     {
         $campaigns = Campaign::with(['store'])
             ->where('is_active', true)
+            ->where('close_order_at', '>', now())
             ->orderBy('id', 'desc')
             ->get();
 
@@ -43,15 +44,21 @@ class CampaignApiController extends Controller
 
         $now = Carbon::now();
         $isExpired = !$campaign->is_active || $now->greaterThanOrEqualTo($campaign->close_order_at);
+        $campaignTotalOrdered = $campaign->total_ordered;
+        $campaignRemainingQuota = $campaign->remaining_quota;
+        $campaignIsSoldOut = $campaign->is_sold_out;
 
-        // Format menus to reflect campaign discounts
-        $menus = $campaign->menus->map(function ($menu) use ($campaign) {
+        // Format menus to reflect campaign discounts and stock/quota limits
+        $menus = $campaign->menus->map(function ($menu) use ($campaign, $campaignIsSoldOut) {
             $pivot = $menu->pivot;
             $basePrice = $pivot->custom_price ?? $menu->price;
             $discountPrice = $pivot->discount_price ?? 0;
-
-            // Also check campaign level discount if fixed/percentage
             $finalPrice = max(0, $basePrice - $discountPrice);
+
+            $menuMaxQuota = $pivot->max_quota;
+            $orderedQty = $campaign->getMenuOrderedQuantity($menu->id);
+            $remainingQuota = $campaign->getMenuRemainingQuota($menu->id, $menuMaxQuota);
+            $isMenuSoldOut = ($remainingQuota !== null && $remainingQuota <= 0) || $campaignIsSoldOut;
 
             return [
                 'id' => $menu->id,
@@ -64,9 +71,12 @@ class CampaignApiController extends Controller
                 'discount_price' => (float) $discountPrice,
                 'final_price' => (float) $finalPrice,
                 'initial_stock' => $menu->initial_stock,
-                'current_stock' => $menu->current_stock,
+                'current_stock' => $remainingQuota !== null ? $remainingQuota : $menu->current_stock,
                 'image' => $menu->image,
-                'max_quota' => $pivot->max_quota,
+                'max_quota' => $menuMaxQuota,
+                'ordered_quantity' => $orderedQty,
+                'remaining_quota' => $remainingQuota,
+                'is_sold_out' => $isMenuSoldOut,
                 'options' => [
                     'toppings' => $menu->options->where('type', 'topping')->values(),
                     'upsizes' => $menu->options->where('type', 'upsize')->values(),
@@ -78,7 +88,10 @@ class CampaignApiController extends Controller
         return response()->json([
             'success' => true,
             'is_expired' => $isExpired,
-            'message' => $isExpired ? 'Periode Pre-Order untuk campaign ini telah ditutup / expired.' : 'Campaign aktif.',
+            'is_sold_out' => $campaignIsSoldOut,
+            'message' => $isExpired 
+                ? 'Periode Pre-Order untuk campaign ini telah ditutup / expired.' 
+                : ($campaignIsSoldOut ? 'Maaf, seluruh kuota untuk batch Pre-Order ini telah habis (Sold Out).' : 'Campaign aktif.'),
             'data' => [
                 'campaign' => [
                     'id' => $campaign->id,
@@ -91,6 +104,10 @@ class CampaignApiController extends Controller
                     'min_purchase_amount' => (float) $campaign->min_purchase_amount,
                     'close_order_at' => $campaign->close_order_at->toIso8601String(),
                     'ready_at' => $campaign->ready_at->toIso8601String(),
+                    'max_quota' => $campaign->max_quota,
+                    'total_ordered' => $campaignTotalOrdered,
+                    'remaining_quota' => $campaignRemainingQuota,
+                    'is_sold_out' => $campaignIsSoldOut,
                     'qr_token' => $campaign->qr_token,
                     'is_active' => $campaign->is_active,
                     'is_expired' => $isExpired,

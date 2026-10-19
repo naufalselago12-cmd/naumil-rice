@@ -23,7 +23,7 @@ class StoreFrontController extends Controller
         $stores = Store::where('status', 'active')
             ->withCount([
                 'menus' => fn($q) => $q->where('is_active', true),
-                'campaigns' => fn($q) => $q->where('is_active', true),
+                'campaigns' => fn($q) => $q->where('is_active', true)->where('close_order_at', '>', now()),
             ])
             ->get()
             ->map(function ($store) use ($isSuperAdmin, $webUser) {
@@ -74,38 +74,134 @@ class StoreFrontController extends Controller
             }
         }
 
-        // 1. Categories for this store with their menus
-        $categories = Category::where('store_id', $store->id)
+        // 1. Active Pre-Order campaigns for this store (Open PO)
+        $campaigns = Campaign::where('store_id', $store->id)
+            ->where('is_active', true)
+            ->where('close_order_at', '>', now())
             ->with(['menus' => function ($q) {
                 $q->where('is_active', true)->with('options');
             }])
-            ->orderBy('display_order', 'asc')
-            ->get();
+            ->get()
+            ->map(function ($camp) {
+                $totalOrdered = $camp->total_ordered;
+                $remQuota = $camp->remaining_quota;
+                $isSoldOut = $camp->is_sold_out;
 
-        // 2. All active menus for this store
-        $menus = Menu::where('store_id', $store->id)
-            ->where('is_active', true)
-            ->with(['category', 'options'])
-            ->get();
+                $campMenus = $camp->menus->map(function ($m) use ($camp) {
+                    $pivot = $m->pivot;
+                    $menuMax = $pivot->max_quota;
+                    $menuOrdered = $camp->getMenuOrderedQuantity($m->id);
+                    $menuRemaining = $camp->getMenuRemainingQuota($m->id, $menuMax);
+                    $effectivePrice = max(0, ($pivot->custom_price ?? $m->price) - ($pivot->discount_price ?? 0));
 
-        // 3. Active Pre-Order campaigns for this store
-        $campaigns = Campaign::where('store_id', $store->id)
-            ->where('is_active', true)
-            ->with('menus')
-            ->get();
+                    return [
+                        'id' => $m->id,
+                        'name' => $m->name,
+                        'description' => $m->description,
+                        'image' => $m->image,
+                        'price' => (float) $m->price,
+                        'custom_price' => $pivot->custom_price ? (float) $pivot->custom_price : null,
+                        'discount_price' => (float) ($pivot->discount_price ?? 0),
+                        'effective_price' => (float) $effectivePrice,
+                        'max_quota' => $menuMax,
+                        'ordered_quantity' => $menuOrdered,
+                        'remaining_quota' => $menuRemaining,
+                        'is_sold_out' => ($menuRemaining !== null && $menuRemaining <= 0),
+                        'options' => $m->options,
+                    ];
+                });
 
-        // 4. Other stores for quick switching
+                return [
+                    'id' => $camp->id,
+                    'title' => $camp->title,
+                    'slug' => $camp->slug,
+                    'banner_image' => $camp->banner_image,
+                    'description' => $camp->description,
+                    'discount_type' => $camp->discount_type,
+                    'discount_value' => (float) $camp->discount_value,
+                    'min_purchase_amount' => (float) $camp->min_purchase_amount,
+                    'close_order_at' => $camp->close_order_at->toIso8601String(),
+                    'ready_at' => $camp->ready_at->toIso8601String(),
+                    'max_quota' => $camp->max_quota,
+                    'total_ordered' => $totalOrdered,
+                    'remaining_quota' => $remQuota,
+                    'is_sold_out' => $isSoldOut,
+                    'qr_token' => $camp->qr_token,
+                    'is_active' => $camp->is_active,
+                    'menus' => $campMenus,
+                ];
+            });
+
+        // 2. Filter menus based on active campaign status
+        // Jika ada campaign aktif, menu lain TIDAK AKAN MUNCUL; hanya menu campaign aktif yang tampil
+        $hasActiveCampaign = $campaigns->isNotEmpty();
+
+        if ($hasActiveCampaign) {
+            $poMenuIds = $campaigns->flatMap(fn($camp) => collect($camp['menus'])->pluck('id'))->unique()->values()->toArray();
+
+            // Kategori yang hanya memiliki menu dalam campaign aktif
+            $categories = Category::where('store_id', $store->id)
+                ->whereHas('menus', function ($q) use ($poMenuIds) {
+                    $q->where('is_active', true)->whereIn('id', $poMenuIds);
+                })
+                ->with(['menus' => function ($q) use ($poMenuIds) {
+                    $q->where('is_active', true)->whereIn('id', $poMenuIds)->with('options');
+                }])
+                ->orderBy('display_order', 'asc')
+                ->get();
+
+            // Menu yang tampil HANYA menu yang ada di dalam campaign aktif
+            $menus = Menu::where('store_id', $store->id)
+                ->where('is_active', true)
+                ->whereIn('id', $poMenuIds)
+                ->with(['category', 'options'])
+                ->get()
+                ->map(function ($menu) use ($campaigns) {
+                    foreach ($campaigns as $camp) {
+                        $found = collect($camp['menus'])->firstWhere('id', $menu->id);
+                        if ($found) {
+                            $menu->effective_price = $found['effective_price'];
+                            $menu->original_price = $found['price'];
+                            $menu->discount_price = $found['discount_price'];
+                            $menu->price = $found['effective_price'];
+                            $menu->max_quota = $found['max_quota'];
+                            $menu->remaining_quota = $found['remaining_quota'];
+                            $menu->is_sold_out = $found['is_sold_out'];
+                            if ($found['remaining_quota'] !== null) {
+                                $menu->current_stock = $found['remaining_quota'];
+                            }
+                            break;
+                        }
+                    }
+                    return $menu;
+                });
+        } else {
+            // Jika TIDAK ADA campaign aktif, tampilkan menu reguler standar toko
+            $categories = Category::where('store_id', $store->id)
+                ->with(['menus' => function ($q) {
+                    $q->where('is_active', true)->with('options');
+                }])
+                ->orderBy('display_order', 'asc')
+                ->get();
+
+            $menus = Menu::where('store_id', $store->id)
+                ->where('is_active', true)
+                ->with(['category', 'options'])
+                ->get();
+        }
+
+        // 5. Other stores for quick switching
         $otherStores = Store::where('status', 'active')
             ->where('id', '!=', $store->id)
             ->select('id', 'name', 'code', 'slug', 'address')
             ->get();
 
-        // 5. All active stores for loyalty customer multi-selection
+        // 6. All active stores for loyalty customer multi-selection
         $allStores = Store::where('status', 'active')
             ->select('id', 'name', 'code', 'slug', 'address')
             ->get();
 
-        // 6. Active loyalty promos for this store
+        // 7. Active loyalty promos for this store
         $loyaltyPromos = \App\Models\LoyaltyPromo::where('store_id', $store->id)
             ->where('is_active', true)
             ->with('menus')

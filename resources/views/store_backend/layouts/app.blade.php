@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
-    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=2">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=3">
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=3">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png?v=3">
     <title>@yield('title', 'Panel Cabang') - {{ $currentStore->name ?? 'Backend Toko' }}</title>
 
     <!-- Google Fonts & FontAwesome -->

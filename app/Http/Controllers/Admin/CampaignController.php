@@ -53,10 +53,12 @@ class CampaignController extends Controller
             'min_purchase_amount' => 'nullable|numeric|min:0',
             'close_order_at' => 'required|date',
             'ready_at' => 'required|date|after_or_equal:close_order_at',
+            'max_quota' => 'nullable|integer|min:1',
             'selected_menus' => 'required|array|min:1',
             'selected_menus.*' => 'exists:menus,id',
             'menu_discounts' => 'nullable|array',
             'menu_custom_prices' => 'nullable|array',
+            'menu_max_quotas' => 'nullable|array',
         ]);
 
         $bannerPath = $validated['banner_url'] ?? 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&q=80';
@@ -81,6 +83,7 @@ class CampaignController extends Controller
                 'min_purchase_amount' => $validated['min_purchase_amount'] ?? 0,
                 'close_order_at' => $validated['close_order_at'],
                 'ready_at' => $validated['ready_at'],
+                'max_quota' => !empty($validated['max_quota']) ? (int)$validated['max_quota'] : null,
                 'qr_token' => $qrToken,
                 'is_active' => true,
             ]);
@@ -88,11 +91,12 @@ class CampaignController extends Controller
             foreach ($validated['selected_menus'] as $menuId) {
                 $discountPrice = $request->input("menu_discounts.{$menuId}", 0);
                 $customPrice = $request->input("menu_custom_prices.{$menuId}", null);
+                $menuQuota = $request->input("menu_max_quotas.{$menuId}", null);
 
                 $campaign->menus()->attach($menuId, [
                     'custom_price' => $customPrice ?: null,
                     'discount_price' => $discountPrice ?: 0,
-                    'max_quota' => 100,
+                    'max_quota' => !empty($menuQuota) ? (int)$menuQuota : null,
                 ]);
             }
         });
@@ -133,9 +137,13 @@ class CampaignController extends Controller
             'min_purchase_amount' => 'nullable|numeric|min:0',
             'close_order_at' => 'required|date',
             'ready_at' => 'required|date|after_or_equal:close_order_at',
+            'max_quota' => 'nullable|integer|min:1',
             'is_active' => 'nullable',
             'selected_menus' => 'required|array|min:1',
             'selected_menus.*' => 'exists:menus,id',
+            'menu_discounts' => 'nullable|array',
+            'menu_custom_prices' => 'nullable|array',
+            'menu_max_quotas' => 'nullable|array',
         ]);
 
         $bannerPath = $campaign->banner_image;
@@ -157,6 +165,7 @@ class CampaignController extends Controller
                 'min_purchase_amount' => $validated['min_purchase_amount'] ?? 0,
                 'close_order_at' => $validated['close_order_at'],
                 'ready_at' => $validated['ready_at'],
+                'max_quota' => !empty($validated['max_quota']) ? (int)$validated['max_quota'] : null,
                 'is_active' => $request->boolean('is_active'),
             ]);
 
@@ -165,10 +174,12 @@ class CampaignController extends Controller
             foreach ($validated['selected_menus'] as $menuId) {
                 $discountPrice = $request->input("menu_discounts.{$menuId}", 0);
                 $customPrice = $request->input("menu_custom_prices.{$menuId}", null);
+                $menuQuota = $request->input("menu_max_quotas.{$menuId}", null);
+
                 $syncData[$menuId] = [
                     'custom_price' => $customPrice ?: null,
                     'discount_price' => $discountPrice ?: 0,
-                    'max_quota' => 100,
+                    'max_quota' => !empty($menuQuota) ? (int)$menuQuota : null,
                 ];
             }
             $campaign->menus()->sync($syncData);

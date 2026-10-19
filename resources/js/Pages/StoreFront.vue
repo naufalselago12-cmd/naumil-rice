@@ -106,31 +106,88 @@
       </section>
 
       <!-- Active Campaign Banner Section (if any) -->
-      <section v-if="campaigns && campaigns.length > 0" class="campaign-spotlight py-4 bg-light">
+      <section v-if="campaigns && campaigns.length > 0" class="campaign-spotlight py-4 bg-light border-bottom">
         <div class="container">
-          <div v-for="camp in campaigns" :key="camp.id" class="card campaign-card mb-3 p-0 overflow-hidden border">
-            <div class="row g-0 align-items-center">
-              <div class="col-md-4">
-                <img :src="camp.banner_image || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80'" 
-                     :alt="camp.title" class="camp-banner-img" />
-              </div>
-              <div class="col-md-8 p-4">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                  <span class="badge badge-amber font-mono">
-                    <i class="fa-solid fa-bullhorn me-1"></i> BATCH PRE-ORDER AKTIF
-                  </span>
-                  <span class="badge badge-green font-mono">
-                    Close: {{ formatDate(camp.close_order_at) }}
-                  </span>
+          <div v-for="camp in campaigns" :key="camp.id" class="card campaign-card mb-4 p-0 overflow-hidden border shadow-sm">
+            <div class="row g-0">
+              <div class="col-lg-4 col-md-5">
+                <div class="h-100 position-relative">
+                  <img :src="camp.banner_image || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80'" 
+                       :alt="camp.title" class="camp-banner-img h-100 w-100" style="object-fit: cover; min-height: 240px;" />
+                  <div class="position-absolute top-0 start-0 m-3">
+                    <span class="badge bg-danger text-white font-mono shadow-sm">
+                      <i class="fa-solid fa-bullhorn me-1"></i> BATCH OPEN PO
+                    </span>
+                  </div>
                 </div>
-                <h3 class="fw-bold fs-5 mb-2">{{ camp.title }}</h3>
-                <p class="text-muted small mb-3">{{ camp.description || 'Pesan varian kuliner favorit dalam batch PO ini untuk dimasak fresh.' }}</p>
-                <div class="d-flex align-items-center gap-3">
-                  <span class="small text-danger fw-bold">
-                    <i class="fa-solid fa-truck-fast me-1"></i> Siap / Kirim: {{ formatDate(camp.ready_at) }}
-                  </span>
-                  <Link :href="'/campaign/' + camp.qr_token" class="btn-sm btn-outline-primary text-decoration-none">
-                    <i class="fa-solid fa-qrcode me-1"></i> Buka Halaman Khusus Batch PO
+              </div>
+              <div class="col-lg-8 col-md-7 p-4 d-flex flex-column justify-content-between">
+                <div>
+                  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <span class="badge badge-green font-mono">
+                      <i class="fa-solid fa-clock me-1"></i> Close: {{ formatDate(camp.close_order_at) }}
+                    </span>
+                    <span class="badge badge-primary font-mono">
+                      <i class="fa-solid fa-truck-fast me-1"></i> Ready: {{ formatDate(camp.ready_at) }}
+                    </span>
+                    <span v-if="camp.max_quota && camp.is_sold_out" class="badge bg-danger font-mono">
+                      <i class="fa-solid fa-ban me-1"></i> SOLD OUT
+                    </span>
+                    <span v-else-if="camp.max_quota" class="badge bg-amber text-dark font-mono">
+                      <i class="fa-solid fa-boxes-stacked me-1"></i> Kuota: Sisa {{ camp.remaining_quota }} / {{ camp.max_quota }} Porsi
+                    </span>
+                    <span v-if="camp.discount_type && camp.discount_type !== 'none'" class="badge bg-warning text-dark font-mono">
+                      <i class="fa-solid fa-tags me-1"></i>
+                      <template v-if="camp.discount_type === 'percentage'">Diskon {{ camp.discount_value }}%</template>
+                      <template v-else-if="camp.discount_type === 'fixed'">Potongan Rp {{ formatPrice(camp.discount_value) }}</template>
+                      <template v-else-if="camp.discount_type === 'min_purchase'">Min. Belanja Rp {{ formatPrice(camp.min_purchase_amount) }}</template>
+                    </span>
+                  </div>
+
+                  <h3 class="fw-bold fs-4 mb-2 text-dark">{{ camp.title }}</h3>
+                  <p class="text-muted small mb-3">{{ camp.description || 'Pesan varian kuliner favorit dalam batch PO ini untuk dimasak fresh saat batch siap.' }}</p>
+
+                  <!-- Preview Menu PO -->
+                  <div v-if="camp.menus && camp.menus.length > 0" class="camp-menus-preview mb-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <small class="fw-bold text-dark text-uppercase tracking-wider" style="font-size: 0.75rem;">
+                        <i class="fa-solid fa-utensils text-primary me-1"></i> Menu Khusus Dalam Open PO Ini ({{ camp.menus.length }} Menu):
+                      </small>
+                      <small class="text-muted" style="font-size: 0.72rem;">Hanya dipesan via batch ini</small>
+                    </div>
+                    
+                    <div class="d-flex gap-2 overflow-auto pb-2" style="scrollbar-width: thin;">
+                      <div v-for="m in camp.menus" :key="m.id" 
+                           class="p-2 border rounded bg-white shadow-xs d-flex align-items-center gap-2 flex-shrink-0" 
+                           style="min-width: 210px; max-width: 250px;">
+                        <img :src="m.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=100&q=80'" 
+                             :alt="m.name" class="rounded" style="width: 44px; height: 44px; object-fit: cover;" />
+                        <div class="overflow-hidden">
+                          <strong class="d-block text-truncate small" :title="m.name">{{ m.name }}</strong>
+                          <div class="d-flex align-items-center gap-1 font-mono small">
+                            <span class="text-success fw-bold">Rp {{ formatPrice(m.effective_price || m.price) }}</span>
+                            <del v-if="m.discount_price > 0" class="text-muted" style="font-size: 0.7rem;">Rp {{ formatPrice(m.price) }}</del>
+                          </div>
+                          <div>
+                            <span v-if="m.is_sold_out" class="badge bg-danger p-0 px-1" style="font-size: 0.65rem;">Habis</span>
+                            <span v-else-if="m.max_quota !== null" class="badge bg-light text-muted border p-0 px-1" style="font-size: 0.65rem;">
+                              Sisa {{ m.remaining_quota }} porsi
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 border-top">
+                  <div class="small text-danger fw-bold font-mono">
+                    <i class="fa-solid fa-bell me-1"></i> Pemesanan ditutup otomatis saat kuota habis atau batas waktu close order
+                  </div>
+                  <Link :href="'/campaign/' + camp.qr_token" class="btn btn-primary fw-bold px-4 py-2 shadow-sm d-inline-flex align-items-center gap-2">
+                    <i class="fa-solid fa-qrcode"></i>
+                    <span>{{ camp.is_sold_out ? 'Lihat Batch Open PO' : 'Pesan Menu Batch PO Ini' }}</span>
+                    <i class="fa-solid fa-arrow-right ms-1"></i>
                   </Link>
                 </div>
               </div>
@@ -139,13 +196,38 @@
         </div>
       </section>
 
-      <!-- Menus Section -->
-      <section class="menus-section py-5">
+      <!-- If All Menus are in Open PO and no other active regular menus remain -->
+      <section v-if="campaigns && campaigns.length > 0 && menus.length === 0" class="py-5 bg-white text-center">
+        <div class="container py-4">
+          <div class="badge bg-warning text-dark font-mono mb-2 px-3 py-2 fs-6">
+            <i class="fa-solid fa-fire text-danger me-1"></i> SELURUH MENU SEDANG OPEN PRE-ORDER
+          </div>
+          <h3 class="fw-bold text-dark mb-2">Seluruh Menu Cabang {{ store.name }} Sedang Dibuka Dalam Open PO</h3>
+          <p class="text-muted max-w-600 mx-auto mb-4">
+            Dapur kami memfokuskan persiapan bahan baku fresh untuk batch Pre-Order aktif di atas. Silakan klik tombol <strong>"Pesan Menu Batch PO Ini"</strong> pada campaign di atas untuk memesan varian menu favorit Anda.
+          </p>
+          <div v-for="c in campaigns" :key="'btn-' + c.id" class="d-inline-block m-1">
+            <Link :href="'/campaign/' + c.qr_token" class="btn btn-primary px-4 py-2-5 fw-bold shadow-sm">
+              <i class="fa-solid fa-utensils me-2"></i> Buka Halaman Pemesanan PO: {{ c.title }}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <!-- Menus Section (Only if there are regular menus not included in PO) -->
+      <section v-if="menus && menus.length > 0" class="menus-section py-5">
         <div class="container">
           <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
             <div>
-              <span class="badge badge-primary mb-1">KATALOG MAKANAN & MINUMAN</span>
-              <h2 class="section-title mb-0">Menu Pilihan Cabang {{ store.name }}</h2>
+              <span class="badge badge-primary mb-1">
+                {{ (campaigns && campaigns.length > 0) ? 'MENU OPEN PRE-ORDER' : 'KATALOG MAKANAN & MINUMAN' }}
+              </span>
+              <h2 class="section-title mb-0">
+                {{ (campaigns && campaigns.length > 0) ? 'Menu Khusus Batch Open PO Aktif' : 'Menu Pilihan Cabang ' + store.name }}
+              </h2>
+              <small v-if="campaigns && campaigns.length > 0" class="text-muted d-block mt-1">
+                Dapur saat ini khusus membuka pemesanan untuk batch Open Pre-Order aktif di atas. Menu non-campaign dinonaktifkan sementara.
+              </small>
             </div>
 
             <!-- Category Filter Tabs -->
@@ -153,7 +235,7 @@
               <button :class="['cat-btn', activeCategory === null ? 'active' : '']" @click="activeCategory = null">
                 Semua Menu ({{ menus.length }})
               </button>
-              <button v-for="cat in categories" :key="cat.id"
+              <button v-for="cat in visibleCategories" :key="cat.id"
                       :class="['cat-btn', activeCategory === cat.id ? 'active' : '']"
                       @click="activeCategory = cat.id">
                 {{ cat.name }} ({{ cat.menus?.length || 0 }})
@@ -183,7 +265,13 @@
                   <i class="fa-solid fa-coins me-1 text-warning"></i> +{{ menu.reward_points }} Pts
                 </span>
 
-                <span v-if="menu.current_stock < 10" class="badge badge-red menu-stock-badge">
+                <span v-if="menu.is_sold_out || (menu.remaining_quota !== null && menu.remaining_quota !== undefined && menu.remaining_quota <= 0)" class="badge badge-red menu-stock-badge">
+                  Kuota Habis
+                </span>
+                <span v-else-if="menu.remaining_quota !== null && menu.remaining_quota !== undefined" class="badge bg-amber text-dark font-mono menu-stock-badge shadow-xs">
+                  Sisa {{ menu.remaining_quota }} Porsi
+                </span>
+                <span v-else-if="menu.current_stock < 10" class="badge badge-red menu-stock-badge">
                   Sisa {{ menu.current_stock }}
                 </span>
               </div>
@@ -198,17 +286,32 @@
                   <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
                       <span class="text-muted small d-block">Harga Porsi</span>
-                      <strong class="fs-5 text-dark font-mono">Rp {{ formatPrice(menu.price) }}</strong>
+                      <div class="d-flex align-items-center gap-1">
+                        <strong class="fs-5 text-dark font-mono">Rp {{ formatPrice(menu.price) }}</strong>
+                        <del v-if="menu.discount_price > 0" class="text-muted small font-mono">Rp {{ formatPrice(menu.original_price) }}</del>
+                      </div>
                     </div>
-                    <span class="badge badge-light border small text-muted">
-                      Stok: {{ menu.current_stock }}
-                    </span>
+                    <div>
+                      <span v-if="menu.is_sold_out || (menu.remaining_quota !== null && menu.remaining_quota !== undefined && menu.remaining_quota <= 0)" class="badge bg-danger small font-mono">
+                        Habis
+                      </span>
+                      <span v-else-if="menu.discount_price > 0" class="badge bg-danger-subtle text-danger border border-danger-subtle small font-mono">
+                        Hemat Rp {{ formatPrice(menu.discount_price) }}
+                      </span>
+                      <span v-else-if="menu.remaining_quota !== null && menu.remaining_quota !== undefined" class="badge badge-light border small text-muted font-mono">
+                        Sisa: {{ menu.remaining_quota }}
+                      </span>
+                      <span v-else class="badge badge-light border small text-muted font-mono">
+                        Stok: {{ menu.current_stock }}
+                      </span>
+                    </div>
                   </div>
 
                   <button class="btn btn-primary w-100 py-2 d-flex justify-content-center align-items-center gap-2" 
-                          @click="openCustomizeModal(menu)" :disabled="menu.current_stock <= 0">
+                          @click="openCustomizeModal(menu)" 
+                          :disabled="menu.is_sold_out || menu.current_stock <= 0 || (menu.remaining_quota !== null && menu.remaining_quota !== undefined && menu.remaining_quota <= 0)">
                     <i class="fa-solid fa-cart-plus"></i>
-                    <span>{{ menu.current_stock > 0 ? 'Pesan / Kustomisasi' : 'Stok Habis' }}</span>
+                    <span>{{ (menu.is_sold_out || menu.current_stock <= 0 || (menu.remaining_quota !== null && menu.remaining_quota !== undefined && menu.remaining_quota <= 0)) ? 'Kuota Habis' : 'Pesan / Kustomisasi' }}</span>
                   </button>
                 </div>
               </div>
@@ -311,11 +414,14 @@
               <div>
                 <span class="text-muted small d-block">Subtotal Item:</span>
                 <strong class="fs-5 text-primary font-mono">Rp {{ formatPrice(modalCalculatedPrice) }}</strong>
+                <small v-if="modalMaxQty !== null" class="text-muted d-block" style="font-size: 0.75rem;">
+                  Sisa kuota: {{ modalMaxQty }} porsi
+                </small>
               </div>
               <div class="d-flex align-items-center gap-2">
                 <button class="btn-qty" @click="modalQty = Math.max(1, modalQty - 1)">-</button>
                 <span class="fs-5 font-mono fw-bold px-2">{{ modalQty }}</span>
-                <button class="btn-qty" @click="modalQty++">+</button>
+                <button class="btn-qty" :disabled="modalMaxQty !== null && modalQty >= modalMaxQty" @click="incrementModalQty">+</button>
               </div>
             </div>
           </div>
@@ -887,6 +993,10 @@ const availablePromos = computed(() => {
 
 const activeCategory = ref(null)
 
+const visibleCategories = computed(() => {
+  return (props.categories || []).filter(c => c.menus && c.menus.length > 0)
+})
+
 const filteredMenus = computed(() => {
   if (activeCategory.value === null) {
     return props.menus
@@ -945,6 +1055,23 @@ const modalCalculatedPrice = computed(() => {
   return base * modalQty.value
 })
 
+const modalMaxQty = computed(() => {
+  if (!selectedMenuModal.value) return null
+  if (selectedMenuModal.value.remaining_quota !== null && selectedMenuModal.value.remaining_quota !== undefined) {
+    return selectedMenuModal.value.remaining_quota
+  }
+  if (selectedMenuModal.value.current_stock !== null && selectedMenuModal.value.current_stock !== undefined) {
+    return selectedMenuModal.value.current_stock
+  }
+  return null
+})
+
+const incrementModalQty = () => {
+  if (modalMaxQty.value === null || modalQty.value < modalMaxQty.value) {
+    modalQty.value++
+  }
+}
+
 // Cart State & Persistent Backup to LocalStorage (Order draft will never be lost!)
 const cartItems = ref([])
 const showCartModal = ref(false)
@@ -971,6 +1098,12 @@ watch(cartItems, (newVal) => {
 
 const addConfiguredItemToCart = () => {
   if (!selectedMenuModal.value) return
+
+  if (modalMaxQty.value !== null && modalQty.value > modalMaxQty.value) {
+    alert(`Maaf, kuota pesanan untuk menu ini hanya tersisa ${modalMaxQty.value} porsi.`)
+    modalQty.value = modalMaxQty.value
+    return
+  }
 
   const options = []
   if (selectedUpsize.value && selectedUpsize.value.price > 0) options.push(selectedUpsize.value)
