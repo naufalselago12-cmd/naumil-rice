@@ -653,19 +653,14 @@ class OrderApiController extends Controller
         $path = $file->storeAs('payment_proofs', $fileName, 'public');
 
         $order->payment_proof = $path;
-        $order->payment_status = 'paid';
-
-        // Advance to processing if currently confirmed
-        if ($order->status === Order::STATUS_CONFIRMED) {
-            $order->status = Order::STATUS_PROCESSING;
-        }
+        $order->payment_status = 'payment_on_review';
 
         $order->save();
 
         OrderStatusLog::create([
             'order_id' => $order->id,
             'status' => $order->status,
-            'note' => 'Bukti pembayaran QRIS berhasil diunggah oleh pelanggan. Status Pembayaran: Paid.',
+            'note' => 'Bukti pembayaran QRIS berhasil diunggah oleh pelanggan. Menunggu verifikasi admin (Status: Payment on Review).',
         ]);
 
         $order->load(['store', 'client', 'items.menu', 'statusLogs', 'campaign']);
@@ -677,7 +672,7 @@ class OrderApiController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Bukti pembayaran QRIS berhasil diunggah! Status pembayaran kini Paid.',
+            'message' => 'Bukti pembayaran QRIS berhasil diunggah! Pembayaran Anda sedang ditinjau oleh kasir/admin cabang (Payment on Review).',
             'data' => [
                 'order' => $order,
                 'payment_status' => $order->payment_status,

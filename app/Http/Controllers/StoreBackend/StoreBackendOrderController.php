@@ -135,5 +135,40 @@ class StoreBackendOrderController extends Controller
             return back()->with('error', "Gagal menghubungi server Mayar: " . $e->getMessage());
         }
     }
+
+    public function verifyPayment(Request $request, string $store_slug, Order $order)
+    {
+        $store = $this->getStore($request);
+
+        if ($order->store_id !== $store->id) {
+            abort(403, 'Pesanan ini bukan milik cabang ini.');
+        }
+
+        $order->payment_status = 'paid';
+
+        // Advance to processing if currently confirmed
+        if (in_array($order->status, [Order::STATUS_CONFIRMED, 'pending', 'Order Konfirmed'])) {
+            $order->status = Order::STATUS_PROCESSING;
+        }
+
+        $order->save();
+
+        OrderStatusLog::create([
+            'order_id' => $order->id,
+            'status' => $order->status,
+            'note' => 'Pembayaran pesanan berhasil diverifikasi oleh Admin Cabang (Status: PAID). Pesanan dilanjutkan ke dapur.',
+        ]);
+
+        $order->load(['store', 'client', 'items.menu', 'statusLogs', 'campaign']);
+
+        if (class_exists(OrderStatusUpdated::class)) {
+            try {
+                broadcast(new OrderStatusUpdated($order));
+            } catch (\Exception $e) {}
+        }
+
+        return back()->with('success', "Pembayaran pesanan {$order->order_number} berhasil diverifikasi (Status: PAID) dan dilanjutkan ke proses dapur!");
+    }
 }
+
 

@@ -41,14 +41,14 @@ class StoreBackendSettingsController extends Controller
             'payment_type.required' => 'Wajib memilih salah satu metode pembayaran: QRIS Statik atau Payment Gateway.',
         ]);
 
-        // Validation rule: If QRIS Static is chosen, ensure QRIS file or data exists
+        // Validation rule: If QRIS Static is chosen, ensure QRIS file exists or is already stored
         if ($validated['payment_type'] === 'qris_static') {
-            $hasExistingQris = !empty($store->qris_image) || !empty($store->qris_data);
-            $hasNewQris = $request->hasFile('qris_file') || !empty($validated['qris_data']) || !empty($validated['qris_image']);
+            $hasExistingQris = !empty($store->qris_image);
+            $hasNewQris = $request->hasFile('qris_file') || !empty($validated['qris_image']);
             
             if (!$hasExistingQris && !$hasNewQris) {
                 return back()->withErrors([
-                    'qris_file' => 'Metode QRIS Statik dipilih: Wajib upload file gambar QRIS atau masukkan string payload merchant.',
+                    'qris_file' => 'Metode QRIS Statik dipilih: Wajib upload file gambar QRIS resmi toko Anda.',
                 ])->withInput();
             }
         }
@@ -81,10 +81,6 @@ class StoreBackendSettingsController extends Controller
         if ($request->hasFile('qris_file')) {
             $path = $request->file('qris_file')->store('stores/qris', 'public');
             $validated['qris_image'] = asset('storage/' . $path);
-        }
-
-        if (empty($validated['qris_image']) && !empty($validated['qris_data'])) {
-            $validated['qris_image'] = 'https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=' . urlencode($validated['qris_data']);
         }
 
         $validated['mayar_environment'] = $validated['mayar_environment'] ?? 'sandbox';

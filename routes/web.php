@@ -92,6 +92,7 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
         Route::get('/orders/{order}', [StoreBackendOrderController::class, 'show'])->name('orders.show');
         Route::patch('/orders/{order}/status', [StoreBackendOrderController::class, 'updateStatus'])->name('orders.updateStatus');
         Route::post('/orders/{order}/sync-mayar', [StoreBackendOrderController::class, 'syncMayarPayment'])->name('orders.syncMayar');
+        Route::post('/orders/{order}/verify-payment', [StoreBackendOrderController::class, 'verifyPayment'])->name('orders.verifyPayment');
 
         // Kitchen Display System (KDS)
         Route::get('/kds', [StoreBackendKdsController::class, 'index'])->name('kds');

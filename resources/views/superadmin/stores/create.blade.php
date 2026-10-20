@@ -131,17 +131,10 @@
                 <!-- Bagian QRIS Statik -->
                 <div id="admin_section_qris" class="{{ old('payment_type', 'qris_static') === 'qris_static' ? '' : 'd-none' }}">
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label-dark">QRIS String Payload (Data Merchant)</label>
-                            <textarea name="qris_data" rows="2" class="form-control form-control-dark font-mono small" 
-                                      placeholder="00020101021226600014ID.LINKAJA.WWW0118936009180000...">{{ old('qris_data') }}</textarea>
-                            <small class="text-muted">Digunakan untuk menghasilkan QRIS dinamis per transaksi.</small>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label-dark">Upload Gambar QRIS Statis</label>
+                        <div class="col-md-12">
+                            <label class="form-label-dark">Upload Gambar QRIS Statis Toko</label>
                             <input type="file" name="qris_file" class="form-control form-control-dark mb-2" accept="image/*">
-                            <input type="url" name="qris_image" class="form-control form-control-dark small" 
-                                   placeholder="Atau URL gambar QRIS..." value="{{ old('qris_image') }}">
+                            <small class="text-muted d-block">Upload gambar QRIS toko resmi (JPG/PNG/WEBP). Gambar ini yang akan dimunculkan ke customer saat pembayaran.</small>
                         </div>
                     </div>
                 </div>

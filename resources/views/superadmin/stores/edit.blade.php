@@ -144,19 +144,21 @@
                 <!-- Bagian QRIS Statik -->
                 <div id="edit_section_qris" class="{{ $curPaymentType === 'qris_static' ? '' : 'd-none' }}">
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label-dark">QRIS String Payload (Data Merchant)</label>
-                            <textarea name="qris_data" rows="2" class="form-control form-control-dark font-mono small">{{ old('qris_data', $store->qris_data) }}</textarea>
-                            <small class="text-muted">Digunakan untuk menghasilkan QRIS dinamis per transaksi.</small>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label-dark">Ganti File QRIS / URL</label>
+                        <div class="col-md-7">
+                            <label class="form-label-dark">Upload File Gambar QRIS Statik Toko</label>
                             <input type="file" name="qris_file" class="form-control form-control-dark mb-2" accept="image/*">
-                            <input type="url" name="qris_image" class="form-control form-control-dark small" 
-                                   value="{{ old('qris_image', $store->qris_image) }}">
+                            <small class="text-muted d-block">Upload gambar QRIS toko resmi (JPG/PNG/WEBP) untuk ditampilkan langsung ke pelanggan.</small>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label-dark">Pratinjau QRIS Aktif</label>
                             @if($store->qris_image)
-                                <div class="mt-2">
-                                    <img src="{{ $store->qris_image }}" alt="QRIS" class="rounded border border-secondary" style="height: 48px;">
+                                <div class="p-2 bg-dark rounded border border-secondary text-center">
+                                    <img src="{{ $store->qris_image }}" alt="QRIS" class="rounded border border-secondary mb-1" style="max-height: 80px;">
+                                    <small class="text-success d-block"><i class="fa-solid fa-circle-check"></i> QRIS Tersimpan</small>
+                                </div>
+                            @else
+                                <div class="p-2 bg-dark rounded border border-secondary text-center text-muted">
+                                    <small>Belum ada gambar QRIS</small>
                                 </div>
                             @endif
                         </div>

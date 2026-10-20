@@ -1,6 +1,41 @@
 <template>
   <AppLayout>
     <div class="storefront-page">
+      <!-- Sticky / Top Alert: Active Unpaid / On-Review Order for Returning Customer -->
+      <section v-if="pendingGuestOrder && showPendingOrderBanner" class="pending-order-banner py-2-5 px-3 shadow-sm">
+        <div class="container">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-danger text-white font-mono pulse-badge px-2 py-1">
+                <i class="fa-solid fa-bell me-1"></i> Pesanan Belum Selesai
+              </span>
+              <div class="small">
+                <span class="fw-bold">Pesanan #{{ pendingGuestOrder.order_number }}</span>
+                <span class="mx-1 text-muted">•</span>
+                <span class="font-mono fw-bold text-danger">Rp {{ formatPrice(pendingGuestOrder.total_amount) }}</span>
+                <span class="mx-1 text-muted">•</span>
+                <span v-if="pendingGuestOrder.payment_status === 'payment_on_review'" class="badge bg-info text-white font-mono">
+                  <i class="fa-solid fa-hourglass-half me-1"></i> Sedang Diverifikasi
+                </span>
+                <span v-else class="badge bg-warning text-dark font-mono">
+                  <i class="fa-solid fa-clock me-1"></i> Menunggu Pembayaran
+                </span>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <button type="button" class="btn btn-warning btn-sm fw-bold px-3 shadow-sm d-flex align-items-center gap-1" @click="reopenPendingOrderModal">
+                <i class="fa-solid fa-credit-card"></i>
+                <span>{{ pendingGuestOrder.payment_status === 'payment_on_review' ? 'Cek Status & Bukti' : 'Bayar Sekarang & QRIS' }}</span>
+              </button>
+              <Link :href="'/trace/' + pendingGuestOrder.order_number" class="btn btn-outline-dark btn-sm fw-semibold">
+                <i class="fa-solid fa-location-crosshairs me-1"></i> Lacak
+              </Link>
+              <button type="button" class="btn-close ms-1" @click="showPendingOrderBanner = false" title="Tutup pemberitahuan"></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Store Hero Header -->
       <section class="store-hero py-4 bg-white border-bottom">
         <div class="container">
@@ -743,12 +778,12 @@
                     <span class="badge badge-primary">Online Otomatis</span>
                   </label>
 
-                  <!-- QRIS Dinamis Toko -->
+                  <!-- QRIS Statik Toko -->
                   <label v-else class="option-radio-card">
-                    <input type="radio" value="QRIS Dinamis" v-model="paymentMethod" name="paymentMethod" />
+                    <input type="radio" value="QRIS Statik" v-model="paymentMethod" name="paymentMethod" />
                     <div class="flex-grow-1 ms-2">
-                      <div class="fw-bold"><i class="fa-solid fa-qrcode text-primary me-1"></i> QRIS Toko (Scan Mandiri)</div>
-                      <small class="text-muted d-block">Scan QRIS menggunakan m-Banking atau E-Wallet apapun</small>
+                      <div class="fw-bold"><i class="fa-solid fa-qrcode text-primary me-1"></i> QRIS Statik Toko</div>
+                      <small class="text-muted d-block">Scan QRIS menggunakan m-Banking (BCA, BRI, Mandiri) atau E-Wallet (GoPay, Dana, OVO)</small>
                     </div>
                     <span class="badge badge-primary">Rekomendasi</span>
                   </label>
@@ -832,6 +867,9 @@
             <span v-if="createdOrderData.payment_status === 'paid'" class="badge bg-success font-mono fs-6 px-3 py-1">
               <i class="fa-solid fa-circle-check me-1"></i> Paid
             </span>
+            <span v-else-if="createdOrderData.payment_status === 'payment_on_review'" class="badge bg-info text-white font-mono fs-6 px-3 py-1">
+              <i class="fa-solid fa-hourglass-half me-1"></i> Payment On Review
+            </span>
             <span v-else class="badge bg-warning text-dark font-mono fs-6 px-3 py-1">
               <i class="fa-solid fa-clock me-1"></i> Unpaid
             </span>
@@ -851,7 +889,30 @@
             </div>
           </div>
 
-          <!-- 2. If Payment Gateway (Mayar) Unpaid -->
+          <!-- 2. If Payment On Review -->
+          <div v-else-if="createdOrderData.payment_status === 'payment_on_review'" class="p-3 border border-info rounded bg-info-subtle mb-3 text-start shadow-sm">
+            <div class="d-flex align-items-center gap-3">
+              <div class="rounded-circle bg-info text-white p-2 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                <i class="fa-solid fa-hourglass-half fs-5"></i>
+              </div>
+              <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-info text-white font-mono">On Review</span>
+                  <strong class="text-primary">Bukti Pembayaran Sedang Diverifikasi</strong>
+                </div>
+                <small class="text-muted d-block mt-1">
+                  Bukti transfer QRIS telah kami terima dan sedang diverifikasi oleh admin / kasir cabang. Status akan otomatis berubah menjadi <strong>PAID</strong> segera setelah disetujui.
+                </small>
+                <div v-if="createdOrderData.payment_proof_url" class="mt-2">
+                  <a :href="createdOrderData.payment_proof_url" target="_blank" class="btn btn-outline-primary btn-sm py-1 px-2 text-decoration-none">
+                    <i class="fa-solid fa-file-image me-1"></i> Lihat Bukti Terunggah
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. If Payment Gateway (Mayar) Unpaid -->
           <div v-else-if="createdOrderData.payment_url" class="p-3 rounded bg-light border mb-3 text-start">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="fw-bold"><i class="fa-solid fa-credit-card text-success me-1"></i> Mayar.id Gateway</span>
@@ -865,12 +926,18 @@
             </button>
           </div>
 
-          <!-- 3. If QRIS Dinamis Cabang (Static QRIS) -->
+          <!-- 4. If QRIS Dinamis Cabang (Static QRIS) -->
           <div v-else-if="createdOrderData.payment_method === 'QRIS Dinamis' || createdOrderData.payment_method === 'QRIS Statik'" class="mb-3">
             <div class="qris-card-wrapper p-3 border rounded bg-light text-center">
               <span class="badge bg-primary mb-2 font-mono">SCAN QRIS UNTUK MEMBAYAR</span>
               <div class="qris-image-container my-2">
-                <img :src="dynamicQrisUrl" alt="QRIS Code" class="img-fluid border rounded p-2 bg-white shadow-sm" style="max-width: 220px;" />
+                <img :src="staticQrisUrl" alt="QRIS Code" class="img-fluid border rounded p-2 bg-white shadow-sm" style="max-width: 220px;" />
+              </div>
+              <!-- Download QRIS Button -->
+              <div class="mb-2">
+                <button type="button" class="btn btn-outline-primary btn-sm fw-bold shadow-sm" @click="downloadModalQrisImage">
+                  <i class="fa-solid fa-download me-1"></i> Unduh / Simpan Gambar QRIS
+                </button>
               </div>
               <small class="text-muted d-block mb-3">
                 Scan kode QRIS di atas menggunakan m-Banking (BCA, Mandiri, BRI, BNI) atau E-Wallet (GoPay, OVO, Dana, ShopeePay).
@@ -903,7 +970,7 @@
             </div>
           </div>
 
-          <!-- 4. If COD -->
+          <!-- 5. If COD -->
           <div v-else class="p-3 rounded bg-light border mb-3 text-start">
             <div class="d-flex align-items-center gap-2">
               <i class="fa-solid fa-hand-holding-dollar text-success fs-3"></i>
@@ -1167,7 +1234,7 @@ const customerForm = ref({
   address: ''
 })
 
-const paymentMethod = ref(props.store.payment_type === 'payment_gateway' ? 'Payment Gateway (Mayar.id)' : 'QRIS Dinamis')
+const paymentMethod = ref(props.store.payment_type === 'payment_gateway' ? 'Payment Gateway (Mayar.id)' : 'QRIS Statik')
 const isCustomerLoggedIn = ref(false)
 const customerConcat = ref('')
 const customerPoints = ref(0)
@@ -1404,6 +1471,7 @@ const logoutCustomer = async () => {
 
 onMounted(() => {
   loadCustomerSession()
+  checkCachedGuestOrder()
 
   // Restore cart draft from localStorage if cart is empty
   const savedCart = localStorage.getItem('naumil_customer_cart_backup')
@@ -1501,8 +1569,187 @@ const stopPaymentMonitoring = () => {
   }
 }
 
+// ==========================================
+// ACTIVE GUEST ORDER CACHING & REALTIME STATUS
+// ==========================================
+const GUEST_ORDER_KEY = `naumil_active_guest_order_${props.store?.slug || props.store?.code || 'default'}`
+const pendingGuestOrder = ref(null)
+const showPendingOrderBanner = ref(true)
+
+const saveGuestOrderToCache = (orderData) => {
+  if (!orderData) return
+  try {
+    const cacheObj = {
+      order_number: orderData.order_number,
+      order_id: orderData.order_id || orderData.id,
+      total_amount: orderData.total_amount,
+      payment_method: orderData.payment_method,
+      payment_status: orderData.payment_status || orderData.order?.payment_status || 'unpaid',
+      payment_url: orderData.payment_url || null,
+      store_qris_image: orderData.store_qris_image || props.store?.qris_image,
+      payment_proof_url: orderData.payment_proof_url || null,
+      status: orderData.status || null,
+      saved_at: new Date().toISOString()
+    }
+    localStorage.setItem(GUEST_ORDER_KEY, JSON.stringify(cacheObj))
+  } catch (e) {
+    console.warn('Failed to cache guest order', e)
+  }
+}
+
+const clearGuestOrderCache = () => {
+  try {
+    localStorage.removeItem(GUEST_ORDER_KEY)
+    pendingGuestOrder.value = null
+  } catch (e) {}
+}
+
+const checkCachedGuestOrder = async () => {
+  try {
+    const cachedStr = localStorage.getItem(GUEST_ORDER_KEY)
+    if (!cachedStr) return
+    const cached = JSON.parse(cachedStr)
+    if (!cached || !cached.order_number) return
+
+    const res = await axios.get(`/api/v1/orders/trace/${cached.order_number}`)
+    if (res.data?.success && res.data?.data?.order) {
+      const sOrder = res.data.data.order
+      if (sOrder.payment_status === 'paid') {
+        clearGuestOrderCache()
+      } else {
+        pendingGuestOrder.value = {
+          ...sOrder,
+          order_id: sOrder.id,
+          store_qris_image: props.store?.qris_image || sOrder.store?.qris_image
+        }
+        showPendingOrderBanner.value = true
+        saveGuestOrderToCache(pendingGuestOrder.value)
+        startLiveOrderMonitoring(sOrder.order_number)
+      }
+    }
+  } catch (e) {
+    console.warn('Could not check cached guest order', e)
+  }
+}
+
+const reopenPendingOrderModal = () => {
+  if (!pendingGuestOrder.value) return
+  createdOrderData.value = {
+    ...pendingGuestOrder.value,
+    order_number: pendingGuestOrder.value.order_number,
+    order_id: pendingGuestOrder.value.id || pendingGuestOrder.value.order_id,
+    total_amount: pendingGuestOrder.value.total_amount,
+    payment_method: pendingGuestOrder.value.payment_method,
+    payment_status: pendingGuestOrder.value.payment_status,
+    payment_url: pendingGuestOrder.value.payment_url,
+    store_qris_image: props.store?.qris_image || pendingGuestOrder.value.store_qris_image,
+    payment_proof_url: pendingGuestOrder.value.payment_proof_url
+  }
+  startLiveOrderMonitoring(pendingGuestOrder.value.order_number)
+}
+
+let liveOrderPollInterval = null
+let pusherInstance = null
+let currentSubscribedOrder = null
+let globalOrdersChannel = null
+
+const handleOrderStatusUpdatedRealtime = (order) => {
+  if (!order) return
+  const activeNum = createdOrderData.value?.order_number || pendingGuestOrder.value?.order_number
+  if (order.order_number !== activeNum) return
+
+  if (createdOrderData.value) {
+    createdOrderData.value.payment_status = order.payment_status
+    createdOrderData.value.payment_proof_url = order.payment_proof_url || createdOrderData.value.payment_proof_url
+    createdOrderData.value.status = order.status
+  }
+  if (pendingGuestOrder.value) {
+    pendingGuestOrder.value.payment_status = order.payment_status
+    pendingGuestOrder.value.payment_proof_url = order.payment_proof_url || pendingGuestOrder.value.payment_proof_url
+    pendingGuestOrder.value.status = order.status
+  }
+
+  if (order.payment_status === 'paid') {
+    clearGuestOrderCache()
+  } else {
+    saveGuestOrderToCache(order)
+  }
+}
+
+const initStoreFrontWebSocket = (orderNum) => {
+  if (typeof window === 'undefined' || typeof window.Pusher === 'undefined') return
+  try {
+    if (!pusherInstance) {
+      pusherInstance = new window.Pusher('l0eg4pqm0kfrx3ctzlls', {
+        wsHost: window.location.hostname || '127.0.0.1',
+        wsPort: 8085,
+        wssPort: 8085,
+        forceTLS: false,
+        enabledTransports: ['ws', 'wss'],
+        disableStats: true,
+        cluster: 'mt1'
+      })
+    }
+
+    if (orderNum && orderNum !== currentSubscribedOrder) {
+      if (currentSubscribedOrder) {
+        pusherInstance.unsubscribe(`order.${currentSubscribedOrder}`)
+      }
+      currentSubscribedOrder = orderNum
+      const orderChannel = pusherInstance.subscribe(`order.${orderNum}`)
+      orderChannel.bind('order.status.updated', (data) => {
+        handleOrderStatusUpdatedRealtime(data.order || data)
+      })
+    }
+
+    if (!globalOrdersChannel) {
+      globalOrdersChannel = pusherInstance.subscribe('orders')
+      globalOrdersChannel.bind('order.status.updated', (data) => {
+        const activeNum = createdOrderData.value?.order_number || pendingGuestOrder.value?.order_number
+        if (data.order && data.order.order_number === activeNum) {
+          handleOrderStatusUpdatedRealtime(data.order)
+        }
+      })
+    }
+  } catch (err) {
+    console.warn('Storefront Pusher initialization error', err)
+  }
+}
+
+const startLiveOrderMonitoring = (orderNumber) => {
+  if (!orderNumber) return
+  initStoreFrontWebSocket(orderNumber)
+
+  if (liveOrderPollInterval) clearInterval(liveOrderPollInterval)
+  liveOrderPollInterval = setInterval(async () => {
+    const activeNum = createdOrderData.value?.order_number || pendingGuestOrder.value?.order_number
+    if (!activeNum) return
+    const curStatus = createdOrderData.value?.payment_status || pendingGuestOrder.value?.payment_status
+    if (curStatus === 'paid') {
+      clearInterval(liveOrderPollInterval)
+      liveOrderPollInterval = null
+      return
+    }
+    try {
+      const res = await axios.get(`/api/v1/orders/trace/${activeNum}`)
+      if (res.data?.success && res.data?.data?.order) {
+        handleOrderStatusUpdatedRealtime(res.data.data.order)
+      }
+    } catch (e) {}
+  }, 3000)
+}
+
 onUnmounted(() => {
   stopPaymentMonitoring()
+  if (liveOrderPollInterval) {
+    clearInterval(liveOrderPollInterval)
+    liveOrderPollInterval = null
+  }
+  if (pusherInstance && currentSubscribedOrder) {
+    try {
+      pusherInstance.unsubscribe(`order.${currentSubscribedOrder}`)
+    } catch (e) {}
+  }
 })
 
 const submittingOrder = ref(false)
@@ -1571,6 +1818,14 @@ const submitOrder = async () => {
       localStorage.removeItem('naumil_customer_cart_backup')
       showCartModal.value = false
 
+      // Save active order to localStorage cache for returning guest customers
+      saveGuestOrderToCache(res.data.data)
+      pendingGuestOrder.value = res.data.data
+      showPendingOrderBanner.value = true
+
+      // Start live order monitoring (WebSocket & heartbeat polling)
+      startLiveOrderMonitoring(res.data.data.order_number)
+
       if (res.data.data.client) {
         applyClientData(res.data.data.client)
       }
@@ -1591,11 +1846,41 @@ const submitOrder = async () => {
   }
 }
 
-const dynamicQrisUrl = computed(() => {
-  if (!createdOrderData.value) return ''
-  const qrisData = props.store.qris_data || ('00020101021226600014ID.LINKAJA.WWW01189360091800000000010215' + props.store.code)
-  return `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrisData + createdOrderData.value.order_number)}`
+const staticQrisUrl = computed(() => {
+  if (props.store?.qris_image) return props.store.qris_image
+  if (createdOrderData.value?.store_qris_image) return createdOrderData.value.store_qris_image
+  if (createdOrderData.value?.store?.qris_image) return createdOrderData.value.store.qris_image
+  if (pendingGuestOrder.value?.store_qris_image) return pendingGuestOrder.value.store_qris_image
+  if (pendingGuestOrder.value?.store?.qris_image) return pendingGuestOrder.value.store?.qris_image
+  const qrisData = props.store?.qris_data || ('00020101021226600014ID.LINKAJA.WWW01189360091800000000010215' + (props.store?.code || 'NM'))
+  return `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrisData + (createdOrderData.value?.order_number || ''))}`
 })
+
+const downloadModalQrisImage = async () => {
+  const url = staticQrisUrl.value
+  if (!url) return
+  const storeName = props.store?.name || 'Naumil'
+  try {
+    const response = await fetch(url)
+    const blob = await response.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = `QRIS-${storeName.replace(/\s+/g, '_')}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(blobUrl)
+  } catch (e) {
+    const a = document.createElement('a')
+    a.href = url
+    a.target = '_blank'
+    a.download = `QRIS-${storeName.replace(/\s+/g, '_')}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+}
 
 const modalSelectedFile = ref(null)
 const modalProofPreview = ref(null)
@@ -1655,9 +1940,14 @@ const uploadModalProof = async () => {
     })
 
     if (res.data.success) {
-      createdOrderData.value.payment_status = 'paid'
+      createdOrderData.value.payment_status = 'payment_on_review'
       createdOrderData.value.payment_proof = res.data.data.order?.payment_proof
       createdOrderData.value.payment_proof_url = res.data.data.payment_proof_url
+      if (pendingGuestOrder.value) {
+        pendingGuestOrder.value.payment_status = 'payment_on_review'
+        pendingGuestOrder.value.payment_proof_url = res.data.data.payment_proof_url
+      }
+      saveGuestOrderToCache(createdOrderData.value)
       clearModalSelectedFile()
     } else {
       modalUploadError.value = res.data.message || 'Gagal mengunggah bukti QRIS.'
@@ -2053,5 +2343,41 @@ const cleanPhone = (phone) => {
   align-items: center;
   justify-content: center;
   font-size: 2.25rem;
+}
+
+.pending-order-banner {
+  background: linear-gradient(90deg, #fffbeb 0%, #fef3c7 100%);
+  border-bottom: 2px solid #f59e0b;
+  position: sticky;
+  top: 0;
+  z-index: 1040;
+  animation: slideDownBanner 0.3s ease-out;
+}
+
+@keyframes slideDownBanner {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.pulse-badge {
+  animation: pulseAnimation 2s infinite;
+}
+
+@keyframes pulseAnimation {
+  0% {
+    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(225, 29, 72, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0);
+  }
 }
 </style>

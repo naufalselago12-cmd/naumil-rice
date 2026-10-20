@@ -177,9 +177,19 @@
 
                 <div class="mb-3">
                     <small class="text-muted d-block">Status Pembayaran:</small>
-                    <span class="badge {{ $order->payment_status === 'paid' ? 'bg-success' : 'bg-warning text-dark' }} fs-6">
-                        {{ strtoupper($order->payment_status) }}
-                    </span>
+                    @if($order->payment_status === 'paid')
+                        <span class="badge bg-success fs-6">
+                            <i class="fa-solid fa-circle-check me-1"></i> LUNAS (PAID)
+                        </span>
+                    @elseif($order->payment_status === 'payment_on_review')
+                        <span class="badge bg-info text-white fs-6">
+                            <i class="fa-solid fa-hourglass-half me-1"></i> PAYMENT ON REVIEW
+                        </span>
+                    @else
+                        <span class="badge bg-warning text-dark fs-6">
+                            <i class="fa-solid fa-clock me-1"></i> UNPAID
+                        </span>
+                    @endif
                 </div>
 
                 @if(strtolower($order->payment_method) === 'mayar' || !empty($order->payment_id))
@@ -215,12 +225,41 @@
                 @endif
 
                 @if($order->payment_proof)
+                <div class="mb-3 p-3 bg-light rounded border">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="text-muted fw-bold"><i class="fa-solid fa-receipt text-primary me-1"></i> Bukti Transfer QRIS:</small>
+                        @if($order->payment_status === 'paid')
+                            <span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Terverifikasi</span>
+                        @else
+                            <span class="badge bg-info text-white"><i class="fa-solid fa-hourglass-half me-1"></i> Perlu Verifikasi</span>
+                        @endif
+                    </div>
+                    <div class="text-center my-2">
+                        <a href="{{ $order->payment_proof_url }}" target="_blank" class="d-inline-block">
+                            <img src="{{ $order->payment_proof_url }}" alt="Bukti Transfer QRIS" class="img-fluid rounded border shadow-sm" style="max-height: 200px;">
+                        </a>
+                        <small class="text-muted d-block mt-1"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Klik untuk melihat ukuran penuh</small>
+                    </div>
+
+                    @if($order->payment_status !== 'paid')
+                    <div class="mt-3">
+                        <form action="{{ route('store.backend.orders.verifyPayment', ['store_slug' => $store->slug, 'order' => $order->id]) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn btn-success w-100 fw-bold py-2 shadow-sm" onclick="return confirm('Verifikasi pembayaran dan ubah status menjadi PAID?')">
+                                <i class="fa-solid fa-circle-check me-1"></i> Verifikasi Pembayaran & Set PAID
+                            </button>
+                        </form>
+                    </div>
+                    @endif
+                </div>
+                @elseif($order->payment_status !== 'paid' && !str_contains(strtolower($order->payment_method), 'mayar'))
                 <div class="mb-3">
-                    <small class="text-muted d-block mb-1">Bukti Transfer QRIS:</small>
-                    <a href="{{ $order->payment_proof_url }}" target="_blank" class="d-inline-block">
-                        <img src="{{ $order->payment_proof_url }}" alt="Bukti Transfer QRIS" class="img-fluid rounded border shadow-sm" style="max-height: 180px;">
-                    </a>
-                    <small class="text-muted d-block mt-1"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Klik untuk melihat ukuran penuh</small>
+                    <form action="{{ route('store.backend.orders.verifyPayment', ['store_slug' => $store->slug, 'order' => $order->id]) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="btn btn-outline-success w-100 btn-sm fw-bold py-2" onclick="return confirm('Tandai pesanan ini sebagai LUNAS (PAID)?')">
+                            <i class="fa-solid fa-check me-1"></i> Konfirmasi Lunas Manual (Set PAID)
+                        </button>
+                    </form>
                 </div>
                 @endif
 

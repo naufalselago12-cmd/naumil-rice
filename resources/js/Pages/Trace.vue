@@ -48,6 +48,9 @@
                 <span v-if="orderData.order?.payment_status === 'paid'" class="badge bg-success font-mono fs-6 p-2">
                   <i class="fa-solid fa-circle-check me-1"></i> Paid
                 </span>
+                <span v-else-if="orderData.order?.payment_status === 'payment_on_review'" class="badge bg-info text-white font-mono fs-6 p-2">
+                  <i class="fa-solid fa-hourglass-half me-1"></i> On Review
+                </span>
                 <span v-else class="badge bg-warning text-dark font-mono fs-6 p-2">
                   <i class="fa-solid fa-clock me-1"></i> Unpaid
                 </span>
@@ -256,6 +259,9 @@
               <span v-if="orderData.order?.payment_status === 'paid'" class="badge bg-success font-mono fs-6 px-3 py-1">
                 <i class="fa-solid fa-circle-check me-1"></i> Paid
               </span>
+              <span v-else-if="orderData.order?.payment_status === 'payment_on_review'" class="badge bg-info text-white font-mono fs-6 px-3 py-1">
+                <i class="fa-solid fa-hourglass-half me-1"></i> On Review
+              </span>
               <span v-else class="badge bg-warning text-dark font-mono fs-6 px-3 py-1">
                 <i class="fa-solid fa-clock me-1"></i> Unpaid
               </span>
@@ -288,7 +294,31 @@
           </div>
         </div>
 
-        <!-- 2. If Unpaid with Payment Gateway Link -->
+        <!-- 2. If Payment On Review (Bukti telah diunggah dan sedang dicek admin) -->
+        <div v-else-if="orderData.order?.payment_status === 'payment_on_review'" class="card p-4 mb-4 border-info bg-info-subtle shadow-sm">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="rounded-circle bg-info text-white p-2 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                <i class="fa-solid fa-hourglass-half fs-5"></i>
+              </div>
+              <div>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-info text-white fs-6 font-mono px-3 py-1">Payment on Review</span>
+                  <h5 class="fw-bold mb-0 text-primary">Bukti Pembayaran Sedang Diverifikasi</h5>
+                </div>
+                <small class="text-muted d-block mt-1">Bukti transfer QRIS telah kami terima dan sedang diverifikasi oleh admin / kasir cabang. Status pesanan akan otomatis berganti menjadi <strong>Paid</strong> setelah disetujui.</small>
+              </div>
+            </div>
+            <div v-if="orderData.order?.payment_proof_url" class="text-end">
+              <a :href="orderData.order.payment_proof_url" target="_blank" class="btn btn-outline-primary btn-sm fw-semibold d-flex align-items-center gap-2">
+                <i class="fa-solid fa-file-image"></i>
+                <span>Lihat Bukti Terunggah</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. If Unpaid with Payment Gateway Link -->
         <div v-else-if="orderData.order?.payment_url" class="card p-4 mb-4 border-primary shadow-sm">
           <div class="d-flex align-items-center justify-content-between mb-2">
             <h4 class="fw-bold fs-6 mb-0 text-dark">
@@ -304,7 +334,7 @@
           <small class="text-muted d-block text-center mt-2">Status pesanan akan otomatis terverifikasi setelah Anda menyelesaikan pembayaran.</small>
         </div>
 
-        <!-- 3. If QRIS (Statik / Dinamis) -->
+        <!-- 4. If QRIS (Statik / Dinamis) -->
         <div v-else-if="orderData.order?.payment_method === 'QRIS Dinamis' || orderData.order?.payment_method === 'QRIS Statik'" class="card p-4 mb-4">
           <div class="d-flex align-items-center justify-content-between mb-3">
             <h4 class="fw-bold fs-6 mb-0">
@@ -319,6 +349,11 @@
               <img :src="orderData.order?.store?.qris_image || 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=NAUMIL_RICE'" 
                    alt="QRIS Toko" class="qris-img" />
             </div>
+            <div class="mt-2">
+              <button type="button" class="btn btn-outline-primary btn-sm fw-bold shadow-sm" @click="downloadQrisImage">
+                <i class="fa-solid fa-download me-1"></i> Unduh / Simpan Gambar QRIS
+              </button>
+            </div>
             <div class="mt-2 font-mono fw-bold text-primary fs-5">
               Rp {{ formatNumber(orderData.order?.total_amount) }}
             </div>
@@ -331,13 +366,13 @@
               <h5 class="fw-bold fs-6 mb-0 text-dark">Upload Bukti Pembayaran QRIS</h5>
             </div>
             <p class="text-muted small mb-3">
-              Setelah melakukan transfer/scan QRIS, silakan upload bukti pembayaran (screenshot/foto struk) di bawah ini. Status pembayaran pesanan Anda akan langsung otomatis berubah menjadi <strong>Paid</strong>.
+              Setelah melakukan transfer/scan QRIS, silakan upload bukti pembayaran (screenshot/foto struk) di bawah ini. Status pembayaran Anda akan ditinjau kasir/admin sebelum berubah menjadi <strong>Paid</strong>.
             </p>
 
-            <div v-if="uploadSuccess" class="alert alert-success d-flex align-items-center gap-2 p-2 mb-3">
-              <i class="fa-solid fa-circle-check fs-5"></i>
+            <div v-if="uploadSuccess" class="alert alert-info d-flex align-items-center gap-2 p-2 mb-3">
+              <i class="fa-solid fa-hourglass-half fs-5 text-info"></i>
               <div>
-                <strong>Berhasil!</strong> Bukti QRIS berhasil diunggah. Status pesanan Anda kini <strong>Paid</strong>.
+                <strong>Berhasil Terkirim!</strong> Bukti QRIS berhasil diunggah. Status pesanan Anda kini <strong>Payment on Review</strong> dan sedang diverifikasi oleh admin.
               </div>
             </div>
 
@@ -372,10 +407,10 @@
             <button type="button" class="btn btn-primary w-100 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm" 
                     :disabled="!selectedFile || uploading" @click="uploadProof">
               <span v-if="uploading">
-                <i class="fa-solid fa-spinner fa-spin me-1"></i> Mengunggah Bukti & Mengubah Jadi Paid...
+                <i class="fa-solid fa-spinner fa-spin me-1"></i> Mengunggah Bukti Pembayaran...
               </span>
               <span v-else>
-                <i class="fa-solid fa-check-circle me-1"></i> Unggah Bukti & Ubah Status Jadi Paid
+                <i class="fa-solid fa-paper-plane me-1"></i> Unggah Bukti & Kirim ke Admin
               </span>
             </button>
           </div>
@@ -480,6 +515,32 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
+const downloadQrisImage = async () => {
+  const url = orderData.value?.order?.store?.qris_image
+  if (!url) return
+  const storeName = orderData.value?.order?.store?.name || 'Naumil'
+  try {
+    const response = await fetch(url)
+    const blob = await response.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = `QRIS-${storeName.replace(/\s+/g, '_')}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(blobUrl)
+  } catch (e) {
+    const a = document.createElement('a')
+    a.href = url
+    a.target = '_blank'
+    a.download = `QRIS-${storeName.replace(/\s+/g, '_')}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+}
+
 const uploadProof = async () => {
   if (!selectedFile.value || !orderData.value?.order) return
   try {
@@ -499,13 +560,9 @@ const uploadProof = async () => {
 
     if (res.data.success) {
       uploadSuccess.value = true
-      orderData.value.order.payment_status = 'paid'
+      orderData.value.order.payment_status = 'payment_on_review'
       orderData.value.order.payment_proof = res.data.data.order?.payment_proof
       orderData.value.order.payment_proof_url = res.data.data.payment_proof_url
-      if (orderData.value.order.status === 'Order Konfirmed') {
-        orderData.value.order.status = 'Order On Proses'
-        orderData.value.current_stage_index = 1
-      }
       clearSelectedFile()
     } else {
       uploadError.value = res.data.message || 'Gagal mengunggah bukti QRIS.'

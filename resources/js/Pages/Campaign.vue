@@ -557,11 +557,11 @@
                 </label>
 
                 <!-- Method 2: QRIS Statik / Dinamis -->
-                <label v-else :class="['payment-card', clientForm.payment_method === 'QRIS Dinamis' ? 'selected' : '']">
-                  <input type="radio" value="QRIS Dinamis" v-model="clientForm.payment_method" />
+                <label v-else :class="['payment-card', (clientForm.payment_method === 'QRIS Dinamis' || clientForm.payment_method === 'QRIS Statik') ? 'selected' : '']">
+                  <input type="radio" value="QRIS Statik" v-model="clientForm.payment_method" />
                   <div class="payment-card-body">
                     <div class="d-flex align-items-center justify-content-between mb-1">
-                      <span class="fw-bold"><i class="fa-solid fa-qrcode text-primary me-1"></i> Bayar Langsung QRIS Toko</span>
+                      <span class="fw-bold"><i class="fa-solid fa-qrcode text-primary me-1"></i> Bayar Langsung QRIS Statik Toko</span>
                       <span class="badge badge-primary">Rekomendasi</span>
                     </div>
                     <p class="text-muted small mb-0">Scan barcode QRIS toko dari mobile banking (BCA, Mandiri, BRI, GoPay, OVO, ShopeePay).</p>
@@ -579,12 +579,17 @@
               </div>
 
               <!-- Dynamic QRIS Preview Box if QRIS chosen -->
-              <div v-if="clientForm.payment_method === 'QRIS Dinamis'" class="qris-preview-box mt-3">
+              <div v-if="clientForm.payment_method === 'QRIS Dinamis' || clientForm.payment_method === 'QRIS Statik'" class="qris-preview-box mt-3">
                 <div class="text-center">
                   <span class="badge badge-dark mb-2">QRIS RESMI {{ store.name }}</span>
                   <div class="qris-img-container">
                     <img :src="store.qris_image || 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=NAUMIL_RICE_PAYMENT'" 
                          alt="QRIS Toko" class="qris-img" />
+                  </div>
+                  <div class="mt-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold shadow-sm" @click="downloadCampaignQris">
+                      <i class="fa-solid fa-download me-1"></i> Unduh / Simpan Gambar QRIS
+                    </button>
                   </div>
                   <small class="text-muted d-block mt-2 font-mono">
                     Nominal: <strong>Rp {{ formatNumber(finalPayableTotal) }}</strong>
@@ -1094,6 +1099,32 @@ const stopPaymentMonitoring = () => {
 onUnmounted(() => {
   stopPaymentMonitoring()
 })
+
+const downloadCampaignQris = async () => {
+  const url = store.value?.qris_image
+  if (!url) return
+  const storeName = store.value?.name || 'Naumil'
+  try {
+    const response = await fetch(url)
+    const blob = await response.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = `QRIS-${storeName.replace(/\s+/g, '_')}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(blobUrl)
+  } catch (e) {
+    const a = document.createElement('a')
+    a.href = url
+    a.target = '_blank'
+    a.download = `QRIS-${storeName.replace(/\s+/g, '_')}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+}
 
 // Submit Order Logic
 const submitOrder = async () => {

@@ -102,11 +102,15 @@
                         </td>
                         <td>
                             <span class="badge bg-light text-dark border">{{ $ord->payment_method }}</span>
-                            <span class="badge {{ $ord->payment_status === 'paid' ? 'bg-success' : 'bg-warning text-dark' }} d-block mt-1">
-                                {{ strtoupper($ord->payment_status) }}
-                            </span>
+                            @if($ord->payment_status === 'paid')
+                                <span class="badge bg-success d-block mt-1">PAID</span>
+                            @elseif($ord->payment_status === 'payment_on_review')
+                                <span class="badge bg-info text-white d-block mt-1"><i class="fa-solid fa-hourglass-half me-1"></i> ON REVIEW</span>
+                            @else
+                                <span class="badge bg-warning text-dark d-block mt-1">UNPAID</span>
+                            @endif
                             @if($ord->payment_proof)
-                                <a href="{{ $ord->payment_proof_url }}" target="_blank" class="badge bg-info text-white text-decoration-none d-block mt-1">
+                                <a href="{{ $ord->payment_proof_url }}" target="_blank" class="badge bg-secondary text-white text-decoration-none d-block mt-1">
                                     <i class="fa-solid fa-image me-1"></i> Bukti QRIS
                                 </a>
                             @endif

@@ -142,31 +142,38 @@
 
                 <!-- SUB-SECTION A: QRIS STATIK FORM -->
                 <div id="section_qris_static" class="p-3 rounded-3 bg-light border mb-4 {{ $selectedPaymentType === 'qris_static' ? '' : 'd-none' }}">
-                    <div class="d-flex align-items-center gap-2 mb-3">
+                    <div class="d-flex align-items-center gap-2 mb-2">
                         <i class="fa-solid fa-qrcode text-primary fs-5"></i>
-                        <h6 class="fw-bold mb-0 text-dark">Pengaturan QRIS Statik / Dinamis Mandiri</h6>
+                        <h6 class="fw-bold mb-0 text-dark">Upload Gambar QRIS Statik Toko</h6>
+                        <span class="badge bg-primary ms-auto">QRIS Statik</span>
                     </div>
+                    <p class="text-muted small mb-3">
+                        Cukup upload satu file gambar QRIS resmi toko Anda (format JPG, PNG, atau WEBP). Gambar ini yang akan ditampilkan langsung ke pelanggan untuk di-scan dan diunduh saat melakukan pembayaran order.
+                    </p>
 
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Upload File Gambar QRIS</label>
+                        <div class="col-md-7">
+                            <label class="form-label small fw-bold">Pilih File Gambar QRIS Statik Toko <span class="text-danger">*</span></label>
                             <input type="file" name="qris_file" class="form-control mb-2" accept="image/*">
-                            @if($store->qris_image)
-                                <div class="d-flex align-items-center gap-3 p-2 bg-white rounded border mt-2">
-                                    <img src="{{ $store->qris_image }}" alt="QRIS" class="border rounded" style="width: 70px; height: 70px; object-fit: contain;">
-                                    <div>
-                                        <div class="text-success fw-bold small"><i class="fa-solid fa-circle-check"></i> File QRIS Tersimpan</div>
-                                        <small class="text-muted d-block font-mono text-truncate" style="max-width: 200px;">{{ $store->qris_image }}</small>
-                                    </div>
-                                </div>
-                            @endif
+                            <small class="text-muted d-block"><i class="fa-solid fa-circle-info me-1"></i> Disarankan gambar persegi (1:1) berkualitas tajam dan jelas agar mudah di-scan oleh pelanggan.</small>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">QRIS String Payload (Data Merchant Resmi)</label>
-                            <textarea name="qris_data" rows="3" class="form-control font-mono small" 
-                                      placeholder="00020101021226600014ID.LINKAJA.WWW0118936009180000...">{{ old('qris_data', $store->qris_data) }}</textarea>
-                            <small class="text-muted">Jika diisi, sistem dapat membuat kode QR dinamis otomatis dengan menambahkan nominal pesanan.</small>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold">Pratinjau QRIS Aktif</label>
+                            @if($store->qris_image)
+                                <div class="p-3 bg-white rounded border text-center shadow-sm">
+                                    <img src="{{ $store->qris_image }}" alt="QRIS Statik Toko" class="img-fluid rounded border mb-2 shadow-sm" style="max-height: 140px; object-fit: contain;">
+                                    <div class="text-success fw-bold small"><i class="fa-solid fa-circle-check"></i> File QRIS Tersimpan & Aktif</div>
+                                    <a href="{{ $store->qris_image }}" target="_blank" class="btn btn-outline-primary btn-sm mt-2">
+                                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Lihat Gambar Penuh
+                                    </a>
+                                </div>
+                            @else
+                                <div class="p-3 bg-white rounded border text-center text-muted">
+                                    <i class="fa-solid fa-image fa-2x mb-2 text-secondary"></i>
+                                    <small class="d-block">Belum ada file QRIS yang di-upload.</small>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>
