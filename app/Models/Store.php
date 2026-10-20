@@ -26,6 +26,8 @@ class Store extends Model
         'mayar_api_key',
         'mayar_webhook_token',
         'mayar_environment',
+        'mayar_api_key_production',
+        'mayar_webhook_token_production',
         'status',
     ];
 
@@ -96,8 +98,34 @@ class Store extends Model
         return $this->payment_type === self::PAYMENT_TYPE_GATEWAY;
     }
 
+    public function getActiveMayarApiKeyAttribute(): ?string
+    {
+        if (($this->mayar_environment ?? 'sandbox') === 'production') {
+            return !empty($this->mayar_api_key_production) ? $this->mayar_api_key_production : $this->mayar_api_key;
+        }
+        return $this->mayar_api_key;
+    }
+
+    public function getActiveMayarWebhookTokenAttribute(): ?string
+    {
+        if (($this->mayar_environment ?? 'sandbox') === 'production') {
+            return !empty($this->mayar_webhook_token_production) ? $this->mayar_webhook_token_production : $this->mayar_webhook_token;
+        }
+        return $this->mayar_webhook_token;
+    }
+
     public function hasMayarConfigured(): bool
     {
+        return !empty($this->active_mayar_api_key);
+    }
+
+    public function hasSandboxConfigured(): bool
+    {
         return !empty($this->mayar_api_key);
+    }
+
+    public function hasProductionConfigured(): bool
+    {
+        return !empty($this->mayar_api_key_production);
     }
 }

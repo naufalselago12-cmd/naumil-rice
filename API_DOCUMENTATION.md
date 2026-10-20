@@ -1,4 +1,4 @@
-# Dokumentasi Lengkap API Backend & WebSocket Naumil Rice
+# Dokumentasi Lengkap API Backend & WebSocket Naumil Store
 
 Sistem E-Commerce & Pre-Order Makanan dengan Multi-Store, Dynamic QRIS, Open PO Campaign, Kitchen Display System (KDS), dan Real-Time Order Tracing.
 
@@ -72,7 +72,7 @@ curl -X GET "http://localhost:8000/api/v1/stores" -H "Accept: application/json"
   "data": [
     {
       "id": 1,
-      "name": "Naumil Rice - Flagship Sudirman",
+      "name": "Naumil Store - Flagship Sudirman",
       "code": "NR-SDR",
       "address": "Jl. Jenderal Sudirman No. 45, Jakarta Selatan",
       "phone": "081298765432",
@@ -106,7 +106,7 @@ curl -X GET "http://localhost:8000/api/v1/campaigns/PO-NR-SDR-ABC123" -H "Accept
   "data": {
     "campaign": {
       "id": 1,
-      "title": "Open Pre-Order Batch #15: Naumil Rice Nusantara Feasts",
+      "title": "Open Pre-Order Batch #15: Naumil Store Nusantara Feasts",
       "slug": "open-po-batch-15-naumil-sudirman",
       "banner_image": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&q=80",
       "description": "Pre-order batch spesial akhir pekan...",
@@ -121,7 +121,7 @@ curl -X GET "http://localhost:8000/api/v1/campaigns/PO-NR-SDR-ABC123" -H "Accept
     },
     "store": {
       "id": 1,
-      "name": "Naumil Rice - Flagship Sudirman",
+      "name": "Naumil Store - Flagship Sudirman",
       "code": "NR-SDR",
       "address": "Jl. Jenderal Sudirman No. 45, Jakarta Selatan",
       "phone": "081298765432",
@@ -254,7 +254,7 @@ curl -X GET "http://localhost:8000/api/v1/orders/trace/NR-PO-261012-001" -H "Acc
       "discount_amount": 10000,
       "total_amount": 87000,
       "store": {
-        "name": "Naumil Rice - Flagship Sudirman",
+        "name": "Naumil Store - Flagship Sudirman",
         "phone": "081298765432"
       },
       "client": {

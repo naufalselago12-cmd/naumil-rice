@@ -105,7 +105,7 @@ class MultiStoreSuperAdminTest extends TestCase
 
         // Create store via superadmin
         $storeData = [
-            'name' => 'Naumil Rice - Branch Kemang Test',
+            'name' => 'Naumil Store - Branch Kemang Test',
             'slug' => 'kemang-test',
             'code' => 'NR-KMG',
             'address' => 'Jl. Kemang Raya No. 10',

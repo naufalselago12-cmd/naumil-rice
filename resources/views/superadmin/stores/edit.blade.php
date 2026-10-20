@@ -165,29 +165,88 @@
 
                 <!-- Bagian Payment Gateway Mayar.id -->
                 <div id="edit_section_mayar" class="{{ $curPaymentType === 'payment_gateway' ? '' : 'd-none' }}">
-                    <div class="row g-3 mb-2">
-                        <div class="col-md-4">
-                            <label class="form-label-dark">Environment Mayar</label>
-                            <select name="mayar_environment" class="form-select form-select-dark">
-                                <option value="sandbox" {{ old('mayar_environment', $store->mayar_environment ?? 'sandbox') === 'sandbox' ? 'selected' : '' }}>Sandbox (Testing)</option>
-                                <option value="production" {{ old('mayar_environment', $store->mayar_environment) === 'production' ? 'selected' : '' }}>Production (Live)</option>
-                            </select>
-                        </div>
-                        <div class="col-md-8">
-                            <label class="form-label-dark">API Key Mayar.id (Bearer Token)</label>
-                            <input type="password" name="mayar_api_key" class="form-control form-control-dark font-mono small" 
-                                   placeholder="API Key dari dashboard Mayar.id" value="{{ old('mayar_api_key', $store->mayar_api_key) }}">
+                    @php
+                        $superCurEnv = old('mayar_environment', $store->mayar_environment ?? 'sandbox');
+                    @endphp
+                    <!-- Mode Environment Radio Buttons -->
+                    <div class="p-3 rounded bg-black bg-opacity-25 border border-secondary mb-3">
+                        <label class="form-label-dark d-block mb-2 fw-bold">
+                            <i class="fa-solid fa-tower-broadcast text-info me-1"></i> Mode Lingkungan Mayar (Environment) <span class="text-danger">*</span>
+                        </label>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="p-2 rounded border border-secondary d-flex align-items-center gap-2 cursor-pointer w-100 {{ $superCurEnv === 'sandbox' ? 'bg-warning bg-opacity-10 border-warning text-white' : 'bg-dark text-muted' }}" for="sa_env_sandbox">
+                                    <input type="radio" name="mayar_environment" id="sa_env_sandbox" value="sandbox" class="form-check-input mt-0" {{ $superCurEnv === 'sandbox' ? 'checked' : '' }}>
+                                    <div>
+                                        <div class="fw-bold small text-warning"><i class="fa-solid fa-flask me-1"></i> Sandbox (Testing)</div>
+                                        <div class="text-xs text-muted" style="font-size: 11px;">Simulasi pembayaran tanpa uang asli</div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="p-2 rounded border border-secondary d-flex align-items-center gap-2 cursor-pointer w-100 {{ $superCurEnv === 'production' ? 'bg-success bg-opacity-10 border-success text-white' : 'bg-dark text-muted' }}" for="sa_env_production">
+                                    <input type="radio" name="mayar_environment" id="sa_env_production" value="production" class="form-check-input mt-0" {{ $superCurEnv === 'production' ? 'checked' : '' }}>
+                                    <div>
+                                        <div class="fw-bold small text-success"><i class="fa-solid fa-circle-check me-1"></i> Production (Live)</div>
+                                        <div class="text-xs text-muted" style="font-size: 11px;">Pembayaran riil dari customer</div>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label-dark">Webhook Token / Secret (Opsional)</label>
-                        <input type="password" name="mayar_webhook_token" class="form-control form-control-dark font-mono small" 
-                               placeholder="Token webhook rahasia" value="{{ old('mayar_webhook_token', $store->mayar_webhook_token) }}">
+
+                    <!-- Kredensial Sandbox & Production Disediakan Berdampingan -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="p-3 rounded bg-black bg-opacity-25 border border-secondary h-100">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <strong class="text-warning small"><i class="fa-solid fa-flask me-1"></i> Kredensial Sandbox</strong>
+                                    <span class="badge {{ $superCurEnv === 'sandbox' ? 'bg-warning text-dark' : 'bg-secondary' }}" style="font-size: 10px;">
+                                        {{ $superCurEnv === 'sandbox' ? 'Aktif' : 'Standby' }}
+                                    </span>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label-dark" style="font-size: 12px;">API Key Sandbox</label>
+                                    <input type="password" name="mayar_api_key" class="form-control form-control-dark font-mono small" 
+                                           placeholder="API Key Sandbox (eyJhbGci...)" value="{{ old('mayar_api_key', $store->mayar_api_key) }}">
+                                </div>
+                                <div>
+                                    <label class="form-label-dark" style="font-size: 12px;">Webhook Token Sandbox</label>
+                                    <input type="password" name="mayar_webhook_token" class="form-control form-control-dark font-mono small" 
+                                           placeholder="Token webhook sandbox" value="{{ old('mayar_webhook_token', $store->mayar_webhook_token) }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="p-3 rounded bg-black bg-opacity-25 border border-secondary h-100">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <strong class="text-success small"><i class="fa-solid fa-circle-check me-1"></i> Kredensial Production</strong>
+                                    <span class="badge {{ $superCurEnv === 'production' ? 'bg-success' : 'bg-secondary' }}" style="font-size: 10px;">
+                                        {{ $superCurEnv === 'production' ? 'Aktif' : 'Standby' }}
+                                    </span>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label-dark" style="font-size: 12px;">API Key Production</label>
+                                    <input type="password" name="mayar_api_key_production" class="form-control form-control-dark font-mono small" 
+                                           placeholder="API Key Production (eyJhbGci...)" value="{{ old('mayar_api_key_production', $store->mayar_api_key_production) }}">
+                                </div>
+                                <div>
+                                    <label class="form-label-dark" style="font-size: 12px;">Webhook Token Production</label>
+                                    <input type="password" name="mayar_webhook_token_production" class="form-control form-control-dark font-mono small" 
+                                           placeholder="Token webhook production" value="{{ old('mayar_webhook_token_production', $store->mayar_webhook_token_production) }}">
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
                     @php
                         $webhookUrl = url('/api/v1/payment/mayar/webhook/' . $store->slug);
-                        if (!empty($store->mayar_webhook_token)) {
-                            $webhookUrl .= '?token=' . urlencode($store->mayar_webhook_token);
+                        $activeToken = ($superCurEnv === 'production' && !empty($store->mayar_webhook_token_production)) 
+                            ? $store->mayar_webhook_token_production 
+                            : $store->mayar_webhook_token;
+                        if (!empty($activeToken)) {
+                            $webhookUrl .= '?token=' . urlencode($activeToken);
                         }
                     @endphp
                     <div class="p-2 rounded bg-black bg-opacity-25 border border-secondary font-mono small text-muted">

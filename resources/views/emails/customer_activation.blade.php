@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aktivasi Akun Pelanggan Naumil Rice</title>
+  <title>Aktivasi Akun Pelanggan Naumil Store</title>
   <style>
     body {
       margin: 0;
@@ -129,7 +129,7 @@
     <div class="container">
       <!-- Header -->
       <div class="header">
-        <h1 class="brand-title">🍚 Naumil Rice</h1>
+        <h1 class="brand-title">🍚 Naumil Store</h1>
         <p class="brand-subtitle">Authentic Taste & Quality Ricebowl</p>
       </div>
 
@@ -138,7 +138,7 @@
         <span class="badge">KONFIRMASI PENDAFTARAN</span>
         <h2 class="greeting">Halo, {{ $client->name }}!</h2>
         
-        <p>Terima kasih telah melakukan pemesanan di <strong>Naumil Rice</strong>.</p>
+        <p>Terima kasih telah melakukan pemesanan di <strong>Naumil Store</strong>.</p>
         <p>Untuk mengaktifkan akun pelanggan Anda dan mempermudah pemesanan berikutnya (cukup login dengan memasukkan email saja), silakan klik tombol aktivasi di bawah ini:</p>
 
         <!-- Profile Details Box -->
@@ -187,8 +187,8 @@
 
       <!-- Footer -->
       <div class="footer">
-        <p style="margin: 0 0 5px 0;">Email ini dikirim otomatis oleh sistem <strong>Naumil Rice</strong> melalui domain <em>application@naumil.store</em>.</p>
-        <p style="margin: 0;">&copy; {{ date('Y') }} Naumil Rice. All rights reserved.</p>
+        <p style="margin: 0 0 5px 0;">Email ini dikirim otomatis oleh sistem <strong>Naumil Store</strong> melalui domain <em>application@naumil.store</em>.</p>
+        <p style="margin: 0;">&copy; {{ date('Y') }} Naumil Store. All rights reserved.</p>
       </div>
     </div>
   </div>

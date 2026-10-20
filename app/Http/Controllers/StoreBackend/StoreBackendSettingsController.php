@@ -32,9 +32,11 @@ class StoreBackendSettingsController extends Controller
             'qris_image' => 'nullable|string',
             'qris_file' => 'nullable|image|max:3072',
             'qris_data' => 'nullable|string',
+            'mayar_environment' => 'nullable|in:sandbox,production',
             'mayar_api_key' => 'nullable|string',
             'mayar_webhook_token' => 'nullable|string',
-            'mayar_environment' => 'nullable|in:sandbox,production',
+            'mayar_api_key_production' => 'nullable|string',
+            'mayar_webhook_token_production' => 'nullable|string',
         ], [
             'payment_type.required' => 'Wajib memilih salah satu metode pembayaran: QRIS Statik atau Payment Gateway.',
         ]);
@@ -51,13 +53,23 @@ class StoreBackendSettingsController extends Controller
             }
         }
 
-        // Validation rule: If Payment Gateway is chosen, ensure Mayar API Key is present
+        // Validation rule: If Payment Gateway is chosen, ensure the active environment API Key is present
         if ($validated['payment_type'] === 'payment_gateway') {
-            $hasKey = !empty($validated['mayar_api_key']) || !empty($store->mayar_api_key);
-            if (!$hasKey) {
-                return back()->withErrors([
-                    'mayar_api_key' => 'Metode Payment Gateway dipilih: Wajib mengisi API Key Mayar.id untuk memproses pembayaran online.',
-                ])->withInput();
+            $env = $validated['mayar_environment'] ?? 'sandbox';
+            if ($env === 'production') {
+                $hasKey = !empty($validated['mayar_api_key_production']) || !empty($store->mayar_api_key_production);
+                if (!$hasKey) {
+                    return back()->withErrors([
+                        'mayar_api_key_production' => 'Mode Production dipilih: Wajib mengisi API Key Mayar.id Production untuk memproses transaksi live.',
+                    ])->withInput();
+                }
+            } else {
+                $hasKey = !empty($validated['mayar_api_key']) || !empty($store->mayar_api_key);
+                if (!$hasKey) {
+                    return back()->withErrors([
+                        'mayar_api_key' => 'Mode Sandbox dipilih: Wajib mengisi API Key Mayar.id Sandbox untuk pengujian.',
+                    ])->withInput();
+                }
             }
         }
 
@@ -79,17 +91,27 @@ class StoreBackendSettingsController extends Controller
 
         $store->update($validated);
 
+        $envLabel = ($validated['mayar_environment'] === 'production') ? 'Production (Live)' : 'Sandbox (Uji Coba)';
+        $paymentLabel = ($validated['payment_type'] === 'payment_gateway') ? "Payment Gateway Mayar.id [{$envLabel}]" : 'QRIS Statik';
+
         return redirect()->route('store.backend.settings', ['store_slug' => $store->slug])
-            ->with('success', 'Profil dan metode pembayaran cabang (' . ($validated['payment_type'] === 'payment_gateway' ? 'Payment Gateway Mayar.id' : 'QRIS Statik') . ') berhasil disimpan.');
+            ->with('success', "Profil dan metode pembayaran cabang ({$paymentLabel}) berhasil disimpan.");
     }
 
     public function testMayar(Request $request, string $store_slug)
     {
-        $apiKey = $request->input('api_key');
+        $store = $this->getStore($request);
         $environment = $request->input('environment', 'sandbox');
+        $apiKey = $request->input('api_key');
+
+        if (empty($apiKey)) {
+            $apiKey = ($environment === 'production') 
+                ? ($store->mayar_api_key_production ?: $store->mayar_api_key) 
+                : $store->mayar_api_key;
+        }
 
         $service = new \App\Services\MayarPaymentService();
-        $result = $service->testConnection($apiKey, $environment);
+        $result = $service->testConnection($apiKey ?? '', $environment);
 
         return response()->json($result);
     }

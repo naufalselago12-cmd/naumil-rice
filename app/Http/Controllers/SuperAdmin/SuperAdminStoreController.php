@@ -42,6 +42,8 @@ class SuperAdminStoreController extends Controller
             'qris_data' => 'nullable|string',
             'mayar_api_key' => 'nullable|string',
             'mayar_webhook_token' => 'nullable|string',
+            'mayar_api_key_production' => 'nullable|string',
+            'mayar_webhook_token_production' => 'nullable|string',
             'mayar_environment' => 'nullable|in:sandbox,production',
             'status' => 'required|in:active,inactive',
         ]);
@@ -104,6 +106,8 @@ class SuperAdminStoreController extends Controller
             'qris_data' => 'nullable|string',
             'mayar_api_key' => 'nullable|string',
             'mayar_webhook_token' => 'nullable|string',
+            'mayar_api_key_production' => 'nullable|string',
+            'mayar_webhook_token_production' => 'nullable|string',
             'mayar_environment' => 'nullable|in:sandbox,production',
             'status' => 'required|in:active,inactive',
         ]);

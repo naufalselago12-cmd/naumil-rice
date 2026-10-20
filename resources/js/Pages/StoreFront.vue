@@ -24,12 +24,7 @@
                     <i class="fa-solid fa-qrcode me-1"></i> QRIS Dinamis Cabang
                   </span>
                   <!-- Customer Status Badge with Profile Link -->
-                  <Link v-if="isCustomerLoggedIn" href="/customer/profile" class="badge bg-warning text-dark font-mono d-flex align-items-center gap-1 shadow-sm text-decoration-none" title="Klik untuk Kunjungi Profil & Riwayat Poin">
-                    <i class="fa-solid fa-crown text-dark"></i>
-                    <span>{{ customerConcat }}</span>
-                    <span class="badge bg-dark text-warning ms-1">{{ customerPoints }} Pts</span>
-                    <i class="fa-solid fa-arrow-up-right-from-square ms-1" style="font-size: 0.65rem;"></i>
-                  </Link>
+                 
                 </div>
               </div>
             </div>
@@ -51,18 +46,6 @@
                   </span>
                 </div>
               </button>
-
-              <Link v-if="isCustomerLoggedIn" href="/customer/profile" class="btn btn-sm btn-warning text-dark fw-bold" title="Kunjungi Profil & Saldo Poin">
-                <i class="fa-solid fa-crown me-1"></i> Profil Pelanggan Setia ({{ customerPoints }} Pts)
-              </Link>
-              <Link v-else href="/customer/profile" class="btn btn-sm btn-outline-warning text-dark fw-bold" title="Daftar atau Masuk Pelanggan Setia">
-                <i class="fa-solid fa-crown text-warning me-1"></i> Masuk / Daftar Pelanggan Setia
-              </Link>
-
-              <button v-if="isCustomerLoggedIn" class="btn btn-sm btn-outline-secondary" @click="logoutCustomer" title="Keluar Akun">
-                <i class="fa-solid fa-right-from-bracket me-1"></i> Keluar
-              </button>
-
               <Link href="/" class="btn btn-sm btn-secondary" title="Ganti ke cabang lain">
                 <i class="fa-solid fa-store me-1"></i> Ganti Cabang
               </Link>

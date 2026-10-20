@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>Aktivasi Pelanggan Setia Berhasil - Naumil Rice</title>
+  <title>Aktivasi Pelanggan Setia Berhasil - Naumil Store</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <style>
     body {
@@ -182,7 +182,7 @@
       <h1>Akun Pelanggan Setia Aktif!</h1>
       <div class="user-greeting">Selamat Datang, {{ $client->name }}!</div>
       <p>
-        Email <strong>{{ $client->email }}</strong> telah berhasil diverifikasi. Akun Anda kini resmi terdaftar sebagai <strong>Pelanggan Setia Naumil Rice</strong> dan berhak menikmati promo eksklusif serta reward point di setiap pembelian!
+        Email <strong>{{ $client->email }}</strong> telah berhasil diverifikasi. Akun Anda kini resmi terdaftar sebagai <strong>Pelanggan Setia Naumil Store</strong> dan berhak menikmati promo eksklusif serta reward point di setiap pembelian!
       </p>
     @else
       <h1>Akun Anda Sudah Aktif</h1>

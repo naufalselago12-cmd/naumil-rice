@@ -6,7 +6,7 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico?v=3">
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=3">
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png?v=3">
-    <title>Super Admin Login - Naumil Rice Master Control</title>
+    <title>Super Admin Login - Naumil Store Master Control</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -119,7 +119,7 @@
             <i class="fa-solid fa-crown"></i>
         </div>
         <h2 class="fw-bold mb-1 fs-4 text-white">Super Admin Portal</h2>
-        <p class="small mb-0 text-white">Master Control Cabang & Manajemen User Naumil Rice</p>
+        <p class="small mb-0 text-white">Master Control Cabang & Manajemen User Naumil Store</p>
     </div>
 
     <div class="p-4 p-md-5">

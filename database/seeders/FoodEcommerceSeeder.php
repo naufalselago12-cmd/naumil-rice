@@ -22,7 +22,7 @@ class FoodEcommerceSeeder extends Seeder
     {
         // 1. Create Stores
         $storePusat = Store::create([
-            'name' => 'Naumil Rice - Flagship Sudirman',
+            'name' => 'Naumil Store - Flagship Sudirman',
             'code' => 'NR-SDR',
             'address' => 'Jl. Jenderal Sudirman No. 45, Jakarta Selatan',
             'phone' => '081298765432',
@@ -33,7 +33,7 @@ class FoodEcommerceSeeder extends Seeder
         ]);
 
         $storeTebet = Store::create([
-            'name' => 'Naumil Rice - Branch Tebet Kitchen',
+            'name' => 'Naumil Store - Branch Tebet Kitchen',
             'code' => 'NR-TBT',
             'address' => 'Jl. Tebet Raya No. 88, Jakarta Selatan',
             'phone' => '081387654321',
@@ -150,7 +150,7 @@ class FoodEcommerceSeeder extends Seeder
         $qrTokenSudirman = 'PO-NR-SDR-' . Str::random(10);
         $campaignSudirman = Campaign::create([
             'store_id' => $storePusat->id,
-            'title' => 'Open Pre-Order Batch #15: Naumil Rice Nusantara Feasts',
+            'title' => 'Open Pre-Order Batch #15: Naumil Store Nusantara Feasts',
             'slug' => 'open-po-batch-15-naumil-sudirman',
             'banner_image' => 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&q=80',
             'description' => 'Pre-order batch spesial akhir pekan! Nikmati menu signature rice bowl dan nasi goreng wagyu dibuat fresh dengan diskon potongan Rp 5.000 per bowl dan promo minimum belanja Rp 100.000.',

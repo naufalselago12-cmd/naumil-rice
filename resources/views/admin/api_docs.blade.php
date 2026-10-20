@@ -55,7 +55,7 @@
   "data": [
     {
       "id": 1,
-      "name": "Naumil Rice - Flagship Sudirman",
+      "name": "Naumil Store - Flagship Sudirman",
       "code": "NR-SDR",
       "address": "Jl. Jenderal Sudirman No. 45, Jakarta Selatan",
       "phone": "081298765432",
@@ -97,7 +97,7 @@
   "data": {
     "campaign": {
       "id": 1,
-      "title": "Open Pre-Order Batch #15: Naumil Rice Nusantara Feasts",
+      "title": "Open Pre-Order Batch #15: Naumil Store Nusantara Feasts",
       "close_order_at": "2026-10-15T21:00:00+07:00",
       "ready_at": "2026-10-16T11:30:00+07:00",
       "qr_token": "PO-NR-SDR-ABC123",
@@ -105,7 +105,7 @@
     },
     "store": {
       "id": 1,
-      "name": "Naumil Rice - Flagship Sudirman",
+      "name": "Naumil Store - Flagship Sudirman",
       "qris_image": "https://api.qrserver.com/v1/create-qr-code/?...",
       "qris_data": "00020101021226600014ID..."
     },

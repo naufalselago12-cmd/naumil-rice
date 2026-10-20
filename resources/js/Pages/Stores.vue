@@ -3,7 +3,7 @@
     <div class="stores-page container py-5">
       <div class="text-center mb-5">
         <span class="badge badge-primary mb-2">JARINGAN DAPUR KAMI</span>
-        <h1 class="page-title">Cabang & Lokasi Dapur Naumil Rice</h1>
+        <h1 class="page-title">Cabang & Lokasi Dapur Naumil Store</h1>
         <p class="text-muted">Setiap cabang dilengkapi dapur mandiri dan QRIS merchant resmi untuk melayani pesanan Anda.</p>
       </div>
 

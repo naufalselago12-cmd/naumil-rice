@@ -7,7 +7,7 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico?v=3">
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=3">
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png?v=3">
-    <title>Kitchen Display System (KDS) - Naumil Rice</title>
+    <title>Kitchen Display System (KDS) - Naumil Store</title>
 
     <!-- Google Fonts & FontAwesome -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

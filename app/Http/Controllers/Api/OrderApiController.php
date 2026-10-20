@@ -388,7 +388,7 @@ class OrderApiController extends Controller
         if ($order->payment_status === 'unpaid' 
             && in_array($order->payment_method, ['Payment Gateway', 'Payment Gateway (Mayar.id)'])
             && $order->store
-            && !empty($order->store->mayar_api_key)) {
+            && $order->store->hasMayarConfigured()) {
             try {
                 $mayarService = new \App\Services\MayarPaymentService();
                 $check = $mayarService->checkPaymentStatus($order->store, $order);
@@ -436,46 +436,93 @@ class OrderApiController extends Controller
             ->pluck('id')
             ->toArray();
 
-        $queueInfo = [
-            'is_in_queue' => false,
-            'queue_number' => null,
-            'orders_ahead' => 0,
-            'total_active_queue' => count($storeActiveOrders),
-            'estimated_minutes' => 0,
-            'queue_badge' => '',
-            'queue_message' => '',
-        ];
+        // Check if order is a Pre-Order (linked to a Campaign with ready_at)
+        $isPreorder = !empty($order->campaign_id) && !empty($order->campaign);
+        $campaignReadyAt = $isPreorder && !empty($order->campaign->ready_at) ? $order->campaign->ready_at : null;
 
-        $pos = array_search($order->id, $storeActiveOrders);
-        if ($pos !== false) {
-            $queueNumber = $pos + 1;
-            $ordersAhead = $pos;
-            $estimatedMinutes = ($ordersAhead * 10) + 15;
+        if ($isPreorder && $campaignReadyAt) {
+            Carbon::setLocale('id');
+            $readyDateFormatted = $campaignReadyAt->locale('id')->translatedFormat('l, d F Y');
+            $readyTimeFormatted = $campaignReadyAt->format('H:i') . ' WIB';
+            $readyFullFormatted = $campaignReadyAt->locale('id')->translatedFormat('l, d F Y • H:i') . ' WIB';
+
+            $isReady = $order->status === Order::STATUS_READY;
+            $isDelivery = $order->status === Order::STATUS_DELIVERY;
+            $isReject = $order->status === Order::STATUS_REJECT;
+
+            $queueBadge = "Batch PO: " . $order->campaign->title;
+            if ($isReady) {
+                $queueMessage = 'Pesanan Pre-Order Anda telah selesai dimasak oleh dapur dan siap diambil / diantar!';
+            } elseif ($isDelivery) {
+                $queueMessage = 'Pesanan Pre-Order Anda sedang dalam pengantaran oleh kurir menuju alamat Anda!';
+            } elseif ($isReject) {
+                $queueMessage = 'Pesanan Pre-Order ini dibatalkan oleh dapur.';
+            } else {
+                $queueMessage = "Pesanan terdaftar dalam batch Pre-Order ({$order->campaign->title}). Menu PO dijadwalkan siap (ready) pada {$readyFullFormatted}.";
+            }
 
             $queueInfo = [
-                'is_in_queue' => true,
-                'queue_number' => $queueNumber,
-                'orders_ahead' => $ordersAhead,
+                'is_in_queue' => false,
+                'is_preorder' => true,
+                'campaign_id' => $order->campaign->id,
+                'campaign_title' => $order->campaign->title,
+                'ready_at' => $campaignReadyAt->toISOString(),
+                'ready_date_formatted' => $readyDateFormatted,
+                'ready_time_formatted' => $readyTimeFormatted,
+                'ready_full_formatted' => $readyFullFormatted,
+                'queue_number' => null,
+                'orders_ahead' => 0,
                 'total_active_queue' => count($storeActiveOrders),
-                'estimated_minutes' => $estimatedMinutes,
-                'queue_badge' => "Antrean #{$queueNumber}",
-                'queue_message' => $ordersAhead === 0
-                    ? 'Pesanan Anda berada di urutan pertama (sedang dimasak/dipersiapkan oleh dapur)!'
-                    : "Anda berada di nomor antrean #{$queueNumber}. Ada {$ordersAhead} pesanan lain sedang disiapkan di depan Anda.",
+                'estimated_minutes' => null,
+                'queue_badge' => $queueBadge,
+                'queue_message' => $queueMessage,
             ];
         } else {
-            if ($order->status === Order::STATUS_READY) {
-                $queueInfo['queue_badge'] = 'Pesanan Siap (Ready)';
-                $queueInfo['queue_message'] = 'Pesanan Anda telah selesai dimasak dan siap dinikmati!';
-            } elseif ($order->status === Order::STATUS_DELIVERY) {
-                $queueInfo['queue_badge'] = 'Dalam Pengantaran';
-                $queueInfo['queue_message'] = 'Pesanan Anda sedang dibawa kurir menuju lokasi!';
-            } elseif ($order->status === Order::STATUS_REJECT) {
-                $queueInfo['queue_badge'] = 'Dibatalkan / Tolak';
-                $queueInfo['queue_message'] = 'Pesanan ini tidak dapat dilanjutkan oleh dapur.';
+            $queueInfo = [
+                'is_in_queue' => false,
+                'is_preorder' => false,
+                'campaign_id' => null,
+                'campaign_title' => null,
+                'ready_at' => null,
+                'ready_date_formatted' => null,
+                'ready_time_formatted' => null,
+                'ready_full_formatted' => null,
+                'queue_number' => null,
+                'orders_ahead' => 0,
+                'total_active_queue' => count($storeActiveOrders),
+                'estimated_minutes' => 0,
+                'queue_badge' => '',
+                'queue_message' => '',
+            ];
+
+            $pos = array_search($order->id, $storeActiveOrders);
+            if ($pos !== false) {
+                $queueNumber = $pos + 1;
+                $ordersAhead = $pos;
+                $estimatedMinutes = ($ordersAhead * 10) + 15;
+
+                $queueInfo['is_in_queue'] = true;
+                $queueInfo['queue_number'] = $queueNumber;
+                $queueInfo['orders_ahead'] = $ordersAhead;
+                $queueInfo['estimated_minutes'] = $estimatedMinutes;
+                $queueInfo['queue_badge'] = "Antrean #{$queueNumber}";
+                $queueInfo['queue_message'] = $ordersAhead === 0
+                    ? 'Pesanan Anda berada di urutan pertama (sedang dimasak/dipersiapkan oleh dapur)!'
+                    : "Anda berada di nomor antrean #{$queueNumber}. Ada {$ordersAhead} pesanan lain sedang disiapkan di depan Anda.";
             } else {
-                $queueInfo['queue_badge'] = $order->status;
-                $queueInfo['queue_message'] = 'Pesanan tercatat di antrean sistem.';
+                if ($order->status === Order::STATUS_READY) {
+                    $queueInfo['queue_badge'] = 'Pesanan Siap (Ready)';
+                    $queueInfo['queue_message'] = 'Pesanan Anda telah selesai dimasak dan siap dinikmati!';
+                } elseif ($order->status === Order::STATUS_DELIVERY) {
+                    $queueInfo['queue_badge'] = 'Dalam Pengantaran';
+                    $queueInfo['queue_message'] = 'Pesanan Anda sedang dibawa kurir menuju lokasi!';
+                } elseif ($order->status === Order::STATUS_REJECT) {
+                    $queueInfo['queue_badge'] = 'Dibatalkan / Tolak';
+                    $queueInfo['queue_message'] = 'Pesanan ini tidak dapat dilanjutkan oleh dapur.';
+                } else {
+                    $queueInfo['queue_badge'] = $order->status;
+                    $queueInfo['queue_message'] = 'Pesanan tercatat di antrean sistem.';
+                }
             }
         }
 
@@ -499,7 +546,7 @@ class OrderApiController extends Controller
     {
         $storeId = $request->query('store_id');
 
-        $query = Order::with(['client', 'store', 'items.menu', 'statusLogs'])
+        $query = Order::with(['client', 'store', 'items.menu', 'statusLogs', 'campaign'])
             ->orderBy('id', 'asc');
 
         if ($storeId) {

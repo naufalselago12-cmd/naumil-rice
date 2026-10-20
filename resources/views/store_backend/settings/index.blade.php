@@ -181,60 +181,180 @@
                                 <small class="text-muted">Koneksikan akun Mayar.id untuk menerima pembayaran online otomatis.</small>
                             </div>
                         </div>
-                        <span class="badge {{ $store->hasMayarConfigured() ? 'bg-success' : 'bg-secondary' }}">
-                            <i class="fa-solid {{ $store->hasMayarConfigured() ? 'fa-link' : 'fa-link-slash' }} me-1"></i>
-                            {{ $store->hasMayarConfigured() ? 'Kredensial Terisi' : 'Belum Dikonfigurasi' }}
-                        </span>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="badge {{ $store->hasSandboxConfigured() ? 'bg-warning text-dark' : 'bg-secondary' }}">
+                                <i class="fa-solid fa-flask me-1"></i> Sandbox: {{ $store->hasSandboxConfigured() ? 'Terisi' : 'Belum' }}
+                            </span>
+                            <span class="badge {{ $store->hasProductionConfigured() ? 'bg-success' : 'bg-secondary' }}">
+                                <i class="fa-solid fa-circle-check me-1"></i> Production: {{ $store->hasProductionConfigured() ? 'Terisi' : 'Belum' }}
+                            </span>
+                        </div>
                     </div>
 
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Lingkungan / Environment <span class="text-danger">*</span></label>
-                            <select name="mayar_environment" id="mayarEnvironment" class="form-select">
-                                <option value="sandbox" {{ old('mayar_environment', $store->mayar_environment ?? 'sandbox') === 'sandbox' ? 'selected' : '' }}>
-                                    Sandbox (Testing / Uji Coba)
-                                </option>
-                                <option value="production" {{ old('mayar_environment', $store->mayar_environment) === 'production' ? 'selected' : '' }}>
-                                    Production (Live Transaksi Nyata)
-                                </option>
-                            </select>
-                            <small class="text-muted">Pilih Sandbox saat tes, Production saat siap jualan nyata.</small>
-                        </div>
+                    @php
+                        $curEnv = old('mayar_environment', $store->mayar_environment ?? 'sandbox');
+                    @endphp
 
-                        <div class="col-md-8">
-                            <label class="form-label small fw-bold">API Key Mayar.id (Bearer Token) <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white"><i class="fa-solid fa-key text-muted"></i></span>
-                                <input type="password" name="mayar_api_key" id="mayarApiKey" class="form-control font-mono" 
-                                       placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..." 
-                                       value="{{ old('mayar_api_key', $store->mayar_api_key) }}">
-                                <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('mayarApiKey', this)">
-                                    <i class="fa-solid fa-eye"></i>
-                                </button>
+                    <!-- 1. PILIHAN ENVIRONMENT VIA RADIO BUTTON -->
+                    <div class="p-3 bg-white border rounded-3 mb-3 shadow-sm">
+                        <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                            <label class="form-label small fw-bold text-dark mb-0 d-flex align-items-center gap-1">
+                                <i class="fa-solid fa-tower-broadcast text-primary"></i>
+                                Mode Lingkungan Pembayaran (Environment Aktif) <span class="text-danger">*</span>
+                            </label>
+                            <span class="badge {{ $curEnv === 'production' ? 'bg-success' : 'bg-warning text-dark' }}" id="envStatusBadge">
+                                Mode Aktif: {{ strtoupper($curEnv) }}
+                            </span>
+                        </div>
+                        <p class="small text-muted mb-3">
+                            Pilih mode yang digunakan saat ini. Anda dapat berpindah ke mode <strong>Sandbox</strong> kapan saja saat ingin melakukan development/testing pembayaran tanpa perlu repot mengganti atau menghapus API Key Production.
+                        </p>
+                        
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="border rounded-3 p-3 d-flex align-items-start gap-3 cursor-pointer transition w-100 env-radio-card {{ $curEnv === 'sandbox' ? 'border-warning bg-warning bg-opacity-10 shadow-sm' : 'border-light bg-light' }}" id="card_env_sandbox" for="radio_env_sandbox">
+                                    <input type="radio" name="mayar_environment" id="radio_env_sandbox" value="sandbox" 
+                                           class="form-check-input mt-1" {{ $curEnv === 'sandbox' ? 'checked' : '' }}
+                                           onchange="handleEnvChange('sandbox')">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span class="fw-bold text-dark"><i class="fa-solid fa-flask text-warning me-1"></i> Sandbox (Uji Coba / Dev)</span>
+                                            <span class="badge bg-warning text-dark small">Testing</span>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">Menggunakan API Sandbox (api.mayar.io). Transaksi simulasi tanpa uang nyata.</small>
+                                    </div>
+                                </label>
                             </div>
-                            <small class="text-muted">Dapatkan dari menu <em>Integration / API Keys</em> di dashboard Mayar.id Anda.</small>
+                            <div class="col-md-6">
+                                <label class="border rounded-3 p-3 d-flex align-items-start gap-3 cursor-pointer transition w-100 env-radio-card {{ $curEnv === 'production' ? 'border-success bg-success bg-opacity-10 shadow-sm' : 'border-light bg-light' }}" id="card_env_production" for="radio_env_production">
+                                    <input type="radio" name="mayar_environment" id="radio_env_production" value="production" 
+                                           class="form-check-input mt-1" {{ $curEnv === 'production' ? 'checked' : '' }}
+                                           onchange="handleEnvChange('production')">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span class="fw-bold text-dark"><i class="fa-solid fa-circle-check text-success me-1"></i> Production (Live)</span>
+                                            <span class="badge bg-success small">Live Transaksi</span>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">Menggunakan API Production (api.mayar.id). Memproses pembayaran riil dari pelanggan.</small>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Webhook Token / Secret (Opsional)</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-white"><i class="fa-solid fa-shield-halved text-muted"></i></span>
-                            <input type="password" name="mayar_webhook_token" id="mayarWebhookToken" class="form-control font-mono" 
-                                   placeholder="Token rahasia webhook Mayar..." 
-                                   value="{{ old('mayar_webhook_token', $store->mayar_webhook_token) }}">
-                            <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('mayarWebhookToken', this)">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
+                    <!-- 2. KREDENSIAL SANDBOX & PRODUCTION (Keduanya Disediakan & Tersimpan) -->
+                    <div class="row g-3 mb-3">
+                        <!-- BOX KREDENSIAL SANDBOX -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border transition {{ $curEnv === 'sandbox' ? 'border-warning shadow-sm' : '' }}" id="box_sandbox_fields">
+                                <div class="card-header bg-white py-2 d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="fa-solid fa-flask text-warning"></i>
+                                        <strong class="small text-dark">Kredensial Sandbox (Testing)</strong>
+                                    </div>
+                                    <span class="badge {{ $curEnv === 'sandbox' ? 'bg-warning text-dark' : 'bg-light text-muted border' }}" id="tag_sandbox_active">
+                                        {{ $curEnv === 'sandbox' ? 'Aktif Dipakai' : 'Standby' }}
+                                    </span>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">API Key Sandbox <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-key text-muted"></i></span>
+                                            <input type="password" name="mayar_api_key" id="mayarApiKey" class="form-control font-mono small" 
+                                                   placeholder="API Key Sandbox (eyJhbGci...)" 
+                                                   value="{{ old('mayar_api_key', $store->mayar_api_key) }}">
+                                            <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('mayarApiKey', this)">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </button>
+                                        </div>
+                                        <small class="text-muted">Dari dashboard Sandbox Mayar: <em>Integration / API Keys</em></small>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Webhook Token Sandbox (Opsional)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-shield-halved text-muted"></i></span>
+                                            <input type="password" name="mayar_webhook_token" id="mayarWebhookToken" class="form-control font-mono small" 
+                                                   placeholder="Token rahasia webhook sandbox..." 
+                                                   value="{{ old('mayar_webhook_token', $store->mayar_webhook_token) }}">
+                                            <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('mayarWebhookToken', this)">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </button>
+                                        </div>
+                                        <small class="text-muted">Untuk validasi token callback di lingkungan Sandbox.</small>
+                                    </div>
+
+                                    <div class="d-flex align-items-center gap-2 pt-2 border-top flex-wrap">
+                                        <button type="button" class="btn btn-outline-warning btn-sm text-dark" onclick="testMayarSpecific('sandbox')">
+                                            <i class="fa-solid fa-plug me-1"></i> Uji Koneksi Sandbox
+                                        </button>
+                                        <span id="testSandboxResult" class="small"></span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <small class="text-muted">Untuk validasi tanda tangan callback webhook dari Mayar.id.</small>
+
+                        <!-- BOX KREDENSIAL PRODUCTION -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border transition {{ $curEnv === 'production' ? 'border-success shadow-sm' : '' }}" id="box_production_fields">
+                                <div class="card-header bg-white py-2 d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="fa-solid fa-circle-check text-success"></i>
+                                        <strong class="small text-dark">Kredensial Production (Live)</strong>
+                                    </div>
+                                    <span class="badge {{ $curEnv === 'production' ? 'bg-success' : 'bg-light text-muted border' }}" id="tag_production_active">
+                                        {{ $curEnv === 'production' ? 'Aktif Dipakai' : 'Standby' }}
+                                    </span>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">API Key Production <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-key text-muted"></i></span>
+                                            <input type="password" name="mayar_api_key_production" id="mayarApiKeyProduction" class="form-control font-mono small" 
+                                                   placeholder="API Key Production (eyJhbGci...)" 
+                                                   value="{{ old('mayar_api_key_production', $store->mayar_api_key_production) }}">
+                                            <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('mayarApiKeyProduction', this)">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </button>
+                                        </div>
+                                        <small class="text-muted">Dari dashboard Production Mayar: <em>Integration / API Keys</em></small>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Webhook Token Production (Opsional)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-shield-halved text-muted"></i></span>
+                                            <input type="password" name="mayar_webhook_token_production" id="mayarWebhookTokenProduction" class="form-control font-mono small" 
+                                                   placeholder="Token rahasia webhook production..." 
+                                                   value="{{ old('mayar_webhook_token_production', $store->mayar_webhook_token_production) }}">
+                                            <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('mayarWebhookTokenProduction', this)">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </button>
+                                        </div>
+                                        <small class="text-muted">Untuk validasi token callback di lingkungan Production.</small>
+                                    </div>
+
+                                    <div class="d-flex align-items-center gap-2 pt-2 border-top flex-wrap">
+                                        <button type="button" class="btn btn-outline-success btn-sm" onclick="testMayarSpecific('production')">
+                                            <i class="fa-solid fa-plug me-1"></i> Uji Koneksi Production
+                                        </button>
+                                        <span id="testProductionResult" class="small"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Webhook Callback URL Copyable Box -->
                     @php
                         $webhookUrl = url('/api/v1/payment/mayar/webhook/' . $store->slug);
-                        if (!empty($store->mayar_webhook_token)) {
-                            $webhookUrl .= '?token=' . urlencode($store->mayar_webhook_token);
+                        $activeWebhookToken = ($curEnv === 'production' && !empty($store->mayar_webhook_token_production)) 
+                            ? $store->mayar_webhook_token_production 
+                            : $store->mayar_webhook_token;
+                        if (!empty($activeWebhookToken)) {
+                            $webhookUrl .= '?token=' . urlencode($activeWebhookToken);
                         }
                     @endphp
                     <div class="p-3 bg-white border rounded mb-3">
@@ -253,21 +373,13 @@
                         </div>
                         <div class="p-2 rounded bg-light border small text-muted">
                             <i class="fa-solid fa-circle-check text-success me-1"></i>
-                            <strong>Multi-Strategi Auto-Verifikasi:</strong> Endpoint ini otomatis mendeteksi Order berdasarkan <em>Candidate ID (Invoice/Transaction), Nomor Order (NR-PO-...), Slug Invoice Mayar, dan Kontak & Nominal Pelanggan</em>.
+                            <strong>Multi-Strategi Auto-Verifikasi:</strong> Endpoint ini otomatis mendeteksi Order berdasarkan <em>Candidate ID (Invoice/Transaction), Nomor Order (NR-PO-...), Slug Invoice Mayar, dan Kontak & Nominal Pelanggan</em>. Callback dari Sandbox maupun Production didukung otomatis.
                             @if(str_contains(url('/'), '127.0.0.1') || str_contains(url('/'), 'localhost'))
                                 <span class="d-block text-warning mt-1 fw-bold">
                                     <i class="fa-solid fa-triangle-exclamation me-1"></i> Catatan Localhost: Mayar.id membutuhkan URL berdomain publik/internet. Gunakan Ngrok atau pasang domain produksi Anda agar webhook dari Mayar dapat terkirim.
                                 </span>
                             @endif
                         </div>
-                    </div>
-
-                    <!-- Test Connection Button & Alert -->
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <button type="button" class="btn btn-outline-dark btn-sm" id="btnTestMayar" onclick="testMayarConnection()">
-                            <i class="fa-solid fa-plug me-1"></i> Uji Koneksi API Mayar.id
-                        </button>
-                        <span id="testMayarResult" class="small"></span>
                     </div>
                 </div>
             </div>
@@ -335,20 +447,90 @@ function copyWebhookUrl() {
     });
 }
 
-async function testMayarConnection() {
-    const apiKey = document.getElementById('mayarApiKey').value.trim();
-    const env = document.getElementById('mayarEnvironment').value;
-    const btn = document.getElementById('btnTestMayar');
-    const resultSpan = document.getElementById('testMayarResult');
+function handleEnvChange(env) {
+    const cardSandbox = document.getElementById('card_env_sandbox');
+    const cardProd = document.getElementById('card_env_production');
+    const boxSandbox = document.getElementById('box_sandbox_fields');
+    const boxProd = document.getElementById('box_production_fields');
+    const tagSandbox = document.getElementById('tag_sandbox_active');
+    const tagProd = document.getElementById('tag_production_active');
+    const badgeStatus = document.getElementById('envStatusBadge');
+
+    if (env === 'sandbox') {
+        if (cardSandbox) {
+            cardSandbox.classList.add('border-warning', 'bg-warning', 'bg-opacity-10', 'shadow-sm');
+            cardSandbox.classList.remove('border-light', 'bg-light');
+        }
+        if (cardProd) {
+            cardProd.classList.remove('border-success', 'bg-success', 'bg-opacity-10', 'shadow-sm');
+            cardProd.classList.add('border-light', 'bg-light');
+        }
+        if (boxSandbox) {
+            boxSandbox.classList.add('border-warning', 'shadow-sm');
+        }
+        if (boxProd) {
+            boxProd.classList.remove('border-success', 'shadow-sm');
+        }
+        if (tagSandbox) {
+            tagSandbox.className = 'badge bg-warning text-dark';
+            tagSandbox.textContent = 'Aktif Dipakai';
+        }
+        if (tagProd) {
+            tagProd.className = 'badge bg-light text-muted border';
+            tagProd.textContent = 'Standby';
+        }
+        if (badgeStatus) {
+            badgeStatus.className = 'badge bg-warning text-dark';
+            badgeStatus.textContent = 'Mode Aktif: SANDBOX';
+        }
+    } else {
+        if (cardProd) {
+            cardProd.classList.add('border-success', 'bg-success', 'bg-opacity-10', 'shadow-sm');
+            cardProd.classList.remove('border-light', 'bg-light');
+        }
+        if (cardSandbox) {
+            cardSandbox.classList.remove('border-warning', 'bg-warning', 'bg-opacity-10', 'shadow-sm');
+            cardSandbox.classList.add('border-light', 'bg-light');
+        }
+        if (boxProd) {
+            boxProd.classList.add('border-success', 'shadow-sm');
+        }
+        if (boxSandbox) {
+            boxSandbox.classList.remove('border-warning', 'shadow-sm');
+        }
+        if (tagProd) {
+            tagProd.className = 'badge bg-success';
+            tagProd.textContent = 'Aktif Dipakai';
+        }
+        if (tagSandbox) {
+            tagSandbox.className = 'badge bg-light text-muted border';
+            tagSandbox.textContent = 'Standby';
+        }
+        if (badgeStatus) {
+            badgeStatus.className = 'badge bg-success';
+            badgeStatus.textContent = 'Mode Aktif: PRODUCTION';
+        }
+    }
+}
+
+async function testMayarSpecific(env) {
+    const isProd = env === 'production';
+    const apiKeyInput = isProd 
+        ? document.getElementById('mayarApiKeyProduction') 
+        : document.getElementById('mayarApiKey');
+    const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+    const resultSpan = document.getElementById(isProd ? 'testProductionResult' : 'testSandboxResult');
 
     if (!apiKey) {
-        resultSpan.innerHTML = '<span class="text-danger fw-bold"><i class="fa-solid fa-circle-exclamation me-1"></i> Masukkan API Key terlebih dahulu.</span>';
+        if (resultSpan) {
+            resultSpan.innerHTML = '<span class="text-danger fw-bold"><i class="fa-solid fa-circle-exclamation me-1"></i> Masukkan API Key ' + (isProd ? 'Production' : 'Sandbox') + ' terlebih dahulu.</span>';
+        }
         return;
     }
 
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menghubungi Mayar.id...';
-    resultSpan.innerHTML = '';
+    if (resultSpan) {
+        resultSpan.innerHTML = '<span class="text-muted"><i class="fa-solid fa-spinner fa-spin me-1"></i> Menguji ' + (isProd ? 'Production' : 'Sandbox') + '...</span>';
+    }
 
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -367,16 +549,15 @@ async function testMayarConnection() {
 
         const data = await res.json();
         if (data.success) {
-            resultSpan.innerHTML = '<span class="text-success fw-bold"><i class="fa-solid fa-circle-check me-1"></i> ' + (data.message || 'Koneksi ke Mayar.id Berhasil!') + '</span>';
+            resultSpan.innerHTML = '<span class="text-success fw-bold"><i class="fa-solid fa-circle-check me-1"></i> ' + (data.message || 'Koneksi Berhasil!') + '</span>';
         } else {
             resultSpan.innerHTML = '<span class="text-danger fw-bold"><i class="fa-solid fa-circle-xmark me-1"></i> ' + (data.message || 'Koneksi Gagal') + '</span>';
         }
     } catch (err) {
         console.error('Test Mayar error', err);
-        resultSpan.innerHTML = '<span class="text-danger fw-bold"><i class="fa-solid fa-circle-xmark me-1"></i> Gagal menghubungi server: ' + err.message + '</span>';
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-plug me-1"></i> Uji Koneksi API Mayar.id';
+        if (resultSpan) {
+            resultSpan.innerHTML = '<span class="text-danger fw-bold"><i class="fa-solid fa-circle-xmark me-1"></i> Gagal: ' + err.message + '</span>';
+        }
     }
 }
 </script>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pesanan Anda Sudah Ready! - Naumil Rice</title>
+  <title>Pesanan Anda Sudah Ready! - Naumil Store</title>
   <style>
     body {
       margin: 0;
@@ -138,8 +138,8 @@
     <div class="container">
       <!-- Header -->
       <div class="header">
-        <h1 class="brand-title">🍚 Naumil Rice</h1>
-        <p class="brand-subtitle">{{ $order->store->name ?? 'Cabang Naumil Rice' }}</p>
+        <h1 class="brand-title">🍚 Naumil Store</h1>
+        <p class="brand-subtitle">{{ $order->store->name ?? 'Cabang Naumil Store' }}</p>
       </div>
 
       <!-- Main Body -->
@@ -242,8 +242,8 @@
 
       <!-- Footer -->
       <div class="footer">
-        <p style="margin: 0 0 5px 0;">Notifikasi otomatis dari <strong>Naumil Rice</strong> melalui domain <em>application@naumil.store</em>.</p>
-        <p style="margin: 0;">&copy; {{ date('Y') }} Naumil Rice. Selamat menikmati hidangan kami!</p>
+        <p style="margin: 0 0 5px 0;">Notifikasi otomatis dari <strong>Naumil Store</strong> melalui domain <em>application@naumil.store</em>.</p>
+        <p style="margin: 0;">&copy; {{ date('Y') }} Naumil Store. Selamat menikmati hidangan kami!</p>
       </div>
     </div>
   </div>

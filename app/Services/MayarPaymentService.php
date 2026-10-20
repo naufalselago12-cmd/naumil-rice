@@ -27,20 +27,21 @@ class MayarPaymentService
      */
     public function createPaymentLink(Store $store, Order $order): array
     {
-        $apiKey = trim($store->mayar_api_key ?? '');
+        $environment = $store->mayar_environment ?? 'sandbox';
+        $apiKey = trim($store->active_mayar_api_key ?? ($environment === 'production' ? ($store->mayar_api_key_production ?: $store->mayar_api_key) : $store->mayar_api_key) ?? '');
 
         if (empty($apiKey)) {
             return [
                 'success' => false,
-                'message' => 'API Key Mayar.id belum dikonfigurasi pada cabang ini.',
+                'message' => 'API Key Mayar.id (' . strtoupper($environment) . ') belum dikonfigurasi pada cabang ini.',
             ];
         }
 
-        $baseUrl = self::getBaseUrl($store->mayar_environment ?? 'sandbox');
+        $baseUrl = self::getBaseUrl($environment);
         $endpoint = "{$baseUrl}/payment/create";
 
         $client = $order->client;
-        $customerName = $client->name ?? 'Pelanggan Naumil Rice';
+        $customerName = $client->name ?? 'Pelanggan Naumil Store';
         $customerEmail = !empty($client->email) ? $client->email : ($client->whatsapp . '@naumilrice.com');
         $customerMobile = preg_replace('/[^0-9]/', '', $client->whatsapp ?? '');
         if (str_starts_with($customerMobile, '0')) {
@@ -193,9 +194,10 @@ class MayarPaymentService
      */
     public function checkPaymentStatus(Store $store, Order $order): array
     {
-        $apiKey = trim($store->mayar_api_key ?? '');
+        $environment = $store->mayar_environment ?? 'sandbox';
+        $apiKey = trim($store->active_mayar_api_key ?? ($environment === 'production' ? ($store->mayar_api_key_production ?: $store->mayar_api_key) : $store->mayar_api_key) ?? '');
         if (empty($apiKey)) {
-            return ['success' => false, 'message' => 'API Key belum dikonfigurasi.'];
+            return ['success' => false, 'message' => 'API Key (' . strtoupper($environment) . ') belum dikonfigurasi.'];
         }
 
         // Collect all potential IDs for this invoice/payment
@@ -213,7 +215,7 @@ class MayarPaymentService
             $payload['extracted_payment_link_id'] ?? null,
         ]));
 
-        $baseUrl = self::getBaseUrl($store->mayar_environment ?? 'sandbox');
+        $baseUrl = self::getBaseUrl($environment);
 
         foreach ($candidateIds as $cid) {
             if (empty($cid) || strlen($cid) < 5) continue;

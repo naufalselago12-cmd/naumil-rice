@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pembayaran Selesai - Naumil Rice</title>
+  <title>Pembayaran Selesai - Naumil Store</title>
   <style>
     body {
       margin: 0;
@@ -95,7 +95,7 @@
   <div class="card">
     <div class="icon-bubble">✓</div>
     <h2>Pembayaran Berhasil!</h2>
-    <p>Terima kasih. Pembayaran pesanan Anda telah diterima oleh sistem dapur Naumil Rice.</p>
+    <p>Terima kasih. Pembayaran pesanan Anda telah diterima oleh sistem dapur Naumil Store.</p>
 
     @if(!empty($orderNumber))
     <div class="order-badge">#{{ $orderNumber }}</div>

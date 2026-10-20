@@ -57,52 +57,95 @@
               </small>
             </div>
           </div>
+
+          <!-- Pre-Order Batch Info Banner in Header -->
+          <div v-if="orderData.queue_info?.is_preorder" class="mt-3 pt-3 border-top d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <span class="badge bg-danger fs-7"><i class="fa-solid fa-bullhorn me-1"></i> BATCH PRE-ORDER</span>
+              <strong class="text-dark">{{ orderData.queue_info.campaign_title || orderData.order?.campaign?.title }}</strong>
+            </div>
+            <div class="badge bg-primary-subtle text-primary border border-primary-subtle font-mono fs-7 p-2">
+              <i class="fa-solid fa-calendar-day me-1"></i> Jadwal Siap: <strong>{{ orderData.queue_info.ready_full_formatted }}</strong>
+            </div>
+          </div>
         </div>
 
         <!-- QUEUE POSITION & LIVE COOKING STATUS CARD -->
-        <div v-if="orderData.queue_info && !orderData.is_rejected" class="card p-4 mb-4 border-2 shadow-sm" :class="orderData.queue_info.is_in_queue ? 'border-primary bg-primary-subtle' : 'border-success bg-success-subtle'">
+        <div v-if="orderData.queue_info && !orderData.is_rejected" class="card p-4 mb-4 border-2 shadow-sm" 
+             :class="orderData.queue_info.is_preorder ? (orderData.order?.status === 'Order Ready' ? 'border-success bg-success-subtle' : 'border-danger bg-danger-subtle') : (orderData.queue_info.is_in_queue ? 'border-primary bg-primary-subtle' : 'border-success bg-success-subtle')">
           <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div class="d-flex align-items-center gap-3">
               <div class="rounded-circle p-3 d-flex align-items-center justify-content-center text-white" 
-                   :class="orderData.queue_info.is_in_queue ? 'bg-primary' : 'bg-success'"
+                   :class="orderData.queue_info.is_preorder ? (orderData.order?.status === 'Order Ready' ? 'bg-success' : 'bg-danger') : (orderData.queue_info.is_in_queue ? 'bg-primary' : 'bg-success')"
                    style="width: 58px; height: 58px;">
-                <i v-if="orderData.queue_info.is_in_queue" class="fa-solid fa-fire fs-3"></i>
+                <i v-if="orderData.queue_info.is_preorder" class="fa-solid fa-calendar-check fs-3"></i>
+                <i v-else-if="orderData.queue_info.is_in_queue" class="fa-solid fa-fire fs-3"></i>
                 <i v-else-if="orderData.order?.status === 'Order Ready'" class="fa-solid fa-circle-check fs-3"></i>
                 <i v-else class="fa-solid fa-motorcycle fs-3"></i>
               </div>
               <div>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                  <span v-if="orderData.queue_info.is_in_queue" class="badge bg-danger fs-6 font-mono px-3 py-1">
-                    <i class="fa-solid fa-fire me-1"></i> Nomor Antrean #{{ orderData.queue_info.queue_number }}
-                  </span>
-                  <span v-else class="badge bg-success fs-6 font-mono px-3 py-1">
-                    {{ orderData.queue_info.queue_badge }}
-                  </span>
-                  
-                  <span v-if="orderData.queue_info.is_in_queue && orderData.queue_info.orders_ahead === 0" class="badge bg-primary text-white">
-                    Sedang Dimasak Sekarang
-                  </span>
-                  <span v-else-if="orderData.queue_info.is_in_queue" class="badge bg-warning text-dark font-mono">
-                    {{ orderData.queue_info.orders_ahead }} pesanan di depan Anda
-                  </span>
+                  <!-- Pre-Order Badges -->
+                  <template v-if="orderData.queue_info.is_preorder">
+                    <span class="badge bg-danger fs-6 font-mono px-3 py-1">
+                      <i class="fa-solid fa-calendar-star me-1"></i> BATCH PRE-ORDER
+                    </span>
+                    <span class="badge bg-dark font-mono px-3 py-1">
+                      <i class="fa-solid fa-clock me-1"></i> Ready: {{ orderData.queue_info.ready_time_formatted }}
+                    </span>
+                  </template>
+                  <!-- Regular On-Demand Queue Badges -->
+                  <template v-else>
+                    <span v-if="orderData.queue_info.is_in_queue" class="badge bg-danger fs-6 font-mono px-3 py-1">
+                      <i class="fa-solid fa-fire me-1"></i> Nomor Antrean #{{ orderData.queue_info.queue_number }}
+                    </span>
+                    <span v-else class="badge bg-success fs-6 font-mono px-3 py-1">
+                      {{ orderData.queue_info.queue_badge }}
+                    </span>
+                    
+                    <span v-if="orderData.queue_info.is_in_queue && orderData.queue_info.orders_ahead === 0" class="badge bg-primary text-white">
+                      Sedang Dimasak Sekarang
+                    </span>
+                    <span v-else-if="orderData.queue_info.is_in_queue" class="badge bg-warning text-dark font-mono">
+                      {{ orderData.queue_info.orders_ahead }} pesanan di depan Anda
+                    </span>
+                  </template>
                 </div>
                 <h4 class="fw-bold mb-1 mt-2 text-dark fs-5">
                   {{ orderData.queue_info.queue_message }}
                 </h4>
                 <small class="text-muted d-block font-mono">
-                  Dapur Cabang: <strong>{{ orderData.order?.store?.name }}</strong> &bull; Total antrean aktif: {{ orderData.queue_info.total_active_queue }} pesanan
+                  Dapur Cabang: <strong>{{ orderData.order?.store?.name }}</strong>
+                  <span v-if="!orderData.queue_info.is_preorder"> &bull; Total antrean aktif: {{ orderData.queue_info.total_active_queue }} pesanan</span>
                 </small>
               </div>
             </div>
 
             <!-- Estimated Time Box -->
-            <div v-if="orderData.queue_info.is_in_queue && orderData.queue_info.estimated_minutes" class="text-md-end text-start p-3 bg-white rounded border shadow-xs" style="min-width: 170px;">
+            <!-- 1. For Pre-Order: Display PO Ready Date & Time -->
+            <div v-if="orderData.queue_info.is_preorder && orderData.order?.status !== 'Order Ready'" 
+                 class="text-md-end text-start p-3 bg-white rounded border border-danger shadow-xs" style="min-width: 220px;">
+              <small class="text-danger d-block text-uppercase fw-bold" style="font-size: 0.75rem;">
+                <i class="fa-solid fa-calendar-day me-1"></i> Tanggal Ready Menu PO
+              </small>
+              <div class="font-mono fw-bold fs-5 text-dark mt-1">
+                {{ orderData.queue_info.ready_date_formatted }}
+              </div>
+              <small class="text-primary fw-semibold d-block font-mono" style="font-size: 0.82rem;">
+                <i class="fa-solid fa-clock me-1"></i> Pukul {{ orderData.queue_info.ready_time_formatted }}
+              </small>
+              <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">Jadwal Pengambilan / Delivery</small>
+            </div>
+            <!-- 2. For Regular Queue -->
+            <div v-else-if="!orderData.queue_info.is_preorder && orderData.queue_info.is_in_queue && orderData.queue_info.estimated_minutes" 
+                 class="text-md-end text-start p-3 bg-white rounded border shadow-xs" style="min-width: 170px;">
               <small class="text-muted d-block text-uppercase fw-semibold" style="font-size: 0.75rem;">Estimasi Penyajian</small>
               <div class="font-mono fw-bold fs-4 text-primary">
                 ~{{ orderData.queue_info.estimated_minutes }} <span class="fs-6 text-muted">Menit</span>
               </div>
               <small class="text-muted" style="font-size: 0.75rem;">Realtime KDS Monitor</small>
             </div>
+            <!-- 3. When Order Ready -->
             <div v-else-if="orderData.order?.status === 'Order Ready'" class="p-3 bg-white rounded border border-success text-center shadow-xs">
               <span class="badge bg-success fs-7 mb-1">SIAP DISANTAP</span>
               <div class="fw-bold text-success">Silakan diambil / siap dinikmati!</div>
@@ -369,7 +412,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppLayout from '@/Layouts/AppLayout.vue'
@@ -476,33 +519,47 @@ const uploadProof = async () => {
 
 let pollTimer = null
 
-const stagesList = [
-  {
-    name: 'Order Konfirmed',
-    icon: 'fa-solid fa-check',
-    description: 'Pesanan telah diterima oleh sistem dan masuk ke antrean dapur.'
-  },
-  {
-    name: 'Order On Proses',
-    icon: 'fa-solid fa-fire-burner',
-    description: 'Dapur sedang memasak nasi dan lauk pesanan Anda secara fresh.'
-  },
-  {
-    name: 'Order On Packaging',
-    icon: 'fa-solid fa-box-open',
-    description: 'Makanan telah matang dan sedang dikemas rapat dalam food packaging.'
-  },
-  {
-    name: 'Order On Delivery',
-    icon: 'fa-solid fa-motorcycle',
-    description: 'Pesanan sedang dibawa kurir menuju alamat Anda / siap diambil.'
-  },
-  {
-    name: 'Order Ready',
-    icon: 'fa-solid fa-circle-check',
-    description: 'Pesanan telah sampai dan siap disantap. Selamat menikmati!'
-  }
-]
+const stagesList = computed(() => {
+  const isPO = orderData.value?.queue_info?.is_preorder
+  const readyTxt = orderData.value?.queue_info?.ready_full_formatted
+  return [
+    {
+      name: 'Order Konfirmed',
+      icon: 'fa-solid fa-check',
+      description: isPO 
+        ? `Pesanan Pre-Order diterima & tercatat untuk jadwal ready ${readyTxt || 'batch PO'}.`
+        : 'Pesanan telah diterima oleh sistem dan masuk ke antrean dapur.'
+    },
+    {
+      name: 'Order On Proses',
+      icon: 'fa-solid fa-fire-burner',
+      description: isPO
+        ? 'Dapur menyiapkan bahan baku fresh dan mulai memasak batch menu Pre-Order.'
+        : 'Dapur sedang memasak nasi dan lauk pesanan Anda secara fresh.'
+    },
+    {
+      name: 'Order On Packaging',
+      icon: 'fa-solid fa-box-open',
+      description: isPO
+        ? 'Menu Pre-Order telah matang dan dikemas rapi dalam food packaging higienis.'
+        : 'Makanan telah matang dan sedang dikemas rapat dalam food packaging.'
+    },
+    {
+      name: 'Order On Delivery',
+      icon: 'fa-solid fa-motorcycle',
+      description: isPO
+        ? 'Pesanan batch Pre-Order siap diambil di cabang atau sedang diantar kurir.'
+        : 'Pesanan sedang dibawa kurir menuju alamat Anda / siap diambil.'
+    },
+    {
+      name: 'Order Ready',
+      icon: 'fa-solid fa-circle-check',
+      description: isPO
+        ? 'Pesanan Pre-Order telah siap dan dapat dinikmati. Selamat menyantap!'
+        : 'Pesanan telah sampai dan siap disantap. Selamat menikmati!'
+    }
+  ]
+})
 
 let pusherInstance = null
 let currentSubscribedOrder = null

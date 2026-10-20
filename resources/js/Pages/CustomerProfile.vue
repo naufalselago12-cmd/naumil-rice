@@ -220,7 +220,7 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                   <div>
                     <h5 class="fw-bold mb-1"><i class="fa-solid fa-receipt text-primary me-2"></i>Histori Pembelian Makanan</h5>
-                    <p class="text-muted small mb-0">Daftar semua pesanan yang pernah Anda lakukan di seluruh cabang Naumil Rice.</p>
+                    <p class="text-muted small mb-0">Daftar semua pesanan yang pernah Anda lakukan di seluruh cabang Naumil Store.</p>
                   </div>
                 </div>
 
@@ -448,7 +448,7 @@
             <div class="guest-crown-bubble mb-3 mx-auto">
               <i class="fa-solid fa-crown text-warning fa-2x"></i>
             </div>
-            <h2 class="fw-bold mb-2">Portal Pelanggan Setia Naumil Rice</h2>
+            <h2 class="fw-bold mb-2">Portal Pelanggan Setia Naumil Store</h2>
             <p class="text-muted">
               Daftar sebagai Pelanggan Setia untuk kumpulkan <strong>Credit Points</strong> di setiap pembelian menu, nikmati <strong>diskon khusus</strong>, dan promo eksklusif cabang langganan Anda!
             </p>

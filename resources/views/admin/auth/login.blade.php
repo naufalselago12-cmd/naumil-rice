@@ -6,7 +6,7 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico?v=3">
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=3">
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png?v=3">
-    <title>Login Administrator - Naumil Rice Backend</title>
+    <title>Login Administrator - Naumil Store Backend</title>
 
     <!-- Google Fonts & FontAwesome -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -129,7 +129,7 @@
         <div class="brand-icon">
             <i class="fa-solid fa-bowl-rice"></i>
         </div>
-        <h3 class="fw-bold mb-1">NAUMIL RICE</h3>
+        <h3 class="fw-bold mb-1">Naumil Store</h3>
         <p class="text-muted small mb-0">Portal Masuk Backend Administrator</p>
     </div>
 

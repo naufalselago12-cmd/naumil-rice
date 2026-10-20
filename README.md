@@ -1,4 +1,4 @@
-# Naumil Rice - Multi-Store Food E-Commerce & Pre-Order System (Laravel 12 + Inertia Vue 3)
+# Naumil Store - Multi-Store Food E-Commerce & Pre-Order System (Laravel 12 + Inertia Vue 3)
 
 Sistem Food E-Commerce & Open Pre-Order (PO) Kuliner Nusantara dengan arsitektur **Multi-Store / Multi-Tenant** terpadu menggunakan **Laravel 12**, **Inertia.js v3**, dan **Vue 3**.
 

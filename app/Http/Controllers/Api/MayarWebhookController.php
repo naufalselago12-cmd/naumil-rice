@@ -68,15 +68,20 @@ class MayarWebhookController extends Controller
         }
 
         // 4. Verify webhook token if store configured one and token was sent in request
-        if ($store && !empty($store->mayar_webhook_token)) {
+        $expectedTokens = $store ? array_values(array_filter([
+            $store->mayar_webhook_token,
+            $store->mayar_webhook_token_production,
+        ])) : [];
+
+        if ($store && !empty($expectedTokens)) {
             $incomingToken = $request->header('x-mayar-token') 
                 ?? $request->header('x-callback-token') 
                 ?? $request->query('token') 
                 ?? $request->input('token');
 
-            if (!empty($incomingToken) && $incomingToken !== $store->mayar_webhook_token) {
+            if (!empty($incomingToken) && !in_array($incomingToken, $expectedTokens, true)) {
                 Log::warning('[MAYAR WEBHOOK] Token mismatch!', [
-                    'expected' => $store->mayar_webhook_token,
+                    'expected' => $expectedTokens,
                     'received' => $incomingToken,
                 ]);
                 return response()->json(['success' => false, 'message' => 'Unauthorized token'], 401);
@@ -230,7 +235,7 @@ class MayarWebhookController extends Controller
 
         // Strategy H: Active API Verification against Candidate IDs
         if (!$order && !empty($candidateIds)) {
-            $storesToTry = $store ? collect([$store]) : Store::whereNotNull('mayar_api_key')->get();
+            $storesToTry = $store ? collect([$store]) : Store::whereNotNull('mayar_api_key')->orWhereNotNull('mayar_api_key_production')->get();
             $mayarService = new MayarPaymentService();
 
             foreach ($storesToTry as $st) {

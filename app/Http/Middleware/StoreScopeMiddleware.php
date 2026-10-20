@@ -27,7 +27,7 @@ class StoreScopeMiddleware
             ->first();
 
         if (!$store) {
-            abort(404, "Cabang / Toko '{$storeSlug}' tidak ditemukan dalam sistem Naumil Rice.");
+            abort(404, "Cabang / Toko '{$storeSlug}' tidak ditemukan dalam sistem Naumil Store.");
         }
 
         // Share store with all views and current request

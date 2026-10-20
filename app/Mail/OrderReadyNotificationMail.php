@@ -31,7 +31,7 @@ class OrderReadyNotificationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '🍽️ Pesanan Siap / Ready! #' . $this->order->order_number . ' - ' . ($this->order->store->name ?? 'Naumil Rice'),
+            subject: '🍽️ Pesanan Siap / Ready! #' . $this->order->order_number . ' - ' . ($this->order->store->name ?? 'Naumil Store'),
         );
     }
 

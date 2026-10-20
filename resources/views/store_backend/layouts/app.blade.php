@@ -205,14 +205,42 @@
             color: #0f172a;
         }
 
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
+            z-index: 1025;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
         @media (max-width: 992px) {
             .store-sidebar {
                 transform: translateX(-100%);
             }
-            .sidebar-open .store-sidebar {
+            body.sidebar-open .store-sidebar {
                 transform: translateX(0);
+                box-shadow: 4px 0 25px rgba(0, 0, 0, 0.5);
+            }
+            body.sidebar-open .sidebar-backdrop {
+                display: block;
+                opacity: 1;
             }
             .store-wrapper {
+                margin-left: 0;
+            }
+        }
+
+        @media (min-width: 993px) {
+            body.sidebar-collapsed .store-sidebar {
+                transform: translateX(-100%);
+            }
+            body.sidebar-collapsed .store-wrapper {
                 margin-left: 0;
             }
         }
@@ -224,17 +252,22 @@
 <div class="d-flex">
     <!-- Store Sidebar -->
     <aside class="store-sidebar" id="storeSidebar">
-        <a href="{{ route('store.backend.dashboard', $currentStore->slug) }}" class="store-brand-header">
-            <img src="{{ $currentStore->logo ?: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=100&q=80' }}" 
-                 alt="Store Logo" class="store-brand-logo">
-            <div style="min-width: 0;">
-                <div class="fw-bold text-truncate text-white" style="font-size: 0.95rem;">{{ $currentStore->name }}</div>
-                <div class="d-flex align-items-center gap-1 mt-1">
-                    <span class="badge bg-danger font-mono" style="font-size: 0.65rem;">{{ $currentStore->code }}</span>
-                    <small class="text-info font-mono" style="font-size: 0.68rem;">/{{ $currentStore->slug }}</small>
+        <div class="d-flex align-items-center justify-content-between p-2 border-bottom" style="border-color: rgba(255, 255, 255, 0.1) !important;">
+            <a href="{{ route('store.backend.dashboard', $currentStore->slug) }}" class="store-brand-header p-0 border-0 flex-grow-1">
+                <img src="{{ $currentStore->logo ?: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=100&q=80' }}" 
+                     alt="Store Logo" class="store-brand-logo">
+                <div style="min-width: 0;">
+                    <div class="fw-bold text-truncate text-white" style="font-size: 0.95rem;">{{ $currentStore->name }}</div>
+                    <div class="d-flex align-items-center gap-1 mt-1">
+                        <span class="badge bg-danger font-mono" style="font-size: 0.65rem;">{{ $currentStore->code }}</span>
+                        <small class="text-info font-mono" style="font-size: 0.68rem;">/{{ $currentStore->slug }}</small>
+                    </div>
                 </div>
-            </div>
-        </a>
+            </a>
+            <button type="button" class="btn btn-sm btn-link text-white-50 d-lg-none" id="sidebarCloseBtn" aria-label="Tutup Menu">
+                <i class="fa-solid fa-xmark fs-4"></i>
+            </button>
+        </div>
 
         <ul class="sidebar-menu">
             <li class="sidebar-header">PANEL CABANG</li>
@@ -360,12 +393,15 @@
         </ul>
     </aside>
 
+    <!-- Backdrop Overlay for Mobile Sidebar -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
     <!-- Content Wrapper -->
     <div class="store-wrapper">
         <!-- Topbar -->
         <header class="store-topbar">
             <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-sm btn-outline-secondary d-lg-none" id="storeSidebarToggle">
+                <button class="btn btn-sm btn-outline-secondary" id="storeSidebarToggle" aria-label="Toggle Sidebar" title="Buka/Tutup Sidebar">
                     <i class="fa-solid fa-bars"></i>
                 </button>
                 <div class="d-flex align-items-center gap-2">
@@ -434,9 +470,40 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById('storeSidebarToggle')?.addEventListener('click', function() {
-        document.body.classList.toggle('sidebar-open');
+    const toggleBtn = document.getElementById('storeSidebarToggle');
+    const closeBtn = document.getElementById('sidebarCloseBtn');
+    const backdrop = document.getElementById('sidebarBackdrop');
+
+    function toggleSidebar() {
+        if (window.innerWidth <= 992) {
+            document.body.classList.toggle('sidebar-open');
+        } else {
+            document.body.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('naumil_store_sidebar_collapsed', document.body.classList.contains('sidebar-collapsed') ? '1' : '0');
+        }
+    }
+
+    function closeSidebarMobile() {
+        document.body.classList.remove('sidebar-open');
+    }
+
+    toggleBtn?.addEventListener('click', toggleSidebar);
+    closeBtn?.addEventListener('click', closeSidebarMobile);
+    backdrop?.addEventListener('click', closeSidebarMobile);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeSidebarMobile();
     });
+
+    document.querySelectorAll('.store-sidebar .nav-link-side').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 992) closeSidebarMobile();
+        });
+    });
+
+    if (window.innerWidth > 992 && localStorage.getItem('naumil_store_sidebar_collapsed') === '1') {
+        document.body.classList.add('sidebar-collapsed');
+    }
 </script>
 @stack('scripts')
 </body>

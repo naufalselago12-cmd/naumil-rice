@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-title Naumil Rice - System Runner
+title Naumil Store - System Runner
 cd /d "%~dp0"
 
 :: ----------------------------------------------------------------------
@@ -39,7 +39,7 @@ goto parse_args
 
 :after_parse
 echo ======================================================================
-echo                NAUMIL RICE - MULTI-STORE SYSTEM
+echo                Naumil Store - MULTI-STORE SYSTEM
 echo ======================================================================
 echo.
 
@@ -119,13 +119,13 @@ echo.
 :: Eksekusi Mode Jendela Terpisah (Separate Windows)
 if "%MODE%"=="separate" (
     echo [*] Menjalankan server di jendela Command Prompt terpisah...
-    start "Naumil Rice - Laravel Server" cmd /k "title Naumil Laravel Server && php artisan serve --port=8000"
-    start "Naumil Rice - Vite Dev" cmd /k "title Naumil Vite Dev && npm run dev"
+    start "Naumil Store - Laravel Server" cmd /k "title Naumil Laravel Server && php artisan serve --port=8000"
+    start "Naumil Store - Vite Dev" cmd /k "title Naumil Vite Dev && npm run dev"
     if "%WITH_REVERB%"=="1" (
-        start "Naumil Rice - Reverb WebSocket" cmd /k "title Naumil Reverb WebSocket && php artisan reverb:start --port=8085"
+        start "Naumil Store - Reverb WebSocket" cmd /k "title Naumil Reverb WebSocket && php artisan reverb:start --port=8085"
     )
     if "%WITH_QUEUE%"=="1" (
-        start "Naumil Rice - Queue Worker" cmd /k "title Naumil Queue Worker && php artisan queue:listen --tries=1"
+        start "Naumil Store - Queue Worker" cmd /k "title Naumil Queue Worker && php artisan queue:listen --tries=1"
     )
     echo [*] Semua server berhasil dijalankan!
     exit /b 0

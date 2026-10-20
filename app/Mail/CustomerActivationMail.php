@@ -31,7 +31,7 @@ class CustomerActivationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '🔐 Aktivasi Akun Pelanggan Naumil Rice - ' . $this->client->name,
+            subject: '🔐 Aktivasi Akun Pelanggan Naumil Store - ' . $this->client->name,
         );
     }
 

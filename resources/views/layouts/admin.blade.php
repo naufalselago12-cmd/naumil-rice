@@ -7,7 +7,7 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico?v=3">
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=3">
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png?v=3">
-    <title>@yield('title', 'Admin Dashboard') - Naumil Rice</title>
+    <title>@yield('title', 'Admin Dashboard') - Naumil Store</title>
 
     <!-- Google Fonts & FontAwesome -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -331,14 +331,42 @@
             align-items: center;
         }
 
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
+            z-index: 1025;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
         @media (max-width: 992px) {
             .main-sidebar {
                 transform: translateX(-100%);
             }
-            .sidebar-open .main-sidebar {
+            body.sidebar-open .main-sidebar {
                 transform: translateX(0);
+                box-shadow: 4px 0 25px rgba(0, 0, 0, 0.5);
+            }
+            body.sidebar-open .sidebar-backdrop {
+                display: block;
+                opacity: 1;
             }
             .content-wrapper {
+                margin-left: 0;
+            }
+        }
+
+        @media (min-width: 993px) {
+            body.sidebar-collapsed .main-sidebar {
+                transform: translateX(-100%);
+            }
+            body.sidebar-collapsed .content-wrapper {
                 margin-left: 0;
             }
         }
@@ -350,13 +378,18 @@
 <div class="wrapper">
     <!-- Main Sidebar -->
     <aside class="main-sidebar">
-        <a href="{{ route('admin.dashboard') }}" class="brand-link">
-            <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=100&q=80" alt="Logo">
-            <div>
-                <div class="brand-text">NAUMIL RICE</div>
-                <small style="font-size: 0.68rem; color: #38bdf8; font-weight: 600;">E-COMMERCE FOOD & PO</small>
-            </div>
-        </a>
+        <div class="d-flex align-items-center justify-content-between p-2 border-bottom" style="border-color: rgba(255, 255, 255, 0.1) !important;">
+            <a href="{{ route('admin.dashboard') }}" class="brand-link p-0 border-0 flex-grow-1">
+                <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=100&q=80" alt="Logo">
+                <div>
+                    <div class="brand-text">Naumil Store</div>
+                    <small style="font-size: 0.68rem; color: #38bdf8; font-weight: 600;">E-COMMERCE FOOD & PO</small>
+                </div>
+            </a>
+            <button type="button" class="btn btn-sm btn-link text-white-50 d-lg-none" id="sidebarCloseBtn" aria-label="Tutup Menu">
+                <i class="fa-solid fa-xmark fs-4"></i>
+            </button>
+        </div>
 
         <ul class="sidebar-menu">
             <li class="sidebar-header">MAIN NAVIGATION</li>
@@ -445,12 +478,15 @@
         </ul>
     </aside>
 
+    <!-- Backdrop Overlay for Mobile Sidebar -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
     <!-- Content Wrapper -->
     <div class="content-wrapper">
         <!-- Top Navbar -->
         <nav class="main-navbar">
             <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-sm btn-outline-secondary d-lg-none" id="sidebarToggleBtn">
+                <button class="btn btn-sm btn-outline-secondary" id="sidebarToggleBtn" aria-label="Toggle Sidebar" title="Buka/Tutup Sidebar">
                     <i class="fa-solid fa-bars"></i>
                 </button>
                 <div class="fw-bold d-none d-md-block">
@@ -544,7 +580,7 @@
         <!-- Main Footer -->
         <footer class="main-footer">
             <div>
-                <strong>&copy; 2026 Naumil Rice.</strong> High Performance Food E-Commerce & PO System.
+                <strong>&copy; 2026 Naumil Store.</strong> High Performance Food E-Commerce & PO System.
             </div>
             <div>
                 <span>AdminLTE Multi-Theme Edition</span> | <span class="badge bg-success">Online</span>
@@ -580,12 +616,40 @@
         const savedTheme = localStorage.getItem('naumil_admin_theme') || 'theme-light';
         setTheme(savedTheme);
 
-        // Mobile Sidebar Toggle
+        // Sidebar Toggle Logic (Desktop & Mobile)
         const toggleBtn = document.getElementById('sidebarToggleBtn');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => {
+        const closeBtn = document.getElementById('sidebarCloseBtn');
+        const backdrop = document.getElementById('sidebarBackdrop');
+
+        function toggleSidebar() {
+            if (window.innerWidth <= 992) {
                 document.body.classList.toggle('sidebar-open');
+            } else {
+                document.body.classList.toggle('sidebar-collapsed');
+                localStorage.setItem('naumil_admin_sidebar_collapsed', document.body.classList.contains('sidebar-collapsed') ? '1' : '0');
+            }
+        }
+
+        function closeSidebarMobile() {
+            document.body.classList.remove('sidebar-open');
+        }
+
+        toggleBtn?.addEventListener('click', toggleSidebar);
+        closeBtn?.addEventListener('click', closeSidebarMobile);
+        backdrop?.addEventListener('click', closeSidebarMobile);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeSidebarMobile();
+        });
+
+        document.querySelectorAll('.main-sidebar .nav-link-side').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 992) closeSidebarMobile();
             });
+        });
+
+        if (window.innerWidth > 992 && localStorage.getItem('naumil_admin_sidebar_collapsed') === '1') {
+            document.body.classList.add('sidebar-collapsed');
         }
     });
 </script>

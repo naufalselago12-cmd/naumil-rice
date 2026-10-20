@@ -7,7 +7,7 @@
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=3">
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png?v=3">
     <link rel="apple-touch-icon" href="/favicon-192x192.png?v=3">
-    <title inertia>Naumil Rice - Open Pre-Order & E-Commerce Foods</title>
+    <title inertia>Naumil Store - Open Pre-Order & E-Commerce Foods</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

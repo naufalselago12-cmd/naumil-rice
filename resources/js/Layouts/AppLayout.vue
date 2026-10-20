@@ -8,7 +8,7 @@
             <i class="fa-solid fa-bowl-rice"></i>
           </div>
           <div>
-            <span class="brand-name">NAUMIL RICE</span>
+            <span class="brand-name">Naumil Store</span>
             <span class="brand-sub">KULINER NUSANTARA & OPEN PO</span>
           </div>
         </Link>
@@ -92,7 +92,7 @@
               <i class="fa-solid fa-bowl-rice"></i>
             </div>
             <div>
-              <span class="brand-name">NAUMIL RICE</span>
+              <span class="brand-name">Naumil Store</span>
               <span class="brand-sub">PRE-ORDER AUTHENTIC RICE BOWL</span>
             </div>
           </div>
@@ -116,15 +116,14 @@
           <p class="small text-muted mb-2">
             <i class="fa-solid fa-location-dot me-2 text-danger"></i> Flagship SCBD Sudirman & Tebet Kitchen
           </p>
-          <a href="https://wa.me/6281298765432" target="_blank" class="wa-btn">
+          <a href="https://wa.me/081779954574" target="_blank" class="wa-btn">
             <i class="fa-brands fa-whatsapp fs-5"></i> Customer Care WA
           </a>
         </div>
       </div>
       <div class="footer-bottom">
         <div class="container d-flex justify-content-between align-items-center">
-          <p>&copy; 2026 Naumil Rice. All rights reserved.</p>
-          <p class="font-mono small text-muted">Laravel 12 + Inertia Vue 3</p>
+          <p>&copy; 2026 Naumil Store. All rights reserved.</p>
         </div>
       </div>
     </footer>

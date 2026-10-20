@@ -20,7 +20,7 @@
                     <div class="col-md-8">
                         <label class="form-label fw-bold">Nama Toko / Cabang <span class="text-danger">*</span></label>
                         <input type="text" name="name" class="form-control @error('name') is-invalid @enderror" 
-                               placeholder="Contoh: Naumil Rice - Tebet Kitchen" value="{{ old('name') }}" required>
+                               placeholder="Contoh: Naumil Store - Tebet Kitchen" value="{{ old('name') }}" required>
                         @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 

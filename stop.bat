@@ -1,11 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
 
-title Naumil Rice - Stop All Servers
+title Naumil Store - Stop All Servers
 cd /d "%~dp0"
 
 echo ======================================================================
-echo               NAUMIL RICE - STOP ALL SERVICES
+echo               Naumil Store - STOP ALL SERVICES
 echo ======================================================================
 echo.
 
@@ -21,7 +21,7 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5173 ^| findstr LISTENING 2^
     taskkill /F /PID %%a >nul 2>&1
 )
 
-echo [*] Memeriksa jendela Command Prompt Naumil Rice...
+echo [*] Memeriksa jendela Command Prompt Naumil Store...
 taskkill /FI "WINDOWTITLE eq Naumil Laravel Server*" /T /F >nul 2>&1
 taskkill /FI "WINDOWTITLE eq Naumil Vite Dev*" /T /F >nul 2>&1
 taskkill /FI "WINDOWTITLE eq Naumil Reverb WebSocket*" /T /F >nul 2>&1
@@ -29,7 +29,7 @@ taskkill /FI "WINDOWTITLE eq Naumil Queue Worker*" /T /F >nul 2>&1
 
 echo.
 echo ======================================================================
-echo  [OK] Semua service Naumil Rice telah berhasil dihentikan.
+echo  [OK] Semua service Naumil Store telah berhasil dihentikan.
 echo ======================================================================
 timeout /t 2 /nobreak >nul 2>&1
 exit /b 0

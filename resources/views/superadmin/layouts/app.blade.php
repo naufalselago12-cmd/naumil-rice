@@ -7,7 +7,7 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico?v=3">
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=3">
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png?v=3">
-    <title>@yield('title', 'Super Admin Portal') - Naumil Rice Master Control</title>
+    <title>@yield('title', 'Super Admin Portal') - Naumil Store Master Control</title>
 
     <!-- Google Fonts & FontAwesome -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -290,14 +290,43 @@
             box-shadow: 0 6px 16px rgba(244, 63, 94, 0.4);
         }
 
+        /* Sidebar Backdrop */
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(3px);
+            z-index: 1025;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
         @media (max-width: 992px) {
             .super-sidebar {
                 transform: translateX(-100%);
             }
-            .sidebar-open .super-sidebar {
+            body.sidebar-open .super-sidebar {
                 transform: translateX(0);
+                box-shadow: 4px 0 25px rgba(0, 0, 0, 0.6);
+            }
+            body.sidebar-open .sidebar-backdrop {
+                display: block;
+                opacity: 1;
             }
             .super-wrapper {
+                margin-left: 0;
+            }
+        }
+
+        @media (min-width: 993px) {
+            body.sidebar-collapsed .super-sidebar {
+                transform: translateX(-100%);
+            }
+            body.sidebar-collapsed .super-wrapper {
                 margin-left: 0;
             }
         }
@@ -309,15 +338,20 @@
 <div class="d-flex">
     <!-- Sidebar -->
     <aside class="super-sidebar" id="superSidebar">
-        <a href="{{ route('superadmin.dashboard') }}" class="super-brand">
-            <div class="super-brand-badge">
-                <i class="fa-solid fa-crown"></i>
-            </div>
-            <div>
-                <div class="fw-bold" style="letter-spacing: 0.05em; font-size: 1rem;">SUPER ADMIN</div>
-                <small style="color: var(--super-accent); font-weight: 700; font-size: 0.7rem;">NAUMIL RICE GLOBAL</small>
-            </div>
-        </a>
+        <div class="d-flex align-items-center justify-content-between p-2 border-bottom" style="border-color: var(--super-border) !important;">
+            <a href="{{ route('superadmin.dashboard') }}" class="super-brand p-0 border-0 flex-grow-1">
+                <div class="super-brand-badge">
+                    <i class="fa-solid fa-crown"></i>
+                </div>
+                <div>
+                    <div class="fw-bold" style="letter-spacing: 0.05em; font-size: 1rem;">SUPER ADMIN</div>
+                    <small style="color: var(--super-accent); font-weight: 700; font-size: 0.7rem;">Naumil Store GLOBAL</small>
+                </div>
+            </a>
+            <button type="button" class="btn btn-sm btn-link text-white-50 d-lg-none" id="sidebarCloseBtn" aria-label="Tutup Menu">
+                <i class="fa-solid fa-xmark fs-4"></i>
+            </button>
+        </div>
 
         <ul class="sidebar-menu">
             <li class="sidebar-header">MASTER CONTROL</li>
@@ -370,12 +404,15 @@
         </ul>
     </aside>
 
+    <!-- Sidebar Backdrop for Mobile -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
     <!-- Main Wrapper -->
     <div class="super-wrapper">
         <!-- Navbar -->
         <header class="super-navbar">
             <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-sm btn-outline-secondary d-lg-none text-white border-secondary" id="sidebarToggleBtn">
+                <button class="btn btn-sm btn-outline-secondary text-white border-secondary" id="sidebarToggleBtn" title="Toggle Menu Sidebar">
                     <i class="fa-solid fa-bars"></i>
                 </button>
                 <div class="d-none d-md-block">
@@ -445,9 +482,40 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById('sidebarToggleBtn')?.addEventListener('click', function() {
-        document.body.classList.toggle('sidebar-open');
+    const toggleBtn = document.getElementById('sidebarToggleBtn');
+    const closeBtn = document.getElementById('sidebarCloseBtn');
+    const backdrop = document.getElementById('sidebarBackdrop');
+
+    function toggleSidebar() {
+        if (window.innerWidth <= 992) {
+            document.body.classList.toggle('sidebar-open');
+        } else {
+            document.body.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('naumil_superadmin_sidebar_collapsed', document.body.classList.contains('sidebar-collapsed') ? '1' : '0');
+        }
+    }
+
+    function closeSidebarMobile() {
+        document.body.classList.remove('sidebar-open');
+    }
+
+    toggleBtn?.addEventListener('click', toggleSidebar);
+    closeBtn?.addEventListener('click', closeSidebarMobile);
+    backdrop?.addEventListener('click', closeSidebarMobile);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeSidebarMobile();
     });
+
+    document.querySelectorAll('.super-sidebar .nav-link-side').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 992) closeSidebarMobile();
+        });
+    });
+
+    if (window.innerWidth > 992 && localStorage.getItem('naumil_superadmin_sidebar_collapsed') === '1') {
+        document.body.classList.add('sidebar-collapsed');
+    }
 </script>
 @stack('scripts')
 </body>
