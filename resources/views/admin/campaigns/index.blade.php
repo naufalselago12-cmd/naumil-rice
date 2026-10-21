@@ -85,8 +85,8 @@
                                 <div class="d-flex justify-content-between">
                                     <span class="text-muted"><i class="fa-solid fa-tags text-warning me-1"></i> Diskon Promo:</span>
                                     <span class="fw-bold text-success">
-                                        @if($camp->discount_type === 'min_purchase')
-                                            Potongan Rp {{ number_format($camp->discount_value, 0, ',', '.') }} (Min. Rp {{ number_format($camp->min_purchase_amount, 0, ',', '.') }})
+                                        @if($camp->discount_type === 'min_qty')
+                                            Diskon Min. {{ $camp->min_order_qty ?? 15 }} Porsi ({{ $camp->discount_value }}% / Diskon Menu)
                                         @elseif($camp->discount_type === 'fixed')
                                             Potongan Rp {{ number_format($camp->discount_value, 0, ',', '.') }}
                                         @elseif($camp->discount_type === 'percentage')

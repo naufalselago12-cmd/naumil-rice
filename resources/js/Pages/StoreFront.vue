@@ -156,9 +156,9 @@
                     </span>
                     <span v-if="camp.discount_type && camp.discount_type !== 'none'" class="badge bg-warning text-dark font-mono">
                       <i class="fa-solid fa-tags me-1"></i>
-                      <template v-if="camp.discount_type === 'percentage'">Diskon {{ camp.discount_value }}%</template>
+                      <template v-if="camp.discount_type === 'min_qty'">Promo Min. {{ camp.min_order_qty || 15 }} Porsi (Diskon {{ camp.discount_value }}% / Menu)</template>
+                      <template v-else-if="camp.discount_type === 'percentage'">Diskon {{ camp.discount_value }}%</template>
                       <template v-else-if="camp.discount_type === 'fixed'">Potongan Rp {{ formatPrice(camp.discount_value) }}</template>
-                      <template v-else-if="camp.discount_type === 'min_purchase'">Min. Belanja Rp {{ formatPrice(camp.min_purchase_amount) }}</template>
                     </span>
                   </div>
 

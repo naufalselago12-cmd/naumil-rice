@@ -19,6 +19,7 @@ class Campaign extends Model
         'description',
         'discount_type',
         'discount_value',
+        'min_order_qty',
         'min_purchase_amount',
         'close_order_at',
         'ready_at',
@@ -29,6 +30,7 @@ class Campaign extends Model
 
     protected $casts = [
         'discount_value' => 'float',
+        'min_order_qty' => 'integer',
         'min_purchase_amount' => 'float',
         'close_order_at' => 'datetime',
         'ready_at' => 'datetime',

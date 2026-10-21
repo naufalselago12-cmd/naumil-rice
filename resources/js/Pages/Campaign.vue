@@ -121,8 +121,8 @@
                   <div>
                     <span class="schedule-label">Promo Campaign:</span>
                     <strong class="schedule-value text-success">
-                      <template v-if="campaign.discount_type === 'min_purchase'">
-                        Potongan Rp {{ formatNumber(campaign.discount_value) }} (Min. Rp {{ formatNumber(campaign.min_purchase_amount) }})
+                      <template v-if="campaign.discount_type === 'min_qty'">
+                        Diskon Min. {{ campaign.min_order_qty || 15 }} Porsi: Diskon {{ campaign.discount_value }}% (atau Diskon Menu)
                       </template>
                       <template v-else-if="campaign.discount_type === 'fixed'">
                         Potongan Rp {{ formatNumber(campaign.discount_value) }}
@@ -131,7 +131,14 @@
                         Diskon {{ campaign.discount_value }}%
                       </template>
                     </strong>
-                    <small class="text-muted d-block">Otomatis terpotong di ringkasan</small>
+                    <small class="text-muted d-block">
+                      <template v-if="campaign.discount_type === 'min_qty'">
+                        Otomatis aktif saat total pesanan mencapai {{ campaign.min_order_qty || 15 }} porsi
+                      </template>
+                      <template v-else>
+                        Otomatis terpotong di ringkasan
+                      </template>
+                    </small>
                   </div>
                 </div>
               </div>
@@ -187,7 +194,11 @@
                 <img :src="menu.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&q=80'" 
                      :alt="menu.name" class="menu-img" />
                 
-                <div v-if="menu.discount_price > 0" class="discount-badge">
+                <div v-if="campaign.discount_type === 'min_qty'" class="discount-badge">
+                  <template v-if="menu.discount_price > 0">Diskon Rp {{ formatNumber(menu.discount_price) }} (Min. {{ campaign.min_order_qty || 15 }} Porsi)</template>
+                  <template v-else-if="campaign.discount_value > 0">Diskon {{ campaign.discount_value }}% (Min. {{ campaign.min_order_qty || 15 }} Porsi)</template>
+                </div>
+                <div v-else-if="menu.discount_price > 0" class="discount-badge">
                   HEMAT Rp {{ formatNumber(menu.discount_price) }}
                 </div>
 
@@ -209,7 +220,7 @@
 
                 <div class="menu-pricing">
                   <div>
-                    <span v-if="menu.discount_price > 0" class="old-price">
+                    <span v-if="campaign.discount_type !== 'min_qty' && menu.discount_price > 0" class="old-price">
                       Rp {{ formatNumber(menu.custom_price || menu.original_price) }}
                     </span>
                     <div class="final-price">
@@ -597,6 +608,22 @@
                   <small class="text-muted d-block mt-1">
                     Silakan simpan barcode atau scan langsung setelah pesanan dikonfirmasi.
                   </small>
+
+                  <!-- Reassurance Cashback Poin Pelanggan Setia -->
+                  <div v-if="campaign.discount_type === 'min_qty' && totalCartQty < (campaign.min_order_qty || 15)" 
+                       class="card p-3 mt-3 border-warning-subtle bg-warning-subtle text-start shadow-xs">
+                    <div class="d-flex align-items-start gap-2">
+                      <i class="fa-solid fa-coins text-warning fs-4 mt-1 flex-shrink-0"></i>
+                      <div class="small text-dark">
+                        <strong class="d-block text-dark mb-1">
+                          <i class="fa-solid fa-crown text-warning me-1"></i> Info Cashback Poin Pelanggan Setia
+                        </strong>
+                        <span style="line-height: 1.45;" class="d-block text-secondary">
+                          Jika pesanan Anda saat ini belum mencapai batas minimum order ({{ campaign.min_order_qty || 15 }} porsi) dan sudah bayar via QRIS, <strong>tenang saja!</strong> Jika batch Open PO ini nantinya melebihi dari batas minimum dari pesanan pelanggan lain dan kamu daftar / masuk sebagai <strong>Pelanggan Setia</strong>, selisih cashback bisa ditukar dengan <strong>Poin</strong>, dan poin bisa dipakai untuk mengurangi total bayar menu di pesanan selanjutnya!
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -619,6 +646,32 @@
                   </div>
                   <div class="fw-bold font-mono">Rp {{ formatNumber(item.subtotal) }}</div>
                   <button class="remove-btn" @click="removeFromCart(idx)" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+                </div>
+              </div>
+
+              <!-- Promo Alert Banner in Order Summary -->
+              <div v-if="campaign.discount_type === 'min_qty' && totalCartQty < (campaign.min_order_qty || 15)" 
+                   class="p-3 rounded border border-warning bg-warning-subtle mb-3 text-dark small">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                  <i class="fa-solid fa-circle-info text-warning fs-4 flex-shrink-0"></i>
+                  <div>
+                    <strong>Promo Open PO:</strong> Tambah <strong>{{ (campaign.min_order_qty || 15) - totalCartQty }} porsi</strong> lagi untuk langsung mendapatkan diskon promo all menu!
+                  </div>
+                </div>
+                <div class="p-2 rounded bg-white border border-warning-subtle small text-muted">
+                  <div class="text-primary fw-bold mb-1">
+                    <i class="fa-solid fa-coins text-warning me-1"></i> Sudah bayar QRIS tapi target PO belum tercapai?
+                  </div>
+                  <span style="font-size: 0.82rem; line-height: 1.45;" class="d-block text-dark">
+                    <strong>Tenang saja!</strong> Jika batch Open PO ini nantinya melebihi dari batas minimum dan kamu daftar menjadi <strong>Pelanggan Setia</strong>, cashback bisa ditukar dengan <strong>Point</strong>, dan point bisa dipakai untuk mengurangi total bayar menu pada pesanan berikutnya.
+                  </span>
+                </div>
+              </div>
+              <div v-else-if="campaign.discount_type === 'min_qty' && totalCartQty >= (campaign.min_order_qty || 15)" 
+                   class="p-3 rounded border border-success bg-success-subtle mb-3 text-success-emphasis small d-flex align-items-center gap-2">
+                <i class="fa-solid fa-circle-check text-success fs-4 flex-shrink-0"></i>
+                <div>
+                  <strong>Selamat! Syarat Promo Terpenuhi:</strong> Minimum pesanan {{ campaign.min_order_qty || 15 }} porsi tercapai. Diskon telah otomatis diterapkan pada seluruh pesanan Anda.
                 </div>
               </div>
 
@@ -1008,15 +1061,39 @@ const cartSubtotal = computed(() => {
 const calculatedDiscount = computed(() => {
   if (!campaign.value) return 0
   const sub = cartSubtotal.value
-  if (campaign.value.discount_type === 'min_purchase' && sub >= (campaign.value.min_purchase_amount || 0)) {
-    return Math.min(sub, campaign.value.discount_value || 0)
+  const totalQty = totalCartQty.value
+
+  if (campaign.value.discount_type === 'min_qty') {
+    const minQty = Number(campaign.value.min_order_qty) || 0
+    // Kondisi promo saat open PO: minimum qty pembelian all menu (misal >= 15)
+    if (minQty > 0 && totalQty >= minQty) {
+      let totalDisc = 0
+      cart.value.forEach(item => {
+        const m = (menus.value || []).find(it => it.id === item.menu_id)
+        const menuDisc = m ? (Number(m.discount_price) || 0) : 0
+        const basePrice = m ? (Number(m.custom_price) || Number(m.original_price) || 0) : item.price
+
+        // Urutan: cek dulu permenu ada diskon atau tidak, jika tidak ada maka pakai persentase yang ditentukan
+        if (menuDisc > 0) {
+          totalDisc += (menuDisc * item.quantity)
+        } else {
+          const pct = Number(campaign.value.discount_value) || 0
+          totalDisc += ((basePrice * pct) / 100) * item.quantity
+        }
+      })
+      return totalDisc
+    }
+    return 0
   }
+
   if (campaign.value.discount_type === 'fixed') {
-    return Math.min(sub, campaign.value.discount_value || 0)
+    return Math.min(sub, Number(campaign.value.discount_value) || 0)
   }
+
   if (campaign.value.discount_type === 'percentage') {
-    return (sub * (campaign.value.discount_value || 0)) / 100
+    return (sub * (Number(campaign.value.discount_value) || 0)) / 100
   }
+
   return 0
 })
 

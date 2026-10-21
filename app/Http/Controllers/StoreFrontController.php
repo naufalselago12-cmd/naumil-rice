@@ -92,7 +92,9 @@ class StoreFrontController extends Controller
                     $menuMax = $pivot->max_quota;
                     $menuOrdered = $camp->getMenuOrderedQuantity($m->id);
                     $menuRemaining = $camp->getMenuRemainingQuota($m->id, $menuMax);
-                    $effectivePrice = max(0, ($pivot->custom_price ?? $m->price) - ($pivot->discount_price ?? 0));
+                    $effectivePrice = ($camp->discount_type === 'min_qty')
+                        ? (float) ($pivot->custom_price ?? $m->price)
+                        : max(0, ($pivot->custom_price ?? $m->price) - ($pivot->discount_price ?? 0));
 
                     return [
                         'id' => $m->id,
@@ -119,6 +121,7 @@ class StoreFrontController extends Controller
                     'description' => $camp->description,
                     'discount_type' => $camp->discount_type,
                     'discount_value' => (float) $camp->discount_value,
+                    'min_order_qty' => (int) ($camp->min_order_qty ?? 0),
                     'min_purchase_amount' => (float) $camp->min_purchase_amount,
                     'close_order_at' => $camp->close_order_at->toIso8601String(),
                     'ready_at' => $camp->ready_at->toIso8601String(),

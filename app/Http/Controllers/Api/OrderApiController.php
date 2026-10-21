@@ -141,6 +141,10 @@ class OrderApiController extends Controller
             $subtotal = 0;
             $totalBasePoints = 0;
             $itemsData = [];
+            $incomingTotalQty = collect($validated['items'])->sum('quantity');
+
+            // Check if campaign is active and uses min_qty discount
+            $isMinQtyCampaign = $campaign && ($campaign->discount_type === 'min_qty');
 
             foreach ($validated['items'] as $itemInput) {
                 $menu = Menu::with('options')->findOrFail($itemInput['menu_id']);
@@ -173,7 +177,8 @@ class OrderApiController extends Controller
                     }
                 }
 
-                $itemEffectivePrice = max(0, $basePrice - $discountPrice);
+                // For min_qty campaign, per-menu discount is evaluated at campaign level when min_order_qty condition is met
+                $itemEffectivePrice = $isMinQtyCampaign ? $basePrice : max(0, $basePrice - $discountPrice);
 
                 // Add options price (toppings, upsize)
                 $optionsPrice = 0;
@@ -205,6 +210,8 @@ class OrderApiController extends Controller
                     'price' => $linePrice,
                     'quantity' => $itemInput['quantity'],
                     'subtotal' => $lineSubtotal,
+                    'base_price' => $basePrice,
+                    'discount_price' => $discountPrice,
                     'selected_options' => $optionsList,
                     'special_notes' => $itemInput['special_notes'] ?? null,
                 ];
@@ -218,10 +225,28 @@ class OrderApiController extends Controller
             // 5. Calculate discounts and loyalty point benefits
             $discountAmount = 0;
             if ($campaign) {
-                if ($campaign->discount_type === 'min_purchase' && $subtotal >= $campaign->min_purchase_amount) {
-                    $discountAmount += min($subtotal, $campaign->discount_value);
+                if ($campaign->discount_type === 'min_qty') {
+                    $minQty = (int) ($campaign->min_order_qty ?? 0);
+                    // Diskon didapat jika seluruh pesanan apapun dalam PO mencapai >= min_order_qty
+                    if ($minQty > 0 && $incomingTotalQty >= $minQty) {
+                        // Urutan: cek dulu permenu ada diskon atau tidak, jika tidak ada maka pakai persentase yang ditentukan
+                        foreach ($itemsData as $itemLine) {
+                            $qty = (int) $itemLine['quantity'];
+                            $bPrice = (float) $itemLine['base_price'];
+                            $dPrice = (float) $itemLine['discount_price'];
+
+                            if ($dPrice > 0) {
+                                $discountAmount += ($dPrice * $qty);
+                            } else {
+                                $pct = (float) ($campaign->discount_value ?? 0);
+                                $discountAmount += (($bPrice * $pct) / 100) * $qty;
+                            }
+                        }
+                    }
                 } elseif ($campaign->discount_type === 'percentage') {
                     $discountAmount += ($subtotal * $campaign->discount_value) / 100;
+                } elseif ($campaign->discount_type === 'fixed') {
+                    $discountAmount += min($subtotal, $campaign->discount_value);
                 }
             }
 
@@ -308,7 +333,15 @@ class OrderApiController extends Controller
 
             // 8. Create Order Items
             foreach ($itemsData as $itemData) {
-                $order->items()->create($itemData);
+                $order->items()->create([
+                    'menu_id' => $itemData['menu_id'],
+                    'menu_name' => $itemData['menu_name'],
+                    'price' => $itemData['price'],
+                    'quantity' => $itemData['quantity'],
+                    'subtotal' => $itemData['subtotal'],
+                    'selected_options' => $itemData['selected_options'],
+                    'special_notes' => $itemData['special_notes'],
+                ]);
             }
 
             // 9. Credit loyalty points to customer if earned

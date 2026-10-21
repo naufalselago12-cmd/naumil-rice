@@ -118,14 +118,14 @@
                         <div class="p-3 rounded bg-light border">
                             <span class="text-muted small d-block mb-1"><i class="fa-solid fa-tags text-warning me-1"></i> Ketentuan Diskon:</span>
                             <div class="fw-bold">
-                                @if($campaign->discount_type === 'min_purchase')
-                                    Potongan Rp {{ number_format($campaign->discount_value, 0, ',', '.') }} untuk minimum order Rp {{ number_format($campaign->min_purchase_amount, 0, ',', '.') }}
+                                @if($campaign->discount_type === 'min_qty')
+                                    Diskon Promo Min. {{ $campaign->min_order_qty ?? 15 }} Porsi All Menu (Diskon {{ $campaign->discount_value }}% all menu atau sesuai diskon setting per menu)
                                 @elseif($campaign->discount_type === 'fixed')
                                     Potongan Rp {{ number_format($campaign->discount_value, 0, ',', '.') }} per transaksi
                                 @elseif($campaign->discount_type === 'percentage')
-                                    Diskon {{ $campaign->discount_value }}%
+                                    Diskon {{ $campaign->discount_value }}% all menu
                                 @else
-                                    Harga promo berlaku per masing-masing menu
+                                    Harga normal / diskon khusus per masing-masing menu
                                 @endif
                             </div>
                         </div>

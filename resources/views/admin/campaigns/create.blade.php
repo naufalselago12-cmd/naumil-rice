@@ -93,7 +93,7 @@
                     <!-- Discount Settings -->
                     <div class="col-12">
                         <h6 class="fw-bold text-primary mb-1">
-                            <i class="fa-solid fa-percent me-2"></i> Skema Diskon & Minimum Pembelian Campaign
+                            <i class="fa-solid fa-percent me-2"></i> Skema Diskon & Ketentuan Promo Open PO
                         </h6>
                     </div>
 
@@ -101,20 +101,23 @@
                         <label class="form-label fw-bold">Tipe Diskon Campaign</label>
                         <select name="discount_type" class="form-select" id="discountTypeSelect">
                             <option value="none">Tanpa Diskon Campaign</option>
-                            <option value="fixed">Potongan Tetap (Rp)</option>
+                            <option value="min_qty" selected>Diskon Minimum Qty Pembelian (All Menu)</option>
                             <option value="percentage">Persentase (%)</option>
-                            <option value="min_purchase">Syarat Minimum Pembelian</option>
+                            <option value="fixed">Potongan Tetap (Rp)</option>
                         </select>
+                        <small class="text-muted">Pilih skema promo untuk batch Open PO ini.</small>
                     </div>
 
                     <div class="col-md-4">
-                        <label class="form-label fw-bold">Nilai Diskon (Rp atau %)</label>
-                        <input type="number" name="discount_value" class="form-control" placeholder="0" value="0" min="0">
+                        <label class="form-label fw-bold">Nilai Diskon (% atau Rp)</label>
+                        <input type="number" name="discount_value" class="form-control" placeholder="Contoh: 10" value="{{ old('discount_value', 10) }}" min="0">
+                        <small class="text-muted">Persentase (%) untuk diskon min qty / all menu, atau nominal Rp.</small>
                     </div>
 
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">Minimum Pembelian (Jika Ada)</label>
-                        <input type="number" name="min_purchase_amount" class="form-control" placeholder="100000" value="0" min="0">
+                    <div class="col-md-4" id="minOrderQtyGroup">
+                        <label class="form-label fw-bold">Minimum Qty Pembelian (Porsi All Menu)</label>
+                        <input type="number" name="min_order_qty" class="form-control" placeholder="Contoh: 15" value="{{ old('min_order_qty', 15) }}" min="1">
+                        <small class="text-muted">Diskon didapat jika pesanan seluruh menu dalam PO mencapai jumlah porsi ini.</small>
                     </div>
 
                     <div class="col-12"><hr class="my-3"></div>

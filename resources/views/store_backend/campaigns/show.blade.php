@@ -86,6 +86,21 @@
                     </div>
                 </div>
 
+                <div class="p-3 rounded bg-light border mb-3">
+                    <span class="text-muted small d-block mb-1"><i class="fa-solid fa-tags text-warning me-1"></i> Ketentuan Promo / Diskon:</span>
+                    <div class="fw-bold text-dark">
+                        @if($campaign->discount_type === 'min_qty')
+                            Diskon Min. {{ $campaign->min_order_qty ?? 15 }} Porsi All Menu (Diskon {{ $campaign->discount_value }}% atau diskon khusus per menu)
+                        @elseif($campaign->discount_type === 'percentage')
+                            Diskon {{ $campaign->discount_value }}% All Menu
+                        @elseif($campaign->discount_type === 'fixed')
+                            Potongan Rp {{ number_format($campaign->discount_value, 0, ',', '.') }} per transaksi
+                        @else
+                            Harga Normal / Diskon Khusus Per Menu
+                        @endif
+                    </div>
+                </div>
+
                 <p class="text-muted">{{ $campaign->description }}</p>
 
                 <h6 class="fw-bold mt-4 mb-2"><i class="fa-solid fa-utensils text-primary me-1"></i> Menu Yang Terbuka Pada Batch Ini ({{ $campaign->menus->count() }}):</h6>

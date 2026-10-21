@@ -66,12 +66,14 @@
                                 </li>
                                 <li class="mb-1">
                                     <i class="fa-solid fa-tag me-1 text-warning"></i> <strong>Promo:</strong> 
-                                    @if($camp->discount_type === 'percentage')
+                                    @if($camp->discount_type === 'min_qty')
+                                        Diskon Min. {{ $camp->min_order_qty ?? 15 }} Porsi ({{ $camp->discount_value }}% / Diskon Menu)
+                                    @elseif($camp->discount_type === 'percentage')
                                         Diskon {{ $camp->discount_value }}%
                                     @elseif($camp->discount_type === 'fixed')
                                         Potongan Rp {{ number_format($camp->discount_value, 0, ',', '.') }}
                                     @else
-                                        Harga Normal
+                                        Harga Normal / Diskon Menu
                                     @endif
                                 </li>
                                 <li>

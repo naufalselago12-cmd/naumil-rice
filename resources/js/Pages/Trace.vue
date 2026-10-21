@@ -269,6 +269,43 @@
           </div>
         </div>
 
+        <!-- Reassurance Card: Info Cashback Poin Pelanggan Setia -->
+        <div v-if="orderData.queue_info?.is_preorder && orderData.order?.campaign?.discount_type === 'min_qty' && (!orderData.order?.discount_amount || orderData.order?.discount_amount == 0)" 
+             class="card p-4 mb-4 border-primary-subtle bg-primary-subtle shadow-sm">
+          <div class="d-flex align-items-start gap-3">
+            <div class="rounded-circle bg-warning text-dark p-2 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+              <i class="fa-solid fa-coins fs-4"></i>
+            </div>
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <span class="badge bg-primary text-white font-mono">
+                  <i class="fa-solid fa-crown text-warning me-1"></i> Info Promo & Cashback Poin
+                </span>
+                <span class="badge bg-warning text-dark font-mono">
+                  Target Promo: Min. {{ orderData.order?.campaign?.min_order_qty || 15 }} Porsi
+                </span>
+              </div>
+              <h5 class="fw-bold mb-1 text-primary fs-6">
+                Sudah Bayar Tapi Kuota Promo Belum Tercapai?
+              </h5>
+              <p class="small text-dark mb-2" style="line-height: 1.5;">
+                <strong>Tenang saja!</strong> Jika batch Open PO ini nantinya melebihi dari batas minimum ({{ orderData.order?.campaign?.min_order_qty || 15 }} porsi) dari pesanan pembeli lain dan kamu mendaftar / terdaftar sebagai <strong>Pelanggan Setia</strong>, selisih cashback promo bisa ditukar dengan <strong>Point</strong>, dan point bisa dipakai untuk mengurangi total bayar menu di pesanan selanjutnya!
+              </p>
+              <div v-if="!orderData.order?.client?.is_loyalty_member" class="p-3 rounded bg-white border border-primary-subtle d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+                <div class="small text-muted">
+                  <i class="fa-solid fa-circle-info text-primary me-1"></i> Anda saat ini terdaftar sebagai Tamu. Yuk daftarkan akun Pelanggan Setia agar cashback poin promo tersimpan otomatis.
+                </div>
+                <Link href="/" class="btn btn-sm btn-primary fw-bold text-nowrap">
+                  <i class="fa-solid fa-user-plus me-1"></i> Daftar Pelanggan Setia
+                </Link>
+              </div>
+              <div v-else class="small text-success fw-bold mt-2">
+                <i class="fa-solid fa-circle-check me-1"></i> Akun Anda telah terdaftar sebagai Pelanggan Setia ({{ orderData.order?.client?.email }}). Saldo poin akan otomatis masuk jika syarat terpenuhi.
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- PAYMENT STATUS & ONLINE PAYMENT / QRIS SECTION -->
         <!-- 1. If Paid -->
         <div v-if="orderData.order?.payment_status === 'paid'" class="card p-4 mb-4 border-success bg-success-subtle shadow-sm">
@@ -448,7 +485,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { router, Link } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppLayout from '@/Layouts/AppLayout.vue'
 

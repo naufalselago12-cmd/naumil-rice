@@ -73,20 +73,23 @@
                         <label class="form-label fw-bold">Tipe Promo / Diskon</label>
                         <select name="discount_type" class="form-select">
                             <option value="none">Tidak Ada Diskon</option>
+                            <option value="min_qty" selected>Diskon Minimum Qty Pembelian (All Menu)</option>
                             <option value="percentage">Persentase (%)</option>
                             <option value="fixed">Nominal Tetap (Rp)</option>
-                            <option value="min_purchase">Minimal Belanja</option>
                         </select>
+                        <small class="text-muted">Pilih skema promo untuk batch Open PO ini.</small>
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label fw-bold">Nilai Diskon (% atau Rp)</label>
-                        <input type="number" name="discount_value" class="form-control" value="0" min="0">
+                        <input type="number" name="discount_value" class="form-control" value="{{ old('discount_value', 10) }}" min="0">
+                        <small class="text-muted">Persentase (%) untuk diskon min qty / all menu, atau nominal Rp.</small>
                     </div>
 
                     <div class="col-md-4">
-                        <label class="form-label fw-bold">Minimal Pembelian (Rp)</label>
-                        <input type="number" name="min_purchase_amount" class="form-control" value="0" min="0">
+                        <label class="form-label fw-bold">Minimum Qty Pembelian (Porsi All Menu)</label>
+                        <input type="number" name="min_order_qty" class="form-control" value="{{ old('min_order_qty', 15) }}" min="1">
+                        <small class="text-muted">Diskon didapat jika pesanan seluruh menu dalam PO mencapai jumlah porsi ini.</small>
                     </div>
 
                     <div class="col-12"><hr class="my-3"></div>

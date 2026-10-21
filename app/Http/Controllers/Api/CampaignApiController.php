@@ -53,7 +53,9 @@ class CampaignApiController extends Controller
             $pivot = $menu->pivot;
             $basePrice = $pivot->custom_price ?? $menu->price;
             $discountPrice = $pivot->discount_price ?? 0;
-            $finalPrice = max(0, $basePrice - $discountPrice);
+            $finalPrice = ($campaign->discount_type === 'min_qty')
+                ? (float) $basePrice
+                : max(0, (float) $basePrice - (float) $discountPrice);
 
             $menuMaxQuota = $pivot->max_quota;
             $orderedQty = $campaign->getMenuOrderedQuantity($menu->id);
@@ -101,6 +103,7 @@ class CampaignApiController extends Controller
                     'description' => $campaign->description,
                     'discount_type' => $campaign->discount_type,
                     'discount_value' => (float) $campaign->discount_value,
+                    'min_order_qty' => (int) ($campaign->min_order_qty ?? 0),
                     'min_purchase_amount' => (float) $campaign->min_purchase_amount,
                     'close_order_at' => $campaign->close_order_at->toIso8601String(),
                     'ready_at' => $campaign->ready_at->toIso8601String(),
