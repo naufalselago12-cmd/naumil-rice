@@ -76,7 +76,7 @@
                     <div class="col-12"><hr class="my-3"></div>
 
                     <!-- Discount Section -->
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-bold">Tipe Promo / Diskon</label>
                         <select name="discount_type" class="form-select">
                             <option value="none" {{ $campaign->discount_type === 'none' ? 'selected' : '' }}>Tidak Ada Diskon</option>
@@ -87,16 +87,22 @@
                         <small class="text-muted">Pilih skema promo untuk batch Open PO ini.</small>
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-bold">Nilai Diskon (% atau Rp)</label>
                         <input type="number" name="discount_value" class="form-control" value="{{ old('discount_value', $campaign->discount_value) }}" min="0">
-                        <small class="text-muted">Persentase (%) untuk diskon min qty / all menu, atau nominal Rp.</small>
+                        <small class="text-muted">Persentase (%) atau nominal Rp.</small>
                     </div>
 
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">Minimum Qty Pembelian (Porsi All Menu)</label>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Min. Qty Pembelian (Porsi)</label>
                         <input type="number" name="min_order_qty" class="form-control" value="{{ old('min_order_qty', $campaign->min_order_qty ?? 15) }}" min="1">
-                        <small class="text-muted">Diskon didapat jika pesanan seluruh menu dalam PO mencapai jumlah porsi ini.</small>
+                        <small class="text-muted">Diskon promo aktif jika pesanan mencapai jumlah porsi ini.</small>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Kuota Early Bird (Order)</label>
+                        <input type="number" name="early_bird_quota" class="form-control" value="{{ old('early_bird_quota', $campaign->early_bird_quota ?? 5) }}" min="0">
+                        <small class="text-muted">5 order pertama otomatis dapat diskon menu langsung.</small>
                     </div>
 
                     <div class="col-12"><hr class="my-3"></div>

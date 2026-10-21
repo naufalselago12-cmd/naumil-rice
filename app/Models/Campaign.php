@@ -20,6 +20,7 @@ class Campaign extends Model
         'discount_type',
         'discount_value',
         'min_order_qty',
+        'early_bird_quota',
         'min_purchase_amount',
         'close_order_at',
         'ready_at',
@@ -31,6 +32,7 @@ class Campaign extends Model
     protected $casts = [
         'discount_value' => 'float',
         'min_order_qty' => 'integer',
+        'early_bird_quota' => 'integer',
         'min_purchase_amount' => 'float',
         'close_order_at' => 'datetime',
         'ready_at' => 'datetime',
@@ -44,7 +46,26 @@ class Campaign extends Model
         'total_ordered',
         'remaining_quota',
         'is_sold_out',
+        'total_orders_count',
+        'remaining_early_bird_slots',
+        'is_early_bird_available',
     ];
+
+    public function getTotalOrdersCountAttribute(): int
+    {
+        return (int) $this->orders()->where('status', '!=', 'Order Reject')->count();
+    }
+
+    public function getRemainingEarlyBirdSlotsAttribute(): int
+    {
+        $quota = (int) ($this->early_bird_quota ?? 5);
+        return max(0, $quota - $this->getTotalOrdersCountAttribute());
+    }
+
+    public function getIsEarlyBirdAvailableAttribute(): bool
+    {
+        return $this->getRemainingEarlyBirdSlotsAttribute() > 0;
+    }
 
     public function getIsExpiredAttribute(): bool
     {

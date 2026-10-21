@@ -174,6 +174,69 @@
 
         <!-- Menus Section -->
         <section class="menus-section container mt-5">
+          <!-- Early Bird & Minimum Order Notification Banner -->
+          <div v-if="campaign.discount_type === 'min_qty'" class="mb-4">
+            <!-- State A: 5 Order Pertama Masih Tersedia -->
+            <div v-if="campaign.is_early_bird_available" 
+                 class="p-3 p-md-4 rounded-3 border-2 border-warning shadow-sm"
+                 style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" 
+                       style="width: 48px; height: 48px;">
+                    <i class="fa-solid fa-fire fs-4"></i>
+                  </div>
+                  <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                      <span class="badge bg-danger text-white font-mono px-2 py-1">EARLY BIRD PROMO</span>
+                      <span class="badge bg-warning text-dark font-mono px-2 py-1">
+                        <i class="fa-solid fa-bolt me-1"></i> Sisa {{ campaign.remaining_early_bird_slots }} dari {{ campaign.early_bird_quota || 5 }} Order Pertama
+                      </span>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-1">
+                      Spesial {{ campaign.early_bird_quota || 5 }} Pembeli Pertama: Promo Menu Langsung Aktif!
+                    </h5>
+                    <p class="small text-secondary mb-0">
+                      Pesan sekarang dan nikmati harga promo diskon per menu langsung tanpa syarat minimum order!
+                    </p>
+                  </div>
+                </div>
+                <div class="text-end">
+                  <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-bold">
+                    <i class="fa-solid fa-check-circle me-1"></i> Diskon Menu Langsung
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- State B: Kuota 5 Order Pertama Telah Terisi Penuh -->
+            <div v-else 
+                 class="p-3 p-md-4 rounded-3 border border-secondary-subtle bg-light shadow-sm">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center flex-shrink-0" 
+                       style="width: 48px; height: 48px;">
+                    <i class="fa-solid fa-users fs-5"></i>
+                  </div>
+                  <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                      <span class="badge bg-secondary text-white font-mono">KUOTA EARLY BIRD PENUH</span>
+                      <span class="badge bg-primary text-white font-mono">
+                        Promo Aktif Min. {{ campaign.min_order_qty || 15 }} Porsi
+                      </span>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-1">
+                      Harga Normal Berlaku (Pesan Min. {{ campaign.min_order_qty || 15 }} Porsi untuk Promo)
+                    </h5>
+                    <p class="small text-muted mb-0">
+                      Kuota 5 pembeli pertama telah terisi. Promo per menu hangus untuk pesanan reguler, namun Anda tetap mendapatkan diskon promo penuh jika memesan minimal <strong>{{ campaign.min_order_qty || 15 }} porsi</strong> all menu!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Category Filter Tabs -->
           <div class="category-tabs mb-4">
             <button :class="['tab-btn', activeCategory === 'all' ? 'active' : '']" 
@@ -195,8 +258,16 @@
                      :alt="menu.name" class="menu-img" />
                 
                 <div v-if="campaign.discount_type === 'min_qty'" class="discount-badge">
-                  <template v-if="menu.discount_price > 0">Diskon Rp {{ formatNumber(menu.discount_price) }} (Min. {{ campaign.min_order_qty || 15 }} Porsi)</template>
-                  <template v-else-if="campaign.discount_value > 0">Diskon {{ campaign.discount_value }}% (Min. {{ campaign.min_order_qty || 15 }} Porsi)</template>
+                  <template v-if="campaign.is_early_bird_available && menu.discount_price > 0">
+                    <i class="fa-solid fa-fire me-1"></i> EARLY BIRD: HEMAT Rp {{ formatNumber(menu.discount_price) }}
+                  </template>
+                  <template v-else-if="!campaign.is_early_bird_available">
+                    <span v-if="menu.discount_price > 0">Diskon Rp {{ formatNumber(menu.discount_price) }} (Min. {{ campaign.min_order_qty || 15 }} Porsi)</span>
+                    <span v-else-if="campaign.discount_value > 0">Diskon {{ campaign.discount_value }}% (Min. {{ campaign.min_order_qty || 15 }} Porsi)</span>
+                  </template>
+                  <template v-else-if="campaign.discount_value > 0">
+                    Diskon {{ campaign.discount_value }}% (Min. {{ campaign.min_order_qty || 15 }} Porsi)
+                  </template>
                 </div>
                 <div v-else-if="menu.discount_price > 0" class="discount-badge">
                   HEMAT Rp {{ formatNumber(menu.discount_price) }}
@@ -220,7 +291,7 @@
 
                 <div class="menu-pricing">
                   <div>
-                    <span v-if="campaign.discount_type !== 'min_qty' && menu.discount_price > 0" class="old-price">
+                    <span v-if="(campaign.is_early_bird_available || campaign.discount_type !== 'min_qty') && menu.discount_price > 0" class="old-price">
                       Rp {{ formatNumber(menu.custom_price || menu.original_price) }}
                     </span>
                     <div class="final-price">
@@ -260,7 +331,17 @@
               <img :src="activeMenuModal.image" :alt="activeMenuModal.name" class="modal-thumb" />
               <div>
                 <h4 class="fw-bold fs-6 mb-1">{{ activeMenuModal.name }}</h4>
-                <div class="text-primary fw-bold fs-5">Rp {{ formatNumber(activeMenuModal.final_price) }}</div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <span v-if="(campaign.is_early_bird_available || campaign.discount_type !== 'min_qty') && activeMenuModal.discount_price > 0" 
+                        class="old-price text-muted text-decoration-line-through small">
+                    Rp {{ formatNumber(activeMenuModal.custom_price || activeMenuModal.original_price) }}
+                  </span>
+                  <span class="text-primary fw-bold fs-5">Rp {{ formatNumber(activeMenuModal.final_price) }}</span>
+                  <span v-if="campaign.discount_type === 'min_qty' && campaign.is_early_bird_available && activeMenuModal.discount_price > 0" 
+                        class="badge bg-danger small font-mono">
+                    <i class="fa-solid fa-fire me-1"></i> Early Bird Promo
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -650,12 +731,27 @@
               </div>
 
               <!-- Promo Alert Banner in Order Summary -->
-              <div v-if="campaign.discount_type === 'min_qty' && totalCartQty < (campaign.min_order_qty || 15)" 
+              <!-- Case 1: Early Bird Aktif & totalCartQty < 15 porsi -->
+              <div v-if="campaign.discount_type === 'min_qty' && campaign.is_early_bird_available && totalCartQty < (campaign.min_order_qty || 15)" 
+                   class="p-3 rounded border border-warning bg-warning-subtle mb-3 text-dark small">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                  <i class="fa-solid fa-fire text-danger fs-4 flex-shrink-0"></i>
+                  <div>
+                    <strong>Spesial Early Bird (Sisa {{ campaign.remaining_early_bird_slots }} Slot):</strong> Anda mendapatkan diskon harga per menu langsung tanpa syarat minimum!
+                  </div>
+                </div>
+                <div class="p-2 rounded bg-white border border-warning-subtle small text-muted">
+                  <i class="fa-solid fa-lightbulb text-warning me-1"></i> Tambah <strong>{{ (campaign.min_order_qty || 15) - totalCartQty }} porsi</strong> lagi untuk mendapatkan tambahan diskon promo {{ campaign.discount_value }}% pada menu yang belum berdiskon!
+                </div>
+              </div>
+
+              <!-- Case 2: Early Bird Penuh & totalCartQty < 15 porsi -->
+              <div v-else-if="campaign.discount_type === 'min_qty' && !campaign.is_early_bird_available && totalCartQty < (campaign.min_order_qty || 15)" 
                    class="p-3 rounded border border-warning bg-warning-subtle mb-3 text-dark small">
                 <div class="d-flex align-items-center gap-2 mb-2">
                   <i class="fa-solid fa-circle-info text-warning fs-4 flex-shrink-0"></i>
                   <div>
-                    <strong>Promo Open PO:</strong> Tambah <strong>{{ (campaign.min_order_qty || 15) - totalCartQty }} porsi</strong> lagi untuk langsung mendapatkan diskon promo all menu!
+                    <strong>Promo Open PO:</strong> Kuota 5 pembeli pertama penuh. Tambah <strong>{{ (campaign.min_order_qty || 15) - totalCartQty }} porsi</strong> lagi untuk langsung mendapatkan diskon promo all menu!
                   </div>
                 </div>
                 <div class="p-2 rounded bg-white border border-warning-subtle small text-muted">
@@ -667,6 +763,8 @@
                   </span>
                 </div>
               </div>
+
+              <!-- Case 3: Pesanan >= 15 porsi (Promo Penuh Terpenuhi) -->
               <div v-else-if="campaign.discount_type === 'min_qty' && totalCartQty >= (campaign.min_order_qty || 15)" 
                    class="p-3 rounded border border-success bg-success-subtle mb-3 text-success-emphasis small d-flex align-items-center gap-2">
                 <i class="fa-solid fa-circle-check text-success fs-4 flex-shrink-0"></i>
@@ -682,7 +780,7 @@
                   <span class="fw-bold font-mono">Rp {{ formatNumber(cartSubtotal) }}</span>
                 </div>
                 <div v-if="calculatedDiscount > 0" class="total-row text-danger">
-                  <span>Diskon Promo Campaign:</span>
+                  <span>Diskon Promo {{ (campaign.is_early_bird_available && totalCartQty < (campaign.min_order_qty || 15)) ? 'Early Bird (5 Pembeli Pertama)' : 'Campaign' }}:</span>
                   <span class="fw-bold font-mono">- Rp {{ formatNumber(calculatedDiscount) }}</span>
                 </div>
                 <div class="total-row grand-total mt-2 pt-2 border-top">
@@ -1008,7 +1106,9 @@ const decrementModalQty = () => {
 
 const modalItemSubtotal = computed(() => {
   if (!activeMenuModal.value) return 0
-  let base = activeMenuModal.value.final_price
+  let base = (campaign.value?.discount_type === 'min_qty')
+    ? (Number(activeMenuModal.value.custom_price) || Number(activeMenuModal.value.original_price) || activeMenuModal.value.final_price)
+    : activeMenuModal.value.final_price
   let upsizePrice = selectedUpsize.value?.price || 0
   let toppingsPrice = selectedToppings.value.reduce((sum, t) => sum + (t.price || 0), 0)
   let conditionPrice = selectedCondition.value?.price || 0
@@ -1028,6 +1128,8 @@ const addToCartFromModal = () => {
   selectedToppings.value.forEach(t => options.push(t))
 
   const unitPrice = modalItemSubtotal.value / modalQty.value
+  const basePrice = (Number(activeMenuModal.value.custom_price) || Number(activeMenuModal.value.original_price) || activeMenuModal.value.final_price)
+  const discountPrice = Number(activeMenuModal.value.discount_price) || 0
 
   cart.value.push({
     menu_id: activeMenuModal.value.id,
@@ -1035,6 +1137,8 @@ const addToCartFromModal = () => {
     quantity: modalQty.value,
     price: unitPrice,
     subtotal: modalItemSubtotal.value,
+    base_price: basePrice,
+    discount_price: discountPrice,
     selected_options: options,
     special_notes: modalSpecialNotes.value
   })
@@ -1064,21 +1168,28 @@ const calculatedDiscount = computed(() => {
   const totalQty = totalCartQty.value
 
   if (campaign.value.discount_type === 'min_qty') {
-    const minQty = Number(campaign.value.min_order_qty) || 0
-    // Kondisi promo saat open PO: minimum qty pembelian all menu (misal >= 15)
-    if (minQty > 0 && totalQty >= minQty) {
+    const minQty = Number(campaign.value.min_order_qty) || 15
+    const isEarlyBird = Boolean(campaign.value.is_early_bird_available)
+    const meetsMinQty = totalQty >= minQty
+
+    // Rules:
+    // 1. 5 order pertama (isEarlyBird) TETAP mendapatkan diskon promo per menu langsung.
+    //    Jika pesanan mencapai min_order_qty, menu tanpa diskon per menu juga dapat diskon persentase.
+    // 2. Jika sudah melewati 5 orang (bukan early bird):
+    //    - Jika totalQty >= minQty: dapat promo sesuai rules (diskon per menu, lalu diskon %)
+    //    - Jika totalQty < minQty: promo hangus, diskon = 0.
+    if (isEarlyBird || meetsMinQty) {
       let totalDisc = 0
       cart.value.forEach(item => {
         const m = (menus.value || []).find(it => it.id === item.menu_id)
-        const menuDisc = m ? (Number(m.discount_price) || 0) : 0
-        const basePrice = m ? (Number(m.custom_price) || Number(m.original_price) || 0) : item.price
+        const menuDisc = m ? (Number(m.discount_price) || 0) : (item.discount_price || 0)
+        const bPrice = m ? (Number(m.custom_price) || Number(m.original_price) || 0) : (item.base_price || item.price)
 
-        // Urutan: cek dulu permenu ada diskon atau tidak, jika tidak ada maka pakai persentase yang ditentukan
         if (menuDisc > 0) {
           totalDisc += (menuDisc * item.quantity)
-        } else {
+        } else if (meetsMinQty) {
           const pct = Number(campaign.value.discount_value) || 0
-          totalDisc += ((basePrice * pct) / 100) * item.quantity
+          totalDisc += ((bPrice * pct) / 100) * item.quantity
         }
       })
       return totalDisc

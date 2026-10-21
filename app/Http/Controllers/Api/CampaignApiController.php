@@ -48,14 +48,28 @@ class CampaignApiController extends Controller
         $campaignRemainingQuota = $campaign->remaining_quota;
         $campaignIsSoldOut = $campaign->is_sold_out;
 
+        // Early Bird Quota (First 5 orders get per-menu promo directly)
+        $totalOrdersCount = $campaign->total_orders_count;
+        $earlyBirdQuota = (int) ($campaign->early_bird_quota ?? 5);
+        $remainingEarlyBirdSlots = max(0, $earlyBirdQuota - $totalOrdersCount);
+        $isEarlyBirdAvailable = $remainingEarlyBirdSlots > 0;
+
         // Format menus to reflect campaign discounts and stock/quota limits
-        $menus = $campaign->menus->map(function ($menu) use ($campaign, $campaignIsSoldOut) {
+        $menus = $campaign->menus->map(function ($menu) use ($campaign, $campaignIsSoldOut, $isEarlyBirdAvailable) {
             $pivot = $menu->pivot;
             $basePrice = $pivot->custom_price ?? $menu->price;
             $discountPrice = $pivot->discount_price ?? 0;
-            $finalPrice = ($campaign->discount_type === 'min_qty')
-                ? (float) $basePrice
-                : max(0, (float) $basePrice - (float) $discountPrice);
+
+            // If min_qty campaign:
+            // 5 early bird buyers get direct per-menu discount price.
+            // After 5 buyers, promo expires and displays normal price until order reaches min_order_qty.
+            if ($campaign->discount_type === 'min_qty') {
+                $finalPrice = $isEarlyBirdAvailable 
+                    ? max(0, (float) $basePrice - (float) $discountPrice)
+                    : (float) $basePrice;
+            } else {
+                $finalPrice = max(0, (float) $basePrice - (float) $discountPrice);
+            }
 
             $menuMaxQuota = $pivot->max_quota;
             $orderedQty = $campaign->getMenuOrderedQuantity($menu->id);
@@ -104,6 +118,10 @@ class CampaignApiController extends Controller
                     'discount_type' => $campaign->discount_type,
                     'discount_value' => (float) $campaign->discount_value,
                     'min_order_qty' => (int) ($campaign->min_order_qty ?? 0),
+                    'early_bird_quota' => $earlyBirdQuota,
+                    'total_orders_count' => $totalOrdersCount,
+                    'remaining_early_bird_slots' => $remainingEarlyBirdSlots,
+                    'is_early_bird_available' => $isEarlyBirdAvailable,
                     'min_purchase_amount' => (float) $campaign->min_purchase_amount,
                     'close_order_at' => $campaign->close_order_at->toIso8601String(),
                     'ready_at' => $campaign->ready_at->toIso8601String(),

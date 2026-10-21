@@ -224,12 +224,31 @@ class OrderApiController extends Controller
 
             // 5. Calculate discounts and loyalty point benefits
             $discountAmount = 0;
+            $isEarlyBird = false;
+
             if ($campaign) {
+                // Check early bird qualification (First X orders in this campaign)
+                $existingOrdersCount = Order::where('campaign_id', $campaign->id)
+                    ->where('status', '!=', 'Order Reject')
+                    ->count();
+                $earlyBirdQuota = (int) ($campaign->early_bird_quota ?? 5);
+                $isEarlyBird = $existingOrdersCount < $earlyBirdQuota;
+
                 if ($campaign->discount_type === 'min_qty') {
-                    $minQty = (int) ($campaign->min_order_qty ?? 0);
-                    // Diskon didapat jika seluruh pesanan apapun dalam PO mencapai >= min_order_qty
-                    if ($minQty > 0 && $incomingTotalQty >= $minQty) {
-                        // Urutan: cek dulu permenu ada diskon atau tidak, jika tidak ada maka pakai persentase yang ditentukan
+                    $minQty = (int) ($campaign->min_order_qty ?? 15);
+                    $meetsMinQty = ($minQty > 0 && $incomingTotalQty >= $minQty);
+
+                    // Rules:
+                    // 1. 5 order pertama ($isEarlyBird) TETAP mendapatkan promo per menu yang sudah disetting.
+                    //    Jika order early bird ini juga mencapai min_order_qty, menu yang tidak punya diskon per menu juga dapat diskon persentase promo.
+                    // 2. Jika sudah melewati 5 orang (bukan early bird):
+                    //    - Jika total pesanan customer >= min_order_qty (misal >= 15):
+                    //      Semua pembeli ini DAPAT PROMO sesuai rules:
+                    //      Menu yang ada diskon per menu dapat diskon per menu.
+                    //      Menu tanpa diskon per menu dapat diskon persentase promo.
+                    //    - Jika total pesanan customer < min_order_qty (< 15):
+                    //      Promo hangus, harga normal (diskon = 0).
+                    if ($isEarlyBird || $meetsMinQty) {
                         foreach ($itemsData as $itemLine) {
                             $qty = (int) $itemLine['quantity'];
                             $bPrice = (float) $itemLine['base_price'];
@@ -237,7 +256,7 @@ class OrderApiController extends Controller
 
                             if ($dPrice > 0) {
                                 $discountAmount += ($dPrice * $qty);
-                            } else {
+                            } elseif ($meetsMinQty) {
                                 $pct = (float) ($campaign->discount_value ?? 0);
                                 $discountAmount += (($bPrice * $pct) / 100) * $qty;
                             }
@@ -350,10 +369,11 @@ class OrderApiController extends Controller
             }
 
             // 10. Create Status Log
+            $earlyBirdTag = $isEarlyBird ? ' [Early Bird - Promo 5 Pembeli Pertama]' : '';
             OrderStatusLog::create([
                 'order_id' => $order->id,
                 'status' => Order::STATUS_CONFIRMED,
-                'note' => 'Pre-Order berhasil disubmit oleh ' . $client->name . ($isLoyalty ? ' (Pelanggan Setia - Reward: +' . $pointsEarned . ' Pts)' : ' (Tamu)'),
+                'note' => 'Pre-Order berhasil disubmit oleh ' . $client->name . $earlyBirdTag . ($isLoyalty ? ' (Pelanggan Setia - Reward: +' . $pointsEarned . ' Pts)' : ' (Tamu)'),
             ]);
 
             // Load full relationships
