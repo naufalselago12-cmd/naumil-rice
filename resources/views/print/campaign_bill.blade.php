@@ -735,27 +735,73 @@
                             <!-- Detail Lengkap Menu & Opsi/Topping Per Orang -->
                             <div class="manifest-items-detail">
                                 @foreach($ord->items as $it)
+                                    @php
+                                        $totalOptionsPrice = 0;
+                                        if (!empty($it->selected_options) && is_array($it->selected_options)) {
+                                            foreach ($it->selected_options as $o) {
+                                                $totalOptionsPrice += (float) ($o['price'] ?? 0);
+                                            }
+                                        }
+                                        $unitPrice = ($it->quantity > 0) ? ($it->subtotal / $it->quantity) : $it->price;
+                                        $baseMenuUnitPrice = max(0, $unitPrice - $totalOptionsPrice);
+                                        $totalBasePrice = $baseMenuUnitPrice * $it->quantity;
+                                        $hasOptionsWithPrice = !empty($it->selected_options) && count($it->selected_options) > 0 && $totalOptionsPrice > 0;
+                                    @endphp
                                     <div class="manifest-item-line">
-                                        <div class="receipt-row bold">
-                                            <span>{{ $it->quantity }}x {{ $it->menu_name }}</span>
-                                            <span class="font-mono">Rp {{ number_format($it->subtotal, 0, ',', '.') }}</span>
-                                        </div>
-                                        @if(!empty($it->selected_options) && is_array($it->selected_options))
-                                            <div class="manifest-options">
+                                        @if($hasOptionsWithPrice)
+                                            <!-- Menu Utama & Harga Dasarnya -->
+                                            <div class="receipt-row bold">
+                                                <span>{{ $it->quantity }}x {{ $it->menu_name }}</span>
+                                                <span class="font-mono">Rp {{ number_format($totalBasePrice, 0, ',', '.') }}</span>
+                                            </div>
+
+                                            <!-- Opsi / Menu Tambahan: Digeser ke kiri sedikit dari kolom total -->
+                                            <div class="manifest-options" style="padding-left: 10px; margin: 2px 0;">
                                                 @foreach($it->selected_options as $opt)
-                                                    <div class="receipt-row small text-muted">
+                                                    @php
+                                                        $optPrice = (float) ($opt['price'] ?? 0);
+                                                        $optTotal = $optPrice * $it->quantity;
+                                                    @endphp
+                                                    <div class="receipt-row small text-muted" style="padding-right: 8px;">
                                                         <span>+ {{ $opt['name'] ?? '' }}</span>
-                                                        @if(!empty($opt['price']) && $opt['price'] > 0)
-                                                            <span class="font-mono">+Rp {{ number_format($opt['price'], 0, ',', '.') }}</span>
+                                                        @if($optPrice > 0)
+                                                            <span class="font-mono">+Rp {{ number_format($optTotal, 0, ',', '.') }}</span>
                                                         @endif
                                                     </div>
                                                 @endforeach
                                             </div>
-                                        @endif
-                                        @if(!empty($it->special_notes))
-                                            <div class="small text-muted" style="padding-left: 8px; font-style: italic;">
-                                                * Catatan: {{ $it->special_notes }}
+
+                                            @if(!empty($it->special_notes))
+                                                <div class="small text-muted" style="padding-left: 10px; font-style: italic;">
+                                                    * Catatan: {{ $it->special_notes }}
+                                                </div>
+                                            @endif
+
+                                            <!-- Akumulasi Subtotal Item (Menu + Opsi) -->
+                                            <div class="receipt-row small bold pt-1" style="border-top: 1px dotted #ccc; margin-top: 2px;">
+                                                <span style="color: #374151;">Subtotal Item ({{ $it->quantity }}x):</span>
+                                                <span class="font-mono">Rp {{ number_format($it->subtotal, 0, ',', '.') }}</span>
                                             </div>
+                                        @else
+                                            <!-- Menu Tanpa Tambahan Berbayar -->
+                                            <div class="receipt-row bold">
+                                                <span>{{ $it->quantity }}x {{ $it->menu_name }}</span>
+                                                <span class="font-mono">Rp {{ number_format($it->subtotal, 0, ',', '.') }}</span>
+                                            </div>
+                                            @if(!empty($it->selected_options) && is_array($it->selected_options))
+                                                <div class="manifest-options" style="padding-left: 10px;">
+                                                    @foreach($it->selected_options as $opt)
+                                                        <div class="receipt-row small text-muted">
+                                                            <span>+ {{ $opt['name'] ?? '' }}</span>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                            @if(!empty($it->special_notes))
+                                                <div class="small text-muted" style="padding-left: 10px; font-style: italic;">
+                                                    * Catatan: {{ $it->special_notes }}
+                                                </div>
+                                            @endif
                                         @endif
                                     </div>
                                 @endforeach

@@ -119,28 +119,68 @@
     <!-- Item Rows -->
     <div class="receipt-items">
         @foreach($order->items as $item)
+            @php
+                $totalOptionsPrice = 0;
+                if (!empty($item->selected_options) && is_array($item->selected_options)) {
+                    foreach ($item->selected_options as $o) {
+                        $totalOptionsPrice += (float) ($o['price'] ?? 0);
+                    }
+                }
+                $unitPrice = ($item->quantity > 0) ? ($item->subtotal / $item->quantity) : $item->price;
+                $baseMenuUnitPrice = max(0, $unitPrice - $totalOptionsPrice);
+                $totalBasePrice = $baseMenuUnitPrice * $item->quantity;
+                $hasOptionsWithPrice = !empty($item->selected_options) && count($item->selected_options) > 0 && $totalOptionsPrice > 0;
+            @endphp
             <div class="receipt-item">
-                <div class="item-name bold">{{ $item->menu_name }}</div>
-                
-                @if(!empty($item->selected_options) && is_array($item->selected_options))
-                    @foreach($item->selected_options as $opt)
-                        <div class="item-option">
-                            + {{ $opt['name'] ?? '' }} 
-                            @if(!empty($opt['price']) && $opt['price'] > 0)
-                                (@Rp {{ number_format($opt['price'], 0, ',', '.') }})
-                            @endif
-                        </div>
-                    @endforeach
-                @endif
+                @if($hasOptionsWithPrice)
+                    <div class="receipt-row bold">
+                        <span class="item-name">{{ $item->menu_name }}</span>
+                        <span class="font-mono">Rp {{ number_format($totalBasePrice, 0, ',', '.') }}</span>
+                    </div>
 
-                @if(!empty($item->special_notes))
-                    <div class="item-note">* Catatan: {{ $item->special_notes }}</div>
-                @endif
+                    <div class="item-options-list" style="padding-left: 8px; margin: 2px 0;">
+                        @foreach($item->selected_options as $opt)
+                            @php
+                                $optPrice = (float) ($opt['price'] ?? 0);
+                                $optTotal = $optPrice * $item->quantity;
+                            @endphp
+                            <div class="receipt-row small text-muted" style="padding-right: 8px;">
+                                <span>+ {{ $opt['name'] ?? '' }}</span>
+                                @if($optPrice > 0)
+                                    <span class="font-mono">+Rp {{ number_format($optTotal, 0, ',', '.') }}</span>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
 
-                <div class="item-calc receipt-row">
-                    <span>{{ $item->quantity }} x Rp {{ number_format($item->price, 0, ',', '.') }}</span>
-                    <span class="font-mono bold">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</span>
-                </div>
+                    @if(!empty($item->special_notes))
+                        <div class="item-note" style="padding-left: 8px;">* Catatan: {{ $item->special_notes }}</div>
+                    @endif
+
+                    <div class="item-calc receipt-row small bold pt-1" style="border-top: 1px dotted #ccc; margin-top: 2px;">
+                        <span>Subtotal Item ({{ $item->quantity }}x):</span>
+                        <span class="font-mono bold">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</span>
+                    </div>
+                @else
+                    <div class="item-name bold">{{ $item->menu_name }}</div>
+                    
+                    @if(!empty($item->selected_options) && is_array($item->selected_options))
+                        @foreach($item->selected_options as $opt)
+                            <div class="item-option">
+                                + {{ $opt['name'] ?? '' }}
+                            </div>
+                        @endforeach
+                    @endif
+
+                    @if(!empty($item->special_notes))
+                        <div class="item-note">* Catatan: {{ $item->special_notes }}</div>
+                    @endif
+
+                    <div class="item-calc receipt-row">
+                        <span>{{ $item->quantity }} x Rp {{ number_format($item->price, 0, ',', '.') }}</span>
+                        <span class="font-mono bold">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</span>
+                    </div>
+                @endif
             </div>
         @endforeach
     </div>
