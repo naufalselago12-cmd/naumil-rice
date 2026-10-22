@@ -265,6 +265,10 @@
             margin-bottom: 4px;
         }
 
+        .text-discount {
+            color: #065f46;
+        }
+
         .manifest-card {
             border: 1px dashed #666;
             padding: 6px 8px;
@@ -282,10 +286,46 @@
             margin-bottom: 2px;
         }
 
+        .manifest-badge-earlybird {
+            display: inline-block;
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px dashed #059669;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin: 2px 0 4px;
+        }
+
         .manifest-items {
             font-size: 0.85em;
             color: #111;
             margin-bottom: 2px;
+        }
+
+        .manifest-item-line {
+            margin-bottom: 4px;
+            border-bottom: 1px dotted #e5e7eb;
+            padding-bottom: 3px;
+        }
+
+        .manifest-item-line:last-child {
+            border-bottom: none;
+            margin-bottom: 2px;
+            padding-bottom: 0;
+        }
+
+        .manifest-options {
+            font-size: 0.9em;
+            padding-left: 8px;
+            color: #374151;
+        }
+
+        .manifest-pricing {
+            border-top: 1px dashed #666;
+            margin-top: 4px;
+            padding-top: 4px;
         }
 
         .manifest-footer {
@@ -381,6 +421,12 @@
                 border: 1px dashed #000 !important;
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
+            }
+
+            .manifest-badge-earlybird {
+                background: #fff !important;
+                border: 1px solid #000 !important;
+                color: #000 !important;
             }
 
             .page-break {
@@ -530,29 +576,39 @@
                 <div class="table-header">
                     <span>MENU MAKANAN</span>
                     <span style="width: 50px; text-align: center;">QTY</span>
-                    <span style="width: 80px; text-align: right;">TOTAL</span>
+                    <span style="width: 90px; text-align: right;">SUBTOTAL</span>
                 </div>
                 <div class="divider-dashed"></div>
 
                 <div class="menu-list">
                     @forelse($menuSummary as $menu)
-                        <div class="menu-row">
+                        <div class="menu-row" style="margin-bottom: 6px;">
                             <div class="receipt-row bold">
                                 <span>{{ $menu['name'] }}</span>
                                 <span class="font-mono">{{ $menu['quantity'] }}x</span>
                             </div>
                             @if(!empty($menu['options']))
-                                @foreach($menu['options'] as $optName => $optQty)
+                                @foreach($menu['options'] as $opt)
                                     <div class="receipt-row small text-muted" style="padding-left: 8px;">
-                                        <span>+ {{ $optName }}</span>
-                                        <span class="font-mono">{{ $optQty }}x</span>
+                                        <span>+ {{ $opt['name'] }}</span>
+                                        <span class="font-mono">{{ $opt['quantity'] }}x {{ ($opt['price'] > 0) ? '(@Rp ' . number_format($opt['price'], 0, ',', '.') . ')' : '' }}</span>
                                     </div>
                                 @endforeach
                             @endif
                             <div class="receipt-row small text-muted">
-                                <span>Subtotal Nilai Menu:</span>
+                                <span>Nilai Kotor (Gross):</span>
                                 <span class="font-mono">Rp {{ number_format($menu['subtotal'], 0, ',', '.') }}</span>
                             </div>
+                            @if(!empty($menu['discount']) && $menu['discount'] > 0)
+                                <div class="receipt-row small bold text-discount">
+                                    <span>Promo Early Bird:</span>
+                                    <span class="font-mono">- Rp {{ number_format($menu['discount'], 0, ',', '.') }}</span>
+                                </div>
+                                <div class="receipt-row small bold">
+                                    <span>Nilai Bersih Menu:</span>
+                                    <span class="font-mono">Rp {{ number_format($menu['net_subtotal'], 0, ',', '.') }}</span>
+                                </div>
+                            @endif
                         </div>
                     @empty
                         <div class="text-center py-2 text-muted">Belum ada pesanan makanan masuk.</div>
@@ -561,9 +617,23 @@
 
                 <div class="divider-dashed"></div>
 
-                <div class="receipt-row bold" style="font-size: 1em;">
+                <div class="receipt-row bold" style="font-size: 0.95em;">
                     <span>TOTAL PORSI PRODUKSI:</span>
                     <span class="font-mono">{{ $totalPorsi }} PORSI</span>
+                </div>
+                <div class="receipt-row">
+                    <span>Total Nilai Menu Kotor (Gross):</span>
+                    <span class="font-mono">Rp {{ number_format($grossTotal, 0, ',', '.') }}</span>
+                </div>
+                @if($totalDiscounts > 0)
+                    <div class="receipt-row bold text-discount">
+                        <span>Total Potongan Promo Early Bird:</span>
+                        <span class="font-mono">- Rp {{ number_format($totalDiscounts, 0, ',', '.') }}</span>
+                    </div>
+                @endif
+                <div class="receipt-row bold" style="font-size: 0.95em;">
+                    <span>TOTAL NILAI MENU BERSIH:</span>
+                    <span class="font-mono">Rp {{ number_format($netTotal, 0, ',', '.') }}</span>
                 </div>
 
                 <div class="divider-double"></div>
@@ -576,14 +646,38 @@
                     <span>Total Transaksi Masuk:</span>
                     <span class="bold">{{ $totalOrdersCount }} Order</span>
                 </div>
+                @if(!empty($earlyBirdOrdersCount) && $earlyBirdOrdersCount > 0)
+                    <div class="receipt-row small text-muted">
+                        <span>&bull; Pemesan Early Bird (Promo):</span>
+                        <span class="font-mono bold">{{ $earlyBirdOrdersCount }} Order</span>
+                    </div>
+                    @if(!empty($regularOrdersCount) && $regularOrdersCount > 0)
+                        <div class="receipt-row small text-muted">
+                            <span>&bull; Pemesan Reguler:</span>
+                            <span class="font-mono">{{ $regularOrdersCount }} Order</span>
+                        </div>
+                    @endif
+                @endif
                 <div class="receipt-row">
                     <span>Total Nilai Kotor (Gross):</span>
                     <span class="font-mono">Rp {{ number_format($grossTotal, 0, ',', '.') }}</span>
                 </div>
-                @if($totalDiscounts > 0)
-                    <div class="receipt-row bold">
-                        <span>Total Diskon Promo / PO:</span>
-                        <span class="font-mono">- Rp {{ number_format($totalDiscounts, 0, ',', '.') }}</span>
+                @if(!empty($totalEarlyBirdDiscounts) && $totalEarlyBirdDiscounts > 0)
+                    <div class="receipt-row bold text-discount">
+                        <span>Promo Early Bird ({{ $earlyBirdOrdersCount }} Pembeli Pertama):</span>
+                        <span class="font-mono">- Rp {{ number_format($totalEarlyBirdDiscounts, 0, ',', '.') }}</span>
+                    </div>
+                @endif
+                @if(!empty($totalOtherDiscounts) && $totalOtherDiscounts > 0)
+                    <div class="receipt-row bold text-discount">
+                        <span>Diskon Promo Tambahan / PO:</span>
+                        <span class="font-mono">- Rp {{ number_format($totalOtherDiscounts, 0, ',', '.') }}</span>
+                    </div>
+                @endif
+                @if(!empty($totalPointsDiscounts) && $totalPointsDiscounts > 0)
+                    <div class="receipt-row bold text-discount">
+                        <span>Tukar Poin Loyalty:</span>
+                        <span class="font-mono">- Rp {{ number_format($totalPointsDiscounts, 0, ',', '.') }}</span>
                     </div>
                 @endif
 
@@ -625,39 +719,94 @@
                                 <span class="font-mono bold">#{{ $ord->order_number }}</span>
                             </div>
 
+                            @if(!empty($ord->is_early_bird))
+                                <div class="manifest-badge-earlybird">
+                                    <i class="fa-solid fa-bolt"></i> PROMO EARLY BIRD (PEMBELI KE-{{ $ord->early_bird_rank ?? ($idx + 1) }})
+                                </div>
+                            @endif
+
                             <div class="receipt-row small">
                                 <span>No. WA: {{ $ord->client->whatsapp ?? '-' }}</span>
                                 <span class="bold font-mono">{{ $ord->items->sum('quantity') }} Porsi</span>
                             </div>
 
-                            <div class="manifest-items">
-                                <strong>Menu:</strong> 
+                            <div class="divider-dashed my-1"></div>
+
+                            <!-- Detail Lengkap Menu & Opsi/Topping Per Orang -->
+                            <div class="manifest-items-detail">
                                 @foreach($ord->items as $it)
-                                    {{ $it->quantity }}x {{ $it->menu_name }}{{ !$loop->last ? ', ' : '' }}
+                                    <div class="manifest-item-line">
+                                        <div class="receipt-row bold">
+                                            <span>{{ $it->quantity }}x {{ $it->menu_name }}</span>
+                                            <span class="font-mono">Rp {{ number_format($it->subtotal, 0, ',', '.') }}</span>
+                                        </div>
+                                        @if(!empty($it->selected_options) && is_array($it->selected_options))
+                                            <div class="manifest-options">
+                                                @foreach($it->selected_options as $opt)
+                                                    <div class="receipt-row small text-muted">
+                                                        <span>+ {{ $opt['name'] ?? '' }}</span>
+                                                        @if(!empty($opt['price']) && $opt['price'] > 0)
+                                                            <span class="font-mono">+Rp {{ number_format($opt['price'], 0, ',', '.') }}</span>
+                                                        @endif
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                        @if(!empty($it->special_notes))
+                                            <div class="small text-muted" style="padding-left: 8px; font-style: italic;">
+                                                * Catatan: {{ $it->special_notes }}
+                                            </div>
+                                        @endif
+                                    </div>
                                 @endforeach
                             </div>
 
                             @if(!empty($ord->client->address))
-                                <div class="small">
+                                <div class="small mt-1">
                                     <strong>Alamat:</strong> {{ $ord->client->address }}
                                 </div>
                             @endif
 
                             @if(!empty($ord->notes))
                                 <div class="manifest-note">
-                                    <strong>Catatan:</strong> {{ $ord->notes }}
+                                    <strong>Catatan Pemesan:</strong> {{ $ord->notes }}
                                 </div>
                             @endif
 
-                            <div class="manifest-footer mt-1 pt-1 border-top">
-                                <span>Total: Rp {{ number_format($ord->total_amount, 0, ',', '.') }}</span>
-                                <span>
-                                    @if($ord->payment_status === 'paid')
-                                        [LUNAS - {{ $ord->payment_method }}]
-                                    @else
-                                        [BELUM LUNAS]
-                                    @endif
-                                </span>
+                            <!-- Rincian Rekapitulasi Harga Sesuai Bill Order -->
+                            <div class="manifest-pricing">
+                                <div class="receipt-row small">
+                                    <span>Subtotal:</span>
+                                    <span class="font-mono">Rp {{ number_format($ord->subtotal, 0, ',', '.') }}</span>
+                                </div>
+                                @if($ord->discount_amount > 0)
+                                    <div class="receipt-row small bold text-discount">
+                                        <span>Diskon {{ !empty($ord->is_early_bird) ? 'Promo Early Bird' : 'Promo PO' }}:</span>
+                                        <span class="font-mono">- Rp {{ number_format($ord->discount_amount, 0, ',', '.') }}</span>
+                                    </div>
+                                @endif
+                                @if(!empty($ord->points_used) && $ord->points_used > 0)
+                                    <div class="receipt-row small bold text-discount">
+                                        <span>Tukar Poin ({{ $ord->points_used }} Pts):</span>
+                                        <span class="font-mono">- Rp {{ number_format($ord->points_used * 1000, 0, ',', '.') }}</span>
+                                    </div>
+                                @endif
+                                <div class="receipt-row bold pt-1" style="border-top: 1px dotted #999;">
+                                    <span>Total Tagihan:</span>
+                                    <span class="font-mono" style="font-size: 1.05em;">Rp {{ number_format($ord->total_amount, 0, ',', '.') }}</span>
+                                </div>
+                                <div class="receipt-row small mt-1">
+                                    <span>Status Bayar:</span>
+                                    <span>
+                                        @if($ord->payment_status === 'paid')
+                                            <span class="bold" style="color: #047857;">[LUNAS - {{ $ord->payment_method ?: 'QRIS' }}]</span>
+                                        @elseif($ord->payment_status === 'payment_on_review')
+                                            <span class="bold" style="color: #2563eb;">[REVIEW BUKTI]</span>
+                                        @else
+                                            <span class="bold" style="color: #b45309;">[BELUM LUNAS - {{ $ord->payment_method ?: 'Bayar Terima Makanan' }}]</span>
+                                        @endif
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     @empty

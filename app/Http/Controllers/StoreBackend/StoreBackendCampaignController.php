@@ -128,6 +128,7 @@ class StoreBackendCampaignController extends Controller
             abort(403, 'Campaign ini bukan milik cabang ini.');
         }
 
+        $campaign->load(['store', 'menus']);
         $mode = $request->query('mode', 'rekap'); // 'rekap' or 'all_orders'
 
         $orders = $campaign->orders()
@@ -136,35 +137,93 @@ class StoreBackendCampaignController extends Controller
             ->orderBy('id', 'asc')
             ->get();
 
+        $campaignMenus = $campaign->menus->keyBy('id');
+        $earlyBirdQuota = (int) ($campaign->early_bird_quota ?? 5);
+
         // Production / menu summary calculation
         $menuSummary = [];
-        foreach ($orders as $order) {
+        $totalEarlyBirdDiscounts = 0;
+        $totalOtherDiscounts = 0;
+
+        foreach ($orders as $orderIndex => $order) {
+            $isOrderEarlyBird = ($orderIndex < $earlyBirdQuota);
+            $orderDiscountRemaining = (float) $order->discount_amount;
+
+            $order->is_early_bird = $isOrderEarlyBird;
+            $order->early_bird_rank = $isOrderEarlyBird ? ($orderIndex + 1) : null;
+
+            // Per-item discount calculation for this order
+            $itemDiscounts = [];
+            $totalItemDiscountsInOrder = 0;
+
+            foreach ($order->items as $item) {
+                $cMenu = $campaignMenus->get($item->menu_id);
+                $dPrice = ($cMenu && $cMenu->pivot) ? (float) ($cMenu->pivot->discount_price ?? 0) : 0;
+
+                $itemDisc = 0;
+                if ($isOrderEarlyBird && $dPrice > 0) {
+                    $itemDisc = $dPrice * $item->quantity;
+                }
+                $itemDiscounts[$item->id] = $itemDisc;
+                $totalItemDiscountsInOrder += $itemDisc;
+            }
+
+            // Fallback if discount came from percentage or general rule
+            if ($totalItemDiscountsInOrder == 0 && $orderDiscountRemaining > 0 && $order->subtotal > 0) {
+                foreach ($order->items as $item) {
+                    $itemDiscounts[$item->id] = ($item->subtotal / $order->subtotal) * $orderDiscountRemaining;
+                }
+            }
+
             foreach ($order->items as $item) {
                 $key = $item->menu_name;
                 if (!isset($menuSummary[$key])) {
                     $menuSummary[$key] = [
                         'name' => $item->menu_name,
                         'quantity' => 0,
-                        'subtotal' => 0,
+                        'subtotal' => 0, // gross
+                        'discount' => 0, // promo / early bird
+                        'net_subtotal' => 0, // net after promo
                         'options' => [],
                     ];
                 }
+
+                $itemDisc = $itemDiscounts[$item->id] ?? 0;
                 $menuSummary[$key]['quantity'] += $item->quantity;
                 $menuSummary[$key]['subtotal'] += $item->subtotal;
+                $menuSummary[$key]['discount'] += $itemDisc;
+                $menuSummary[$key]['net_subtotal'] += ($item->subtotal - $itemDisc);
+
                 if (!empty($item->selected_options) && is_array($item->selected_options)) {
                     foreach ($item->selected_options as $opt) {
                         $optName = $opt['name'] ?? null;
                         if ($optName) {
-                            $menuSummary[$key]['options'][$optName] = ($menuSummary[$key]['options'][$optName] ?? 0) + $item->quantity;
+                            if (!isset($menuSummary[$key]['options'][$optName])) {
+                                $menuSummary[$key]['options'][$optName] = [
+                                    'name' => $optName,
+                                    'quantity' => 0,
+                                    'price' => !empty($opt['price']) ? (float)$opt['price'] : 0,
+                                ];
+                            }
+                            $menuSummary[$key]['options'][$optName]['quantity'] += $item->quantity;
                         }
                     }
                 }
             }
+
+            if ($isOrderEarlyBird) {
+                $totalEarlyBirdDiscounts += (float) $order->discount_amount;
+            } else {
+                $totalOtherDiscounts += (float) $order->discount_amount;
+            }
         }
 
         $totalOrdersCount = $orders->count();
+        $earlyBirdOrdersCount = min($totalOrdersCount, $earlyBirdQuota);
+        $regularOrdersCount = max(0, $totalOrdersCount - $earlyBirdOrdersCount);
         $totalPorsi = $orders->flatMap->items->sum('quantity');
         $grossTotal = $orders->sum('subtotal');
+        $totalPointsDiscounts = ($orders->sum('points_used') ?? 0) * 1000;
         $totalDiscounts = $orders->sum('discount_amount');
         $netTotal = $orders->sum('total_amount');
 
@@ -182,8 +241,14 @@ class StoreBackendCampaignController extends Controller
             'orders',
             'menuSummary',
             'totalOrdersCount',
+            'earlyBirdOrdersCount',
+            'regularOrdersCount',
+            'earlyBirdQuota',
             'totalPorsi',
             'grossTotal',
+            'totalEarlyBirdDiscounts',
+            'totalOtherDiscounts',
+            'totalPointsDiscounts',
             'totalDiscounts',
             'netTotal',
             'paidOrdersCount',

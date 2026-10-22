@@ -2,6 +2,21 @@
     $store = $order->store ?? $store;
     $traceUrl = url('/trace/' . $order->order_number);
     $qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=" . urlencode($traceUrl);
+
+    $isEarlyBirdOrder = !empty($order->is_early_bird);
+    if (!$isEarlyBirdOrder && !empty($order->campaign_id)) {
+        $cObj = $order->campaign;
+        if ($cObj) {
+            $ebQuota = (int) ($cObj->early_bird_quota ?? 5);
+            $ebOrderIds = \App\Models\Order::where('campaign_id', $order->campaign_id)
+                ->where('status', '!=', 'Order Reject')
+                ->orderBy('id', 'asc')
+                ->limit($ebQuota)
+                ->pluck('id')
+                ->all();
+            $isEarlyBirdOrder = in_array($order->id, $ebOrderIds);
+        }
+    }
 @endphp
 
 <div class="receipt-inner">
@@ -51,6 +66,12 @@
                     <span>NAMA PO</span>
                     <span>{{ $order->campaign->title }}</span>
                 </div>
+                @if($isEarlyBirdOrder)
+                    <div class="receipt-row bold" style="color: #047857;">
+                        <span>STATUS PROMO</span>
+                        <span>EARLY BIRD (HEMAT PO)</span>
+                    </div>
+                @endif
                 <div class="receipt-row">
                     <span>JADWAL SIAP</span>
                     <span>{{ $order->campaign->ready_at->format('d/m/Y H:i') }} WIB</span>
@@ -139,7 +160,7 @@
         
         @if($order->discount_amount > 0)
             <div class="receipt-row text-discount">
-                <span>Diskon Promo / PO:</span>
+                <span>{{ $isEarlyBirdOrder ? 'Diskon Promo Early Bird:' : 'Diskon Promo / PO:' }}</span>
                 <span class="font-mono">- Rp {{ number_format($order->discount_amount, 0, ',', '.') }}</span>
             </div>
         @endif
