@@ -118,10 +118,14 @@
                         <td>
                             <span class="badge {{ $statusBadgeClass }}">{{ $ord->status }}</span>
                         </td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
+                            <a href="{{ route('store.backend.orders.print', ['store_slug' => $store->slug, 'order' => $ord->id]) }}" 
+                               target="_blank" class="btn btn-sm btn-outline-dark me-1" title="Cetak Struk POS">
+                                <i class="fa-solid fa-print"></i>
+                            </a>
                             <a href="{{ route('store.backend.orders.show', ['store_slug' => $store->slug, 'order' => $ord->id]) }}" 
                                class="btn btn-sm btn-primary">
-                                Kelola Status
+                                Kelola
                             </a>
                         </td>
                     </tr>

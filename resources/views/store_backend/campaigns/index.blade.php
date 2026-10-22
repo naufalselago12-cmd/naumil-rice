@@ -96,6 +96,10 @@
                 <div class="card-footer bg-white border-top p-3 d-flex justify-content-between align-items-center">
                     <span class="small text-muted font-monospace">{{ $camp->qr_token }}</span>
                     <div class="d-flex gap-1">
+                        <a href="{{ route('store.backend.campaigns.print', ['store_slug' => $store->slug, 'campaign' => $camp->id]) }}" 
+                           target="_blank" class="btn btn-sm btn-outline-dark" title="Cetak Bill Rekap PO">
+                            <i class="fa-solid fa-print me-1"></i> Bill PO
+                        </a>
                         <a href="{{ route('store.backend.campaigns.show', ['store_slug' => $store->slug, 'campaign' => $camp->id]) }}" class="btn btn-sm btn-outline-info">
                             <i class="fa-solid fa-eye me-1"></i> Detail
                         </a>

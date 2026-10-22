@@ -107,9 +107,14 @@
                 </div>
 
                 <div class="card-footer bg-transparent border-top p-3 d-flex justify-content-between align-items-center">
-                    <a href="{{ $frontendUrl }}" target="_blank" class="btn btn-sm btn-outline-info">
-                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka Link PO Pelanggan
-                    </a>
+                    <div class="d-flex gap-1 flex-wrap">
+                        <a href="{{ route('admin.campaigns.print', $camp->id) }}" target="_blank" class="btn btn-sm btn-outline-dark" title="Cetak Bill Rekap PO">
+                            <i class="fa-solid fa-print me-1"></i> Bill PO
+                        </a>
+                        <a href="{{ $frontendUrl }}" target="_blank" class="btn btn-sm btn-outline-info">
+                            <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka PO
+                        </a>
+                    </div>
                     <div class="d-flex gap-2">
                         <a href="{{ route('admin.campaigns.edit', $camp->id) }}" class="btn btn-sm btn-outline-primary">
                             <i class="fa-solid fa-pen-to-square"></i>

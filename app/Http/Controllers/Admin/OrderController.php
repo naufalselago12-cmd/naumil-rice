@@ -52,6 +52,13 @@ class OrderController extends Controller
         return view('admin.orders.show', compact('order'));
     }
 
+    public function printBill(Order $order)
+    {
+        $order->load(['store', 'client', 'items.menu', 'campaign']);
+        $store = $order->store;
+        return view('print.order_bill', compact('order', 'store'));
+    }
+
     public function updateStatus(Request $request, Order $order)
     {
         $validated = $request->validate([

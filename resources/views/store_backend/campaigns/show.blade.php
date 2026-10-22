@@ -14,9 +14,17 @@
     </a>
     <div class="d-flex justify-content-between align-items-center mt-2">
         <h2 class="fw-bold mb-0 text-dark">{{ $campaign->title }}</h2>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ route('store.backend.campaigns.print', ['store_slug' => $store->slug, 'campaign' => $campaign->id]) }}" 
+               target="_blank" class="btn btn-dark btn-sm shadow-sm">
+                <i class="fa-solid fa-print me-1"></i> Cetak Bill Rekap PO
+            </a>
+            <a href="{{ route('store.backend.campaigns.print', ['store_slug' => $store->slug, 'campaign' => $campaign->id, 'mode' => 'all_orders']) }}" 
+               target="_blank" class="btn btn-outline-dark btn-sm shadow-sm" title="Cetak Semua Struk Order Sekaligus">
+                <i class="fa-solid fa-receipt me-1"></i> Cetak Semua Struk
+            </a>
             <a href="{{ $frontendUrl }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka Halaman Pesan Pembeli
+                <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka PO
             </a>
             <a href="{{ route('store.backend.campaigns.edit', ['store_slug' => $store->slug, 'campaign' => $campaign->id]) }}" class="btn btn-primary btn-sm">
                 <i class="fa-solid fa-pen-to-square me-1"></i> Edit Campaign
@@ -38,7 +46,10 @@
                 <code class="fs-6 font-mono text-dark fw-bold">{{ $campaign->qr_token }}</code>
             </div>
             <div class="d-grid gap-2">
-                <a href="{{ $qrImg }}" download="QR-{{ $campaign->slug }}.png" target="_blank" class="btn btn-primary">
+                <a href="{{ route('store.backend.campaigns.print', ['store_slug' => $store->slug, 'campaign' => $campaign->id]) }}" target="_blank" class="btn btn-dark">
+                    <i class="fa-solid fa-print me-1"></i> Cetak Bill Rekap PO (POS)
+                </a>
+                <a href="{{ $qrImg }}" download="QR-{{ $campaign->slug }}.png" target="_blank" class="btn btn-outline-secondary">
                     <i class="fa-solid fa-download me-1"></i> Download File QR Cetak
                 </a>
             </div>

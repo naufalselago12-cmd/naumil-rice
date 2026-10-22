@@ -85,11 +85,13 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
         Route::resource('categories', StoreBackendCategoryController::class);
 
         // Campaigns Open PO CRUD
+        Route::get('/campaigns/{campaign}/print', [StoreBackendCampaignController::class, 'printBill'])->name('campaigns.print');
         Route::resource('campaigns', StoreBackendCampaignController::class);
 
         // Orders Management
         Route::get('/orders', [StoreBackendOrderController::class, 'index'])->name('orders.index');
         Route::get('/orders/{order}', [StoreBackendOrderController::class, 'show'])->name('orders.show');
+        Route::get('/orders/{order}/print', [StoreBackendOrderController::class, 'printBill'])->name('orders.print');
         Route::patch('/orders/{order}/status', [StoreBackendOrderController::class, 'updateStatus'])->name('orders.updateStatus');
         Route::post('/orders/{order}/sync-mayar', [StoreBackendOrderController::class, 'syncMayarPayment'])->name('orders.syncMayar');
         Route::post('/orders/{order}/verify-payment', [StoreBackendOrderController::class, 'verifyPayment'])->name('orders.verifyPayment');
@@ -140,9 +142,11 @@ Route::prefix('backend')->name('admin.')->group(function () {
         Route::resource('stores', LegacyStoreController::class);
         Route::resource('categories', LegacyCategoryController::class);
         Route::resource('menus', LegacyMenuController::class);
+        Route::get('/campaigns/{campaign}/print', [LegacyCampaignController::class, 'printBill'])->name('campaigns.print');
         Route::resource('campaigns', LegacyCampaignController::class);
         Route::get('/orders', [LegacyOrderController::class, 'index'])->name('orders.index');
         Route::get('/orders/{order}', [LegacyOrderController::class, 'show'])->name('orders.show');
+        Route::get('/orders/{order}/print', [LegacyOrderController::class, 'printBill'])->name('orders.print');
         Route::patch('/orders/{order}/status', [LegacyOrderController::class, 'updateStatus'])->name('orders.updateStatus');
         Route::get('/kds', [LegacyKdsController::class, 'index'])->name('kds');
         Route::get('/reports', [LegacyReportController::class, 'index'])->name('reports');
@@ -191,6 +195,9 @@ Route::get('/trace/{orderNumber?}', function ($orderNumber = null) {
     ]);
 })->name('trace');
 
+// Public POS Print Order Bill
+Route::get('/orders/{order_number}/print', [StoreFrontController::class, 'printOrderBill'])->name('orders.publicPrint');
+
 // Customer Account Activation Link
 Route::get('/customer/activate/{token}', [\App\Http\Controllers\CustomerAuthController::class, 'activate'])->name('customer.activate');
 
@@ -215,4 +222,4 @@ Route::match(['get', 'post'], '/api/payment/mayar/webhook/{store_slug?}', [\App\
 // Menampilkan seluruh data yang terikat ke toko tersebut
 Route::get('/{store_slug}', [StoreFrontController::class, 'show'])
     ->name('store.front')
-    ->where('store_slug', '^(?!superadmin|backend|admin|api|campaign|po|trace|stores|storage|build|favicon|customer|payment|loyalty).*$');
+    ->where('store_slug', '^(?!superadmin|backend|admin|api|campaign|po|trace|stores|storage|build|favicon|customer|payment|loyalty|orders).*$');

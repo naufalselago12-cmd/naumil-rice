@@ -96,7 +96,10 @@
                                 {{ $ord->status }}
                             </span>
                         </td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
+                            <a href="{{ route('admin.orders.print', $ord->id) }}" target="_blank" class="btn btn-sm btn-outline-dark me-1" title="Cetak Struk POS">
+                                <i class="fa-solid fa-print"></i>
+                            </a>
                             <a href="{{ route('admin.orders.show', $ord->id) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="fa-solid fa-eye me-1"></i> Detail
                             </a>

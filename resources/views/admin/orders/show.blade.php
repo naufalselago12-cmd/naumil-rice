@@ -9,6 +9,9 @@
         <p class="text-muted mb-0">Cabang: <strong>{{ $order->store->name }}</strong> &bull; Dipesan pada: {{ $order->created_at->format('d M Y, H:i:s') }} WIB</p>
     </div>
     <div class="d-flex gap-2">
+        <a href="{{ route('admin.orders.print', $order->id) }}" target="_blank" class="btn btn-dark">
+            <i class="fa-solid fa-print me-1"></i> Cetak Struk POS
+        </a>
         <a href="{{ route('admin.orders.index') }}" class="btn btn-outline-secondary">
             <i class="fa-solid fa-arrow-left me-1"></i> Kembali
         </a>

@@ -6,6 +6,7 @@ use App\Models\Store;
 use App\Models\Category;
 use App\Models\Menu;
 use App\Models\Campaign;
+use App\Models\Order;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 
@@ -236,5 +237,18 @@ class StoreFrontController extends Controller
             'allStores' => $allStores,
             'loyaltyPromos' => $loyaltyPromos,
         ]);
+    }
+
+    /**
+     * Print POS Order Bill by Order Number
+     */
+    public function printOrderBill(string $order_number)
+    {
+        $order = Order::with(['store', 'client', 'items.menu', 'campaign'])
+            ->where('order_number', $order_number)
+            ->firstOrFail();
+
+        $store = $order->store;
+        return view('print.order_bill', compact('order', 'store'));
     }
 }

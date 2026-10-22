@@ -8,12 +8,18 @@
         <h2 class="fw-bold mb-1">Detail QR Code Open Pre-Order</h2>
         <p class="text-muted mb-0">{{ $campaign->store->name }} &bull; Token: <span class="font-monospace text-primary fw-bold">{{ $campaign->qr_token }}</span></p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ route('admin.campaigns.print', $campaign->id) }}" target="_blank" class="btn btn-dark shadow-sm">
+            <i class="fa-solid fa-print me-1"></i> Cetak Bill Rekap PO
+        </a>
+        <a href="{{ route('admin.campaigns.print', ['campaign' => $campaign->id, 'mode' => 'all_orders']) }}" target="_blank" class="btn btn-outline-dark shadow-sm">
+            <i class="fa-solid fa-receipt me-1"></i> Cetak Semua Struk Order
+        </a>
         <a href="{{ route('admin.campaigns.index') }}" class="btn btn-outline-secondary">
             <i class="fa-solid fa-arrow-left me-1"></i> Kembali
         </a>
         <button onclick="window.print()" class="btn btn-outline-primary">
-            <i class="fa-solid fa-print me-1"></i> Cetak QR Banner
+            <i class="fa-solid fa-qrcode me-1"></i> Cetak QR Banner
         </button>
     </div>
 </div>

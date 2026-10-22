@@ -107,15 +107,11 @@
             <li><Link href="/">Daftar Open PO Aktif</Link></li>
             <li><Link href="/stores">Daftar Cabang & Dapur</Link></li>
             <li><Link href="/trace">Lacak Status Pesanan (Live)</Link></li>
-            <li><a href="/backend/api-docs" target="_blank">Dokumentasi API Backend</a></li>
           </ul>
         </div>
 
         <div class="footer-contact">
           <h4 class="footer-title">Hubungi Kami</h4>
-          <p class="small text-muted mb-2">
-            <i class="fa-solid fa-location-dot me-2 text-danger"></i> Flagship SCBD Sudirman & Tebet Kitchen
-          </p>
           <a href="https://wa.me/081779954574" target="_blank" class="wa-btn">
             <i class="fa-brands fa-whatsapp fs-5"></i> Customer Care WA
           </a>

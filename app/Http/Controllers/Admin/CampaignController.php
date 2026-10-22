@@ -7,6 +7,7 @@ use App\Models\Campaign;
 use App\Models\CampaignMenu;
 use App\Models\Store;
 use App\Models\Menu;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -118,6 +119,76 @@ class CampaignController extends Controller
         $qrCodeApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=" . urlencode($frontendCampaignUrl);
 
         return view('admin.campaigns.show', compact('campaign', 'frontendCampaignUrl', 'qrCodeApiUrl'));
+    }
+
+    public function printBill(Request $request, Campaign $campaign)
+    {
+        $campaign->load(['store']);
+        $store = $campaign->store;
+        $mode = $request->query('mode', 'rekap'); // 'rekap' or 'all_orders'
+
+        $orders = $campaign->orders()
+            ->with(['client', 'items.menu', 'store', 'campaign'])
+            ->where('status', '!=', Order::STATUS_REJECT)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        // Production / menu summary calculation
+        $menuSummary = [];
+        foreach ($orders as $order) {
+            foreach ($order->items as $item) {
+                $key = $item->menu_name;
+                if (!isset($menuSummary[$key])) {
+                    $menuSummary[$key] = [
+                        'name' => $item->menu_name,
+                        'quantity' => 0,
+                        'subtotal' => 0,
+                        'options' => [],
+                    ];
+                }
+                $menuSummary[$key]['quantity'] += $item->quantity;
+                $menuSummary[$key]['subtotal'] += $item->subtotal;
+                if (!empty($item->selected_options) && is_array($item->selected_options)) {
+                    foreach ($item->selected_options as $opt) {
+                        $optName = $opt['name'] ?? null;
+                        if ($optName) {
+                            $menuSummary[$key]['options'][$optName] = ($menuSummary[$key]['options'][$optName] ?? 0) + $item->quantity;
+                        }
+                    }
+                }
+            }
+        }
+
+        $totalOrdersCount = $orders->count();
+        $totalPorsi = $orders->flatMap->items->sum('quantity');
+        $grossTotal = $orders->sum('subtotal');
+        $totalDiscounts = $orders->sum('discount_amount');
+        $netTotal = $orders->sum('total_amount');
+
+        $paidOrders = $orders->where('payment_status', 'paid');
+        $paidOrdersCount = $paidOrders->count();
+        $paidTotal = $paidOrders->sum('total_amount');
+
+        $unpaidOrders = $orders->where('payment_status', '!=', 'paid');
+        $unpaidOrdersCount = $unpaidOrders->count();
+        $unpaidTotal = $unpaidOrders->sum('total_amount');
+
+        return view('print.campaign_bill', compact(
+            'store',
+            'campaign',
+            'orders',
+            'menuSummary',
+            'totalOrdersCount',
+            'totalPorsi',
+            'grossTotal',
+            'totalDiscounts',
+            'netTotal',
+            'paidOrdersCount',
+            'paidTotal',
+            'unpaidOrdersCount',
+            'unpaidTotal',
+            'mode'
+        ));
     }
 
     public function edit(Campaign $campaign)

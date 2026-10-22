@@ -12,7 +12,11 @@
             <h2 class="fw-bold mb-0 font-mono text-dark">{{ $order->order_number }}</h2>
             <small class="text-muted">Dipesan pada {{ $order->created_at->format('d F Y, H:i:s') }} WIB</small>
         </div>
-        <div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ route('store.backend.orders.print', ['store_slug' => $store->slug, 'order' => $order->id]) }}" 
+               target="_blank" class="btn btn-dark btn-sm shadow-sm">
+                <i class="fa-solid fa-print me-1"></i> Cetak Struk POS
+            </a>
             <span class="badge bg-primary fs-6">{{ $order->status }}</span>
         </div>
     </div>

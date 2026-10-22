@@ -57,6 +57,18 @@ class StoreBackendOrderController extends Controller
         return view('store_backend.orders.show', compact('store', 'order'));
     }
 
+    public function printBill(Request $request, string $store_slug, Order $order)
+    {
+        $store = $this->getStore($request);
+
+        if ($order->store_id !== $store->id) {
+            abort(403, 'Pesanan ini bukan milik cabang ini.');
+        }
+
+        $order->load(['client', 'items.menu', 'campaign', 'store']);
+        return view('print.order_bill', compact('store', 'order'));
+    }
+
     public function updateStatus(Request $request, string $store_slug, Order $order)
     {
         $store = $this->getStore($request);

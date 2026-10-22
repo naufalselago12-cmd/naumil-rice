@@ -58,6 +58,14 @@
               <small class="text-muted d-block font-mono">
                 Live Sync Realtime
               </small>
+              <div class="mt-2">
+                <a :href="'/orders/' + orderData.order?.order_number + '/print'" target="_blank" 
+                   class="btn btn-sm btn-outline-dark font-mono d-inline-flex align-items-center gap-1 shadow-sm text-decoration-none"
+                   style="font-size: 0.8rem; padding: 4px 10px;">
+                  <i class="fa-solid fa-print"></i>
+                  <span>Cetak Struk POS</span>
+                </a>
+              </div>
             </div>
           </div>
 
@@ -265,6 +273,14 @@
               <span v-else class="badge bg-warning text-dark font-mono fs-6 px-3 py-1">
                 <i class="fa-solid fa-clock me-1"></i> Unpaid
               </span>
+            </div>
+
+            <div class="mt-3 pt-2 border-top text-end">
+              <a :href="'/orders/' + orderData.order?.order_number + '/print'" target="_blank" 
+                 class="btn btn-sm btn-outline-dark font-mono d-inline-flex align-items-center gap-1 shadow-sm text-decoration-none">
+                <i class="fa-solid fa-print"></i>
+                <span>Cetak Struk Resmi POS</span>
+              </a>
             </div>
           </div>
         </div>
