@@ -134,8 +134,8 @@
                                    {{ $curPaymentType === 'payment_gateway' ? 'checked' : '' }}
                                    onchange="togglePaymentSectionEdit(this.value)">
                             <div>
-                                <strong class="text-white d-block"><i class="fa-solid fa-bolt text-warning me-1"></i> Payment Gateway (Mayar.id)</strong>
-                                <small class="text-muted">Pembayaran online instan via invoice Mayar.id (otomatis lunas).</small>
+                                <strong class="text-white d-block"><i class="fa-solid fa-bolt text-warning me-1"></i> Payment Gateway (Midtrans / Mayar)</strong>
+                                <small class="text-muted">Pembayaran online instan via Midtrans (Snap) atau Mayar.id.</small>
                             </div>
                         </label>
                     </div>
@@ -165,94 +165,185 @@
                     </div>
                 </div>
 
-                <!-- Bagian Payment Gateway Mayar.id -->
-                <div id="edit_section_mayar" class="{{ $curPaymentType === 'payment_gateway' ? '' : 'd-none' }}">
+                <!-- Bagian Payment Gateway Form -->
+                <div id="edit_section_gateway" class="{{ $curPaymentType === 'payment_gateway' ? '' : 'd-none' }}">
                     @php
+                        $superProvider = old('payment_gateway_provider', $store->payment_gateway_provider ?? 'midtrans');
+                        $superMidEnv = old('midtrans_environment', $store->midtrans_environment ?? 'sandbox');
                         $superCurEnv = old('mayar_environment', $store->mayar_environment ?? 'sandbox');
                     @endphp
-                    <!-- Mode Environment Radio Buttons -->
+
+                    <!-- Pilih Provider -->
                     <div class="p-3 rounded bg-black bg-opacity-25 border border-secondary mb-3">
-                        <label class="form-label-dark d-block mb-2 fw-bold">
-                            <i class="fa-solid fa-tower-broadcast text-info me-1"></i> Mode Lingkungan Mayar (Environment) <span class="text-danger">*</span>
+                        <label class="form-label-dark d-block mb-2 fw-bold text-white">
+                            <i class="fa-solid fa-server text-primary me-1"></i> Provider Payment Gateway
                         </label>
                         <div class="row g-2">
                             <div class="col-md-6">
-                                <label class="p-2 rounded border border-secondary d-flex align-items-center gap-2 cursor-pointer w-100 {{ $superCurEnv === 'sandbox' ? 'bg-warning bg-opacity-10 border-warning text-white' : 'bg-dark text-muted' }}" for="sa_env_sandbox">
-                                    <input type="radio" name="mayar_environment" id="sa_env_sandbox" value="sandbox" class="form-check-input mt-0" {{ $superCurEnv === 'sandbox' ? 'checked' : '' }}>
+                                <label class="p-2 rounded border border-secondary d-flex align-items-center gap-2 cursor-pointer w-100 bg-dark text-white">
+                                    <input type="radio" name="payment_gateway_provider" value="midtrans" class="form-check-input mt-0" {{ $superProvider === 'midtrans' ? 'checked' : '' }} onchange="toggleEditProvider(this.value)">
                                     <div>
-                                        <div class="fw-bold small text-warning"><i class="fa-solid fa-flask me-1"></i> Sandbox (Testing)</div>
-                                        <div class="text-xs text-muted" style="font-size: 11px;">Simulasi pembayaran tanpa uang asli</div>
+                                        <div class="fw-bold small text-primary"><i class="fa-solid fa-credit-card me-1"></i> Midtrans (Snap Gateway)</div>
+                                        <div class="text-xs text-muted" style="font-size: 11px;">Rekomendasi (QRIS, VA Bank, E-Wallet, CC)</div>
                                     </div>
                                 </label>
                             </div>
                             <div class="col-md-6">
-                                <label class="p-2 rounded border border-secondary d-flex align-items-center gap-2 cursor-pointer w-100 {{ $superCurEnv === 'production' ? 'bg-success bg-opacity-10 border-success text-white' : 'bg-dark text-muted' }}" for="sa_env_production">
-                                    <input type="radio" name="mayar_environment" id="sa_env_production" value="production" class="form-check-input mt-0" {{ $superCurEnv === 'production' ? 'checked' : '' }}>
+                                <label class="p-2 rounded border border-secondary d-flex align-items-center gap-2 cursor-pointer w-100 bg-dark text-white">
+                                    <input type="radio" name="payment_gateway_provider" value="mayar" class="form-check-input mt-0" {{ $superProvider === 'mayar' ? 'checked' : '' }} onchange="toggleEditProvider(this.value)">
                                     <div>
-                                        <div class="fw-bold small text-success"><i class="fa-solid fa-circle-check me-1"></i> Production (Live)</div>
-                                        <div class="text-xs text-muted" style="font-size: 11px;">Pembayaran riil dari customer</div>
+                                        <div class="fw-bold small text-warning"><i class="fa-solid fa-bolt me-1"></i> Mayar.id</div>
+                                        <div class="text-xs text-muted" style="font-size: 11px;">Payment link invoice Mayar</div>
                                     </div>
                                 </label>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Kredensial Sandbox & Production Disediakan Berdampingan -->
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <div class="p-3 rounded bg-black bg-opacity-25 border border-secondary h-100">
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <strong class="text-warning small"><i class="fa-solid fa-flask me-1"></i> Kredensial Sandbox</strong>
-                                    <span class="badge {{ $superCurEnv === 'sandbox' ? 'bg-warning text-dark' : 'bg-secondary' }}" style="font-size: 10px;">
-                                        {{ $superCurEnv === 'sandbox' ? 'Aktif' : 'Standby' }}
-                                    </span>
+                    <!-- Panel Midtrans -->
+                    <div id="edit_provider_midtrans" class="{{ $superProvider === 'midtrans' ? '' : 'd-none' }}">
+                        <div class="p-3 rounded bg-black bg-opacity-25 border border-secondary mb-3">
+                            <label class="form-label-dark d-block mb-2 fw-bold">
+                                <i class="fa-solid fa-tower-broadcast text-info me-1"></i> Mode Lingkungan Midtrans (Environment) <span class="text-danger">*</span>
+                            </label>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="p-2 rounded border border-secondary d-flex align-items-center gap-2 cursor-pointer w-100 bg-dark text-white">
+                                        <input type="radio" name="midtrans_environment" value="sandbox" class="form-check-input mt-0" {{ $superMidEnv === 'sandbox' ? 'checked' : '' }}>
+                                        <div>
+                                            <div class="fw-bold small text-warning"><i class="fa-solid fa-flask me-1"></i> Sandbox (Testing)</div>
+                                            <div class="text-xs text-muted" style="font-size: 11px;">Simulasi via simulator.sandbox.midtrans.com</div>
+                                        </div>
+                                    </label>
                                 </div>
-                                <div class="mb-2">
-                                    <label class="form-label-dark" style="font-size: 12px;">API Key Sandbox</label>
-                                    <input type="password" name="mayar_api_key" class="form-control form-control-dark font-mono small" 
-                                           placeholder="API Key Sandbox (eyJhbGci...)" value="{{ old('mayar_api_key', $store->mayar_api_key) }}">
-                                </div>
-                                <div>
-                                    <label class="form-label-dark" style="font-size: 12px;">Webhook Token Sandbox</label>
-                                    <input type="password" name="mayar_webhook_token" class="form-control form-control-dark font-mono small" 
-                                           placeholder="Token webhook sandbox" value="{{ old('mayar_webhook_token', $store->mayar_webhook_token) }}">
+                                <div class="col-md-6">
+                                    <label class="p-2 rounded border border-secondary d-flex align-items-center gap-2 cursor-pointer w-100 bg-dark text-white">
+                                        <input type="radio" name="midtrans_environment" value="production" class="form-check-input mt-0" {{ $superMidEnv === 'production' ? 'checked' : '' }}>
+                                        <div>
+                                            <div class="fw-bold small text-success"><i class="fa-solid fa-circle-check me-1"></i> Production (Live)</div>
+                                            <div class="text-xs text-muted" style="font-size: 11px;">Transaksi riil dari pembeli</div>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="col-md-6">
-                            <div class="p-3 rounded bg-black bg-opacity-25 border border-secondary h-100">
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <strong class="text-success small"><i class="fa-solid fa-circle-check me-1"></i> Kredensial Production</strong>
-                                    <span class="badge {{ $superCurEnv === 'production' ? 'bg-success' : 'bg-secondary' }}" style="font-size: 10px;">
-                                        {{ $superCurEnv === 'production' ? 'Aktif' : 'Standby' }}
-                                    </span>
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label-dark" style="font-size: 12px;">API Key Production</label>
-                                    <input type="password" name="mayar_api_key_production" class="form-control form-control-dark font-mono small" 
-                                           placeholder="API Key Production (eyJhbGci...)" value="{{ old('mayar_api_key_production', $store->mayar_api_key_production) }}">
-                                </div>
-                                <div>
-                                    <label class="form-label-dark" style="font-size: 12px;">Webhook Token Production</label>
-                                    <input type="password" name="mayar_webhook_token_production" class="form-control form-control-dark font-mono small" 
-                                           placeholder="Token webhook production" value="{{ old('mayar_webhook_token_production', $store->mayar_webhook_token_production) }}">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <div class="p-3 rounded bg-black bg-opacity-25 border border-secondary h-100">
+                                    <strong class="text-warning small d-block mb-2"><i class="fa-solid fa-flask me-1"></i> Kredensial Midtrans Sandbox</strong>
+                                    <div class="mb-2">
+                                        <label class="form-label-dark" style="font-size: 12px;">Server Key Sandbox</label>
+                                        <input type="password" name="midtrans_server_key" class="form-control form-control-dark font-mono small" placeholder="SB-Mid-server-..." value="{{ old('midtrans_server_key', $store->midtrans_server_key) }}">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label-dark" style="font-size: 12px;">Client Key Sandbox</label>
+                                        <input type="password" name="midtrans_client_key" class="form-control form-control-dark font-mono small" placeholder="SB-Mid-client-..." value="{{ old('midtrans_client_key', $store->midtrans_client_key) }}">
+                                    </div>
+                                    <div>
+                                        <label class="form-label-dark" style="font-size: 12px;">Merchant ID Sandbox (Opsional)</label>
+                                        <input type="text" name="midtrans_merchant_id" class="form-control form-control-dark font-mono small" placeholder="G123456789" value="{{ old('midtrans_merchant_id', $store->midtrans_merchant_id) }}">
+                                    </div>
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="p-3 rounded bg-black bg-opacity-25 border border-secondary h-100">
+                                    <strong class="text-success small d-block mb-2"><i class="fa-solid fa-circle-check me-1"></i> Kredensial Midtrans Production</strong>
+                                    <div class="mb-2">
+                                        <label class="form-label-dark" style="font-size: 12px;">Server Key Production</label>
+                                        <input type="password" name="midtrans_server_key_production" class="form-control form-control-dark font-mono small" placeholder="Mid-server-..." value="{{ old('midtrans_server_key_production', $store->midtrans_server_key_production) }}">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label-dark" style="font-size: 12px;">Client Key Production</label>
+                                        <input type="password" name="midtrans_client_key_production" class="form-control form-control-dark font-mono small" placeholder="Mid-client-..." value="{{ old('midtrans_client_key_production', $store->midtrans_client_key_production) }}">
+                                    </div>
+                                    <div>
+                                        <label class="form-label-dark" style="font-size: 12px;">Merchant ID Production (Opsional)</label>
+                                        <input type="text" name="midtrans_merchant_id_production" class="form-control form-control-dark font-mono small" placeholder="G123456789" value="{{ old('midtrans_merchant_id_production', $store->midtrans_merchant_id_production) }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-2 rounded bg-black bg-opacity-25 border border-secondary font-mono small text-muted mb-3">
+                            Midtrans Notification Webhook: <code>{{ url('/api/v1/payment/midtrans/notification/' . $store->slug) }}</code>
                         </div>
                     </div>
 
-                    @php
-                        $webhookUrl = url('/api/v1/payment/mayar/webhook/' . $store->slug);
-                        $activeToken = ($superCurEnv === 'production' && !empty($store->mayar_webhook_token_production)) 
-                            ? $store->mayar_webhook_token_production 
-                            : $store->mayar_webhook_token;
-                        if (!empty($activeToken)) {
-                            $webhookUrl .= '?token=' . urlencode($activeToken);
-                        }
-                    @endphp
-                    <div class="p-2 rounded bg-black bg-opacity-25 border border-secondary font-mono small text-muted">
-                        Webhook Callback: <code>{{ $webhookUrl }}</code>
+                    <!-- Panel Mayar -->
+                    <div id="edit_provider_mayar" class="{{ $superProvider === 'mayar' ? '' : 'd-none' }}">
+                        <div class="p-3 rounded bg-black bg-opacity-25 border border-secondary mb-3">
+                            <label class="form-label-dark d-block mb-2 fw-bold">
+                                <i class="fa-solid fa-tower-broadcast text-info me-1"></i> Mode Lingkungan Mayar (Environment) <span class="text-danger">*</span>
+                            </label>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="p-2 rounded border border-secondary d-flex align-items-center gap-2 cursor-pointer w-100 {{ $superCurEnv === 'sandbox' ? 'bg-warning bg-opacity-10 border-warning text-white' : 'bg-dark text-muted' }}" for="sa_env_sandbox">
+                                        <input type="radio" name="mayar_environment" id="sa_env_sandbox" value="sandbox" class="form-check-input mt-0" {{ $superCurEnv === 'sandbox' ? 'checked' : '' }}>
+                                        <div>
+                                            <div class="fw-bold small text-warning"><i class="fa-solid fa-flask me-1"></i> Sandbox (Testing)</div>
+                                            <div class="text-xs text-muted" style="font-size: 11px;">Simulasi pembayaran tanpa uang asli</div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="p-2 rounded border border-secondary d-flex align-items-center gap-2 cursor-pointer w-100 {{ $superCurEnv === 'production' ? 'bg-success bg-opacity-10 border-success text-white' : 'bg-dark text-muted' }}" for="sa_env_production">
+                                        <input type="radio" name="mayar_environment" id="sa_env_production" value="production" class="form-check-input mt-0" {{ $superCurEnv === 'production' ? 'checked' : '' }}>
+                                        <div>
+                                            <div class="fw-bold small text-success"><i class="fa-solid fa-circle-check me-1"></i> Production (Live)</div>
+                                            <div class="text-xs text-muted" style="font-size: 11px;">Pembayaran riil dari customer</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <div class="p-3 rounded bg-black bg-opacity-25 border border-secondary h-100">
+                                    <strong class="text-warning small d-block mb-2"><i class="fa-solid fa-flask me-1"></i> Kredensial Mayar Sandbox</strong>
+                                    <div class="mb-2">
+                                        <label class="form-label-dark" style="font-size: 12px;">API Key Sandbox</label>
+                                        <input type="password" name="mayar_api_key" class="form-control form-control-dark font-mono small" 
+                                               placeholder="API Key Sandbox (eyJhbGci...)" value="{{ old('mayar_api_key', $store->mayar_api_key) }}">
+                                    </div>
+                                    <div>
+                                        <label class="form-label-dark" style="font-size: 12px;">Webhook Token Sandbox</label>
+                                        <input type="password" name="mayar_webhook_token" class="form-control form-control-dark font-mono small" 
+                                               placeholder="Token webhook sandbox" value="{{ old('mayar_webhook_token', $store->mayar_webhook_token) }}">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="p-3 rounded bg-black bg-opacity-25 border border-secondary h-100">
+                                    <strong class="text-success small d-block mb-2"><i class="fa-solid fa-circle-check me-1"></i> Kredensial Mayar Production</strong>
+                                    <div class="mb-2">
+                                        <label class="form-label-dark" style="font-size: 12px;">API Key Production</label>
+                                        <input type="password" name="mayar_api_key_production" class="form-control form-control-dark font-mono small" 
+                                               placeholder="API Key Production (eyJhbGci...)" value="{{ old('mayar_api_key_production', $store->mayar_api_key_production) }}">
+                                    </div>
+                                    <div>
+                                        <label class="form-label-dark" style="font-size: 12px;">Webhook Token Production</label>
+                                        <input type="password" name="mayar_webhook_token_production" class="form-control form-control-dark font-mono small" 
+                                               placeholder="Token webhook production" value="{{ old('mayar_webhook_token_production', $store->mayar_webhook_token_production) }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        @php
+                            $webhookUrl = url('/api/v1/payment/mayar/webhook/' . $store->slug);
+                            $activeToken = ($superCurEnv === 'production' && !empty($store->mayar_webhook_token_production)) 
+                                ? $store->mayar_webhook_token_production 
+                                : $store->mayar_webhook_token;
+                            if (!empty($activeToken)) {
+                                $webhookUrl .= '?token=' . urlencode($activeToken);
+                            }
+                        @endphp
+                        <div class="p-2 rounded bg-black bg-opacity-25 border border-secondary font-mono small text-muted">
+                            Webhook Callback: <code>{{ $webhookUrl }}</code>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -260,13 +351,25 @@
             <script>
             function togglePaymentSectionEdit(type) {
                 const qris = document.getElementById('edit_section_qris');
-                const mayar = document.getElementById('edit_section_mayar');
+                const gateway = document.getElementById('edit_section_gateway');
                 if (type === 'qris_static') {
                     qris.classList.remove('d-none');
-                    mayar.classList.add('d-none');
+                    gateway.classList.add('d-none');
                 } else {
-                    mayar.classList.remove('d-none');
+                    gateway.classList.remove('d-none');
                     qris.classList.add('d-none');
+                }
+            }
+
+            function toggleEditProvider(provider) {
+                const mid = document.getElementById('edit_provider_midtrans');
+                const may = document.getElementById('edit_provider_mayar');
+                if (provider === 'midtrans') {
+                    mid.classList.remove('d-none');
+                    may.classList.add('d-none');
+                } else {
+                    may.classList.remove('d-none');
+                    mid.classList.add('d-none');
                 }
             }
             </script>

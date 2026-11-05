@@ -637,14 +637,19 @@
 
               <div class="payment-options">
                 <!-- Method 1: Payment Gateway if configured -->
-                <label v-if="store.payment_type === 'payment_gateway'" :class="['payment-card', clientForm.payment_method === 'Payment Gateway (Mayar.id)' ? 'selected' : '']">
-                  <input type="radio" value="Payment Gateway (Mayar.id)" v-model="clientForm.payment_method" />
+                <label v-if="store.payment_type === 'payment_gateway'" :class="['payment-card', clientForm.payment_method?.startsWith('Payment Gateway') ? 'selected' : '']">
+                  <input type="radio" :value="store.payment_gateway_provider === 'mayar' ? 'Payment Gateway (Mayar.id)' : 'Payment Gateway (Midtrans)'" v-model="clientForm.payment_method" />
                   <div class="payment-card-body">
                     <div class="d-flex align-items-center justify-content-between mb-1">
-                      <span class="fw-bold"><i class="fa-solid fa-credit-card text-success me-1"></i> Payment Gateway (Mayar.id)</span>
+                      <span class="fw-bold">
+                        <i class="fa-solid fa-credit-card text-success me-1"></i>
+                        {{ store.payment_gateway_provider === 'mayar' ? 'Payment Gateway (Mayar.id)' : 'Payment Gateway (Midtrans Snap)' }}
+                      </span>
                       <span class="badge badge-primary">Online Otomatis</span>
                     </div>
-                    <p class="text-muted small mb-0">Bayar online instan via QRIS Otomatis, Virtual Account Bank & E-Wallet.</p>
+                    <p class="text-muted small mb-0">
+                      {{ store.payment_gateway_provider === 'mayar' ? 'Bayar online instan via QRIS Otomatis, Virtual Account Bank & E-Wallet.' : 'Bayar online instan via QRIS (GoPay/ShopeePay/Dana), Virtual Account Bank & Kartu Kredit.' }}
+                    </p>
                   </div>
                 </label>
 
@@ -790,20 +795,20 @@
               </div>
             </div>
 
-            <!-- Mayar Payment Gateway Waiting Box -->
+            <!-- Payment Gateway Waiting Box -->
             <div v-if="mayarPaymentWaiting" class="card p-3 mb-3 border-success bg-light text-start shadow-sm">
               <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="fw-bold text-success"><i class="fa-solid fa-credit-card me-1"></i> Pembayaran Mayar.id Dibuka</span>
+                <span class="fw-bold text-success"><i class="fa-solid fa-credit-card me-1"></i> Pembayaran Online Gateway Dibuka</span>
                 <span class="badge bg-warning text-dark font-mono"><i class="fa-solid fa-spinner fa-spin me-1"></i> Menunggu Bayar</span>
               </div>
               <p class="small text-muted mb-2">
-                Jendela pembayaran dibuka otomatis dalam window kecil. Anda juga dapat mengklik tombol di bawah jika jendela belum muncul:
+                Jendela pembayaran dibuka otomatis. Anda juga dapat mengklik tombol di bawah jika jendela belum muncul:
               </p>
               <button type="button" class="btn btn-danger w-100 py-2 fw-bold text-white mb-2 border-0" @click="openMayarPopup(paymentGatewayUrl, currentOrderNumber)">
-                <i class="fa-solid fa-window-restore me-1"></i> Buka Window Bayar Mayar
+                <i class="fa-solid fa-window-restore me-1"></i> Buka Pembayaran Gateway
               </button>
               <small class="text-muted d-block text-center" style="font-size: 0.78rem;">
-                <i class="fa-solid fa-circle-notch fa-spin text-success me-1"></i> Window kecil otomatis tertutup dan halaman langsung menuju tracing order setelah pembayaran berhasil.
+                <i class="fa-solid fa-circle-notch fa-spin text-success me-1"></i> Window otomatis tertutup dan halaman langsung menuju tracing order setelah pembayaran berhasil.
               </small>
             </div>
 
@@ -935,7 +940,9 @@ const fetchCampaign = async () => {
       menus.value = res.data.data.menus
       isExpired.value = res.data.is_expired
       if (store.value?.payment_type === 'payment_gateway') {
-        clientForm.value.payment_method = 'Payment Gateway (Mayar.id)'
+        clientForm.value.payment_method = (store.value?.payment_gateway_provider === 'mayar')
+          ? 'Payment Gateway (Mayar.id)'
+          : 'Payment Gateway (Midtrans)'
       }
       startCountdown()
     }
@@ -1212,10 +1219,63 @@ const finalPayableTotal = computed(() => {
   return Math.max(0, cartSubtotal.value - calculatedDiscount.value)
 })
 
-// Mayar.id Popup Window & Auto-close Polling
+// Payment Gateway (Midtrans Snap & Mayar.id) Popup Window & Auto-close Polling
 let mayarPopup = null
 let paymentPollingInterval = null
 let messageListener = null
+
+const loadMidtransSnap = (clientKey, environment) => {
+  return new Promise((resolve) => {
+    if (window.snap) return resolve(window.snap)
+    const script = document.createElement('script')
+    const snapUrl = (environment === 'production')
+      ? 'https://app.midtrans.com/snap/snap.js'
+      : 'https://app.sandbox.midtrans.com/snap/snap.js'
+    script.src = snapUrl
+    script.setAttribute('data-client-key', clientKey || '')
+    script.onload = () => resolve(window.snap)
+    script.onerror = () => resolve(null)
+    document.head.appendChild(script)
+  })
+}
+
+const openPaymentPopup = async (orderData) => {
+  if (!orderData) return
+  const paymentUrl = orderData.payment_url
+  const snapToken = orderData.snap_token
+  const orderNumber = orderData.order_number
+
+  currentOrderNumber.value = orderNumber
+  paymentGatewayUrl.value = paymentUrl
+  mayarPaymentWaiting.value = true
+
+  if (snapToken) {
+    const clientKey = orderData.midtrans_client_key || store.value?.midtrans_client_key
+    const env = orderData.midtrans_environment || store.value?.midtrans_environment || 'sandbox'
+    const snap = await loadMidtransSnap(clientKey, env)
+
+    if (snap && typeof snap.pay === 'function') {
+      startPaymentMonitoring(orderNumber)
+      snap.pay(snapToken, {
+        onSuccess: function() {
+          onPaymentSuccess(orderNumber)
+        },
+        onPending: function() {
+          startPaymentMonitoring(orderNumber)
+        },
+        onError: function() {
+          if (paymentUrl) openMayarPopup(paymentUrl, orderNumber)
+        },
+        onClose: function() {
+          console.log('Snap closed')
+        }
+      })
+      return
+    }
+  }
+
+  openMayarPopup(paymentUrl, orderNumber)
+}
 
 const openMayarPopup = (paymentUrl, orderNumber) => {
   if (!paymentUrl) return
@@ -1230,7 +1290,7 @@ const openMayarPopup = (paymentUrl, orderNumber) => {
 
   mayarPopup = window.open(
     paymentUrl,
-    'MayarPaymentPopup',
+    'PaymentPopup',
     `width=${w},height=${h},top=${top},left=${left},resizable=yes,scrollbars=yes,status=no`
   )
 
@@ -1241,7 +1301,8 @@ const startPaymentMonitoring = (orderNumber) => {
   stopPaymentMonitoring()
 
   messageListener = (event) => {
-    if (event.data?.type === 'MAYAR_PAYMENT_SUCCESS' && (!event.data?.orderNumber || event.data?.orderNumber === orderNumber)) {
+    const successTypes = ['PAYMENT_SUCCESS', 'MIDTRANS_PAYMENT_SUCCESS', 'MAYAR_PAYMENT_SUCCESS']
+    if (successTypes.includes(event.data?.type) && (!event.data?.orderNumber || event.data?.orderNumber === orderNumber)) {
       onPaymentSuccess(orderNumber)
     }
   }
@@ -1379,8 +1440,8 @@ const submitOrder = async () => {
       const orderNumber = res.data.data.order_number
       const paymentUrl = res.data.data.payment_url
 
-      if (paymentUrl) {
-        openMayarPopup(paymentUrl, orderNumber)
+      if (res.data.data.payment_url || res.data.data.snap_token) {
+        openPaymentPopup(res.data.data)
       } else {
         setTimeout(() => {
           router.visit('/trace/' + orderNumber)

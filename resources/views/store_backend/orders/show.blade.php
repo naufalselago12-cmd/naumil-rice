@@ -196,7 +196,36 @@
                     @endif
                 </div>
 
-                @if(strtolower($order->payment_method) === 'mayar' || !empty($order->payment_id))
+                {{-- Gateway Midtrans Section --}}
+                @if($order->payment_gateway_provider === 'midtrans' || !empty($order->snap_token) || str_contains(strtolower($order->payment_method), 'midtrans'))
+                <div class="mb-3 p-2.5 bg-light rounded border">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-primary fw-bold"><i class="fa-solid fa-credit-card me-1"></i> Gateway Midtrans Snap</small>
+                        @if($order->payment_status === 'paid')
+                            <span class="badge bg-success-subtle text-success border border-success-subtle small">Lunas</span>
+                        @endif
+                    </div>
+                    @if($order->snap_token)
+                        <div class="font-mono small text-truncate text-muted mb-1" title="{{ $order->snap_token }}">
+                            Token: {{ $order->snap_token }}
+                        </div>
+                    @endif
+                    @if($order->payment_url)
+                        <a href="{{ $order->payment_url }}" target="_blank" class="btn btn-sm btn-outline-primary w-100 mb-2">
+                            <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka Link Pembayaran Midtrans
+                        </a>
+                    @endif
+                    @if($order->payment_status !== 'paid')
+                        <form action="{{ route('store.backend.orders.syncMidtrans', ['store_slug' => $store->slug, 'order' => $order->id]) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">
+                                <i class="fa-solid fa-rotate me-1"></i> Cek & Sinkronkan Status Midtrans
+                            </button>
+                        </form>
+                    @endif
+                </div>
+                {{-- Gateway Mayar Section --}}
+                @elseif(strtolower($order->payment_method) === 'mayar' || $order->payment_gateway_provider === 'mayar' || !empty($order->payment_id))
                 <div class="mb-3 p-2.5 bg-light rounded border">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <small class="text-muted fw-bold"><i class="fa-solid fa-bolt text-warning me-1"></i> Gateway Mayar.id</small>

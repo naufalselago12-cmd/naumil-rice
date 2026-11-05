@@ -44,6 +44,8 @@ class Order extends Model
         'payment_status',
         'payment_url',
         'payment_id',
+        'snap_token',
+        'payment_gateway_provider',
         'payment_payload',
         'payment_proof',
         'subtotal',

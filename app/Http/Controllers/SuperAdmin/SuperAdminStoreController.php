@@ -37,9 +37,17 @@ class SuperAdminStoreController extends Controller
             'logo' => 'nullable|string',
             'logo_file' => 'nullable|image|max:3072',
             'payment_type' => 'nullable|in:qris_static,payment_gateway',
+            'payment_gateway_provider' => 'nullable|in:midtrans,mayar',
             'qris_image' => 'nullable|string',
             'qris_file' => 'nullable|image|max:3072',
             'qris_data' => 'nullable|string',
+            'midtrans_environment' => 'nullable|in:sandbox,production',
+            'midtrans_server_key' => 'nullable|string',
+            'midtrans_client_key' => 'nullable|string',
+            'midtrans_merchant_id' => 'nullable|string',
+            'midtrans_server_key_production' => 'nullable|string',
+            'midtrans_client_key_production' => 'nullable|string',
+            'midtrans_merchant_id_production' => 'nullable|string',
             'mayar_api_key' => 'nullable|string',
             'mayar_webhook_token' => 'nullable|string',
             'mayar_api_key_production' => 'nullable|string',
@@ -49,6 +57,8 @@ class SuperAdminStoreController extends Controller
         ]);
 
         $validated['payment_type'] = $validated['payment_type'] ?? 'qris_static';
+        $validated['payment_gateway_provider'] = $validated['payment_gateway_provider'] ?? Store::GATEWAY_PROVIDER_MIDTRANS;
+        $validated['midtrans_environment'] = $validated['midtrans_environment'] ?? 'sandbox';
         $validated['mayar_environment'] = $validated['mayar_environment'] ?? 'sandbox';
 
         if (empty($validated['slug'])) {
@@ -101,9 +111,17 @@ class SuperAdminStoreController extends Controller
             'logo' => 'nullable|string',
             'logo_file' => 'nullable|image|max:3072',
             'payment_type' => 'nullable|in:qris_static,payment_gateway',
+            'payment_gateway_provider' => 'nullable|in:midtrans,mayar',
             'qris_image' => 'nullable|string',
             'qris_file' => 'nullable|image|max:3072',
             'qris_data' => 'nullable|string',
+            'midtrans_environment' => 'nullable|in:sandbox,production',
+            'midtrans_server_key' => 'nullable|string',
+            'midtrans_client_key' => 'nullable|string',
+            'midtrans_merchant_id' => 'nullable|string',
+            'midtrans_server_key_production' => 'nullable|string',
+            'midtrans_client_key_production' => 'nullable|string',
+            'midtrans_merchant_id_production' => 'nullable|string',
             'mayar_api_key' => 'nullable|string',
             'mayar_webhook_token' => 'nullable|string',
             'mayar_api_key_production' => 'nullable|string',
@@ -114,6 +132,8 @@ class SuperAdminStoreController extends Controller
 
         $validated['slug'] = Str::slug($validated['slug']);
         $validated['payment_type'] = $validated['payment_type'] ?? 'qris_static';
+        $validated['payment_gateway_provider'] = $validated['payment_gateway_provider'] ?? Store::GATEWAY_PROVIDER_MIDTRANS;
+        $validated['midtrans_environment'] = $validated['midtrans_environment'] ?? 'sandbox';
         $validated['mayar_environment'] = $validated['mayar_environment'] ?? 'sandbox';
 
         if ($request->hasFile('logo_file')) {

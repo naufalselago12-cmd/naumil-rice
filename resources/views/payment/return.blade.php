@@ -121,6 +121,14 @@
     if (window.opener && !window.opener.closed) {
       try {
         window.opener.postMessage({
+          type: 'PAYMENT_SUCCESS',
+          orderNumber: orderNumber
+        }, '*');
+        window.opener.postMessage({
+          type: 'MIDTRANS_PAYMENT_SUCCESS',
+          orderNumber: orderNumber
+        }, '*');
+        window.opener.postMessage({
           type: 'MAYAR_PAYMENT_SUCCESS',
           orderNumber: orderNumber
         }, '*');

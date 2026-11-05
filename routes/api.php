@@ -27,7 +27,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/orders/kds', [OrderApiController::class, 'kdsQueue']);
     Route::patch('/orders/{id}/status', [OrderApiController::class, 'updateStatus']);
 
-    // 5. Payment Gateway Webhook (Mayar.id)
+    // 5. Payment Gateway Webhook (Midtrans & Mayar.id)
+    Route::match(['get', 'post'], '/payment/midtrans/notification/{store_slug?}', [\App\Http\Controllers\Api\MidtransWebhookController::class, 'handle']);
+    Route::match(['get', 'post'], '/payment/midtrans/webhook/{store_slug?}', [\App\Http\Controllers\Api\MidtransWebhookController::class, 'handle']);
+    Route::match(['get', 'post'], '/midtrans/notification/{store_slug?}', [\App\Http\Controllers\Api\MidtransWebhookController::class, 'handle']);
     Route::match(['get', 'post'], '/payment/mayar/webhook/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);
     Route::match(['get', 'post'], '/payment/mayar/callback/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);
     Route::match(['get', 'post'], '/mayar/webhook/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);

@@ -768,12 +768,17 @@
               <div class="mb-4">
                 <label class="form-label small fw-bold">Metode Pembayaran</label>
                 <div class="d-flex flex-column gap-2">
-                  <!-- Mayar.id Payment Gateway if activated -->
+                  <!-- Payment Gateway if activated -->
                   <label v-if="store.payment_type === 'payment_gateway'" class="option-radio-card">
-                    <input type="radio" value="Payment Gateway (Mayar.id)" v-model="paymentMethod" name="paymentMethod" />
+                    <input type="radio" :value="store.payment_gateway_provider === 'mayar' ? 'Payment Gateway (Mayar.id)' : 'Payment Gateway (Midtrans)'" v-model="paymentMethod" name="paymentMethod" />
                     <div class="flex-grow-1 ms-2">
-                      <div class="fw-bold"><i class="fa-solid fa-credit-card text-success me-1"></i> Payment Gateway (Mayar.id)</div>
-                      <small class="text-muted d-block">QRIS Otomatis, Virtual Account Bank & E-Wallet (Lunas Instan)</small>
+                      <div class="fw-bold">
+                        <i class="fa-solid fa-credit-card text-success me-1"></i>
+                        {{ store.payment_gateway_provider === 'mayar' ? 'Payment Gateway (Mayar.id)' : 'Payment Gateway (Midtrans Snap)' }}
+                      </div>
+                      <small class="text-muted d-block">
+                        {{ store.payment_gateway_provider === 'mayar' ? 'QRIS Otomatis, Virtual Account Bank & E-Wallet (Lunas Instan)' : 'QRIS (GoPay, ShopeePay, Dana), Virtual Account BCA/BRI/Mandiri, Kartu Kredit (Lunas Otomatis)' }}
+                      </small>
                     </div>
                     <span class="badge badge-primary">Online Otomatis</span>
                   </label>
@@ -912,17 +917,17 @@
             </div>
           </div>
 
-          <!-- 3. If Payment Gateway (Mayar) Unpaid -->
-          <div v-else-if="createdOrderData.payment_url" class="p-3 rounded bg-light border mb-3 text-start">
+          <!-- 3. If Payment Gateway (Midtrans / Mayar) Unpaid -->
+          <div v-else-if="createdOrderData.payment_url || createdOrderData.snap_token" class="p-3 rounded bg-light border mb-3 text-start">
             <div class="d-flex justify-content-between align-items-center mb-2">
-              <span class="fw-bold"><i class="fa-solid fa-credit-card text-success me-1"></i> Mayar.id Gateway</span>
+              <span class="fw-bold"><i class="fa-solid fa-credit-card text-success me-1"></i> {{ (createdOrderData.payment_gateway_provider === 'midtrans' || createdOrderData.snap_token) ? 'Midtrans Snap Gateway' : 'Mayar.id Gateway' }}</span>
               <span class="badge bg-warning text-dark">Menunggu Pembayaran</span>
             </div>
             <p class="text-muted small mb-3">
-              Jendela pembayaran otomatis terbuka. Jika tertutup atau terblokir pop-up browser, silakan klik tombol di bawah untuk membuka kembali invoice pembayaran:
+              Jendela pembayaran otomatis terbuka. Jika tertutup atau terblokir pop-up browser, silakan klik tombol di bawah untuk membuka kembali pembayaran:
             </p>
-            <button class="btn btn-primary w-100 py-2 fw-bold" @click="openMayarPopup(createdOrderData.payment_url, createdOrderData.order_number)">
-              <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka Pembayaran Mayar.id
+            <button class="btn btn-primary w-100 py-2 fw-bold" @click="openPaymentPopup(createdOrderData)">
+              <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka Pembayaran {{ (createdOrderData.payment_gateway_provider === 'midtrans' || createdOrderData.snap_token) ? 'Midtrans' : 'Mayar.id' }}
             </button>
           </div>
 
@@ -1234,7 +1239,11 @@ const customerForm = ref({
   address: ''
 })
 
-const paymentMethod = ref(props.store.payment_type === 'payment_gateway' ? 'Payment Gateway (Mayar.id)' : 'QRIS Statik')
+const paymentMethod = ref(
+  props.store.payment_type === 'payment_gateway'
+    ? (props.store.payment_gateway_provider === 'mayar' ? 'Payment Gateway (Mayar.id)' : 'Payment Gateway (Midtrans)')
+    : 'QRIS Statik'
+)
 const isCustomerLoggedIn = ref(false)
 const customerConcat = ref('')
 const customerPoints = ref(0)
@@ -1502,10 +1511,60 @@ onMounted(() => {
   }, 100)
 })
 
-// Mayar.id Popup Window & Auto-close Polling
+// Payment Gateway (Midtrans Snap & Mayar.id) Popup Window & Auto-close Polling
 let mayarPopup = null
 let paymentPollingInterval = null
 let messageListener = null
+
+const loadMidtransSnap = (clientKey, environment) => {
+  return new Promise((resolve) => {
+    if (window.snap) return resolve(window.snap)
+    const script = document.createElement('script')
+    const snapUrl = (environment === 'production')
+      ? 'https://app.midtrans.com/snap/snap.js'
+      : 'https://app.sandbox.midtrans.com/snap/snap.js'
+    script.src = snapUrl
+    script.setAttribute('data-client-key', clientKey || '')
+    script.onload = () => resolve(window.snap)
+    script.onerror = () => resolve(null)
+    document.head.appendChild(script)
+  })
+}
+
+const openPaymentPopup = async (orderData) => {
+  if (!orderData) return
+  const paymentUrl = orderData.payment_url
+  const snapToken = orderData.snap_token
+  const orderNumber = orderData.order_number
+
+  if (snapToken) {
+    const clientKey = orderData.midtrans_client_key || props.store.midtrans_client_key
+    const env = orderData.midtrans_environment || props.store.midtrans_environment || 'sandbox'
+    const snap = await loadMidtransSnap(clientKey, env)
+
+    if (snap && typeof snap.pay === 'function') {
+      startPaymentMonitoring(orderNumber)
+      snap.pay(snapToken, {
+        onSuccess: function() {
+          onPaymentSuccess(orderNumber)
+        },
+        onPending: function() {
+          startPaymentMonitoring(orderNumber)
+        },
+        onError: function() {
+          if (paymentUrl) openMayarPopup(paymentUrl, orderNumber)
+        },
+        onClose: function() {
+          console.log('Midtrans Snap closed by user')
+        }
+      })
+      return
+    }
+  }
+
+  // Fallback to popup window
+  openMayarPopup(paymentUrl, orderNumber)
+}
 
 const openMayarPopup = (paymentUrl, orderNumber) => {
   if (!paymentUrl) return
@@ -1516,7 +1575,7 @@ const openMayarPopup = (paymentUrl, orderNumber) => {
 
   mayarPopup = window.open(
     paymentUrl,
-    'MayarPaymentPopup',
+    'PaymentPopup',
     `width=${w},height=${h},top=${top},left=${left},resizable=yes,scrollbars=yes,status=no`
   )
 
@@ -1527,7 +1586,8 @@ const startPaymentMonitoring = (orderNumber) => {
   stopPaymentMonitoring()
 
   messageListener = (event) => {
-    if (event.data?.type === 'MAYAR_PAYMENT_SUCCESS' && (!event.data?.orderNumber || event.data?.orderNumber === orderNumber)) {
+    const successTypes = ['PAYMENT_SUCCESS', 'MIDTRANS_PAYMENT_SUCCESS', 'MAYAR_PAYMENT_SUCCESS']
+    if (successTypes.includes(event.data?.type) && (!event.data?.orderNumber || event.data?.orderNumber === orderNumber)) {
       onPaymentSuccess(orderNumber)
     }
   }
@@ -1830,9 +1890,9 @@ const submitOrder = async () => {
         applyClientData(res.data.data.client)
       }
 
-      if (res.data.data.payment_url) {
+      if (res.data.data.payment_url || res.data.data.snap_token) {
         setTimeout(() => {
-          openMayarPopup(res.data.data.payment_url, res.data.data.order_number)
+          openPaymentPopup(res.data.data)
         }, 300)
       }
     } else {

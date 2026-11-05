@@ -94,6 +94,7 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
         Route::get('/orders/{order}/print', [StoreBackendOrderController::class, 'printBill'])->name('orders.print');
         Route::patch('/orders/{order}/status', [StoreBackendOrderController::class, 'updateStatus'])->name('orders.updateStatus');
         Route::post('/orders/{order}/sync-mayar', [StoreBackendOrderController::class, 'syncMayarPayment'])->name('orders.syncMayar');
+        Route::post('/orders/{order}/sync-midtrans', [StoreBackendOrderController::class, 'syncMidtransPayment'])->name('orders.syncMidtrans');
         Route::post('/orders/{order}/verify-payment', [StoreBackendOrderController::class, 'verifyPayment'])->name('orders.verifyPayment');
 
         // Kitchen Display System (KDS)
@@ -114,6 +115,9 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
         Route::get('/settings', [StoreBackendSettingsController::class, 'index'])->name('settings');
         Route::put('/settings', [StoreBackendSettingsController::class, 'update'])->name('settings.update');
         Route::post('/settings/test-mayar', [StoreBackendSettingsController::class, 'testMayar'])->name('settings.testMayar');
+        Route::post('/settings/test-midtrans', [StoreBackendSettingsController::class, 'testMidtrans'])->name('settings.testMidtrans');
+        Route::post('/settings/test-midtrans-transaction', [StoreBackendSettingsController::class, 'testMidtransTransaction'])->name('settings.testMidtransTransaction');
+        Route::post('/settings/test-midtrans-status', [StoreBackendSettingsController::class, 'testMidtransStatus'])->name('settings.testMidtransStatus');
     });
 });
 
@@ -212,6 +216,13 @@ Route::get('/loyalty/profile', function () {
 
 // Payment Gateway Callback / Popup Auto-Close
 Route::get('/payment/mayar/return', [\App\Http\Controllers\PaymentReturnController::class, 'handle'])->name('payment.mayar.return');
+Route::get('/payment/midtrans/return', [\App\Http\Controllers\PaymentReturnController::class, 'handle'])->name('payment.midtrans.return');
+
+// Midtrans Webhook & Notification Aliases (accepts GET/POST on web paths)
+Route::match(['get', 'post'], '/payment/midtrans/notification/{store_slug?}', [\App\Http\Controllers\Api\MidtransWebhookController::class, 'handle']);
+Route::match(['get', 'post'], '/payment/midtrans/webhook/{store_slug?}', [\App\Http\Controllers\Api\MidtransWebhookController::class, 'handle']);
+Route::match(['get', 'post'], '/midtrans/notification/{store_slug?}', [\App\Http\Controllers\Api\MidtransWebhookController::class, 'handle']);
+Route::match(['get', 'post'], '/api/payment/midtrans/notification/{store_slug?}', [\App\Http\Controllers\Api\MidtransWebhookController::class, 'handle']);
 
 // Mayar Webhook & Callback Aliases (accepts GET/POST on web paths)
 Route::match(['get', 'post'], '/payment/mayar/webhook/{store_slug?}', [\App\Http\Controllers\Api\MayarWebhookController::class, 'handle']);

@@ -45,7 +45,7 @@ class OrderApiController extends Controller
             'customer_whatsapp' => 'required|string|max:50',
             'customer_email' => 'required|email|max:255',
             'customer_address' => 'required|string|max:1000',
-            'payment_method' => 'required|in:QRIS Statik,QRIS Dinamis,Payment Gateway,Payment Gateway (Mayar.id),Bayar Terima Makanan',
+            'payment_method' => 'required|in:QRIS Statik,QRIS Dinamis,Payment Gateway,Payment Gateway (Mayar.id),Payment Gateway (Midtrans),Bayar Terima Makanan',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.menu_id' => 'required|exists:menus,id',
@@ -379,17 +379,40 @@ class OrderApiController extends Controller
             // Load full relationships
             $order->load(['store', 'client', 'items.menu', 'statusLogs', 'campaign', 'loyaltyPromo']);
 
-            // 11. If Payment Gateway (Mayar.id), create payment invoice link
+            // 11. If Payment Gateway (Midtrans or Mayar), create payment link / snap transaction
             $paymentUrl = null;
             $paymentMessage = null;
-            if (in_array($validated['payment_method'], ['Payment Gateway', 'Payment Gateway (Mayar.id)'])) {
-                $mayarService = new \App\Services\MayarPaymentService();
-                $mayarRes = $mayarService->createPaymentLink($order->store, $order);
-                if ($mayarRes['success'] && !empty($mayarRes['payment_url'])) {
-                    $paymentUrl = $mayarRes['payment_url'];
-                    $order->refresh();
+            $snapToken = null;
+            $isGateway = in_array($validated['payment_method'], [
+                'Payment Gateway',
+                'Payment Gateway (Midtrans)',
+                'Payment Gateway (Mayar.id)'
+            ]);
+
+            if ($isGateway) {
+                $isMidtrans = ($validated['payment_method'] === 'Payment Gateway (Midtrans)')
+                    || ($order->store->isMidtrans())
+                    || ($order->store->payment_gateway_provider === 'midtrans');
+
+                if ($isMidtrans) {
+                    $midtransService = new \App\Services\MidtransPaymentService();
+                    $res = $midtransService->createSnapTransaction($order->store, $order);
+                    if (!empty($res['success'])) {
+                        $paymentUrl = $res['payment_url'] ?? null;
+                        $snapToken = $res['snap_token'] ?? null;
+                        $order->refresh();
+                    } else {
+                        $paymentMessage = $res['message'] ?? 'Gagal membuat transaksi Midtrans Snap.';
+                    }
                 } else {
-                    $paymentMessage = $mayarRes['message'] ?? 'Gagal membuat link pembayaran Mayar.';
+                    $mayarService = new \App\Services\MayarPaymentService();
+                    $mayarRes = $mayarService->createPaymentLink($order->store, $order);
+                    if (!empty($mayarRes['success']) && !empty($mayarRes['payment_url'])) {
+                        $paymentUrl = $mayarRes['payment_url'];
+                        $order->refresh();
+                    } else {
+                        $paymentMessage = $mayarRes['message'] ?? 'Gagal membuat link pembayaran Mayar.';
+                    }
                 }
             }
 
@@ -410,6 +433,10 @@ class OrderApiController extends Controller
                     'total_amount' => $order->total_amount,
                     'payment_method' => $order->payment_method,
                     'payment_url' => $order->payment_url ?? $paymentUrl,
+                    'snap_token' => $order->snap_token ?? $snapToken,
+                    'payment_gateway_provider' => $order->payment_gateway_provider ?? $order->store->payment_gateway_provider,
+                    'midtrans_client_key' => $order->store->active_midtrans_client_key,
+                    'midtrans_environment' => $order->store->active_midtrans_environment,
                     'payment_message' => $paymentMessage,
                     'payment_type' => $order->store->payment_type,
                     'store_qris_image' => $order->store->qris_image,
@@ -437,30 +464,60 @@ class OrderApiController extends Controller
             ], 404);
         }
 
-        // Auto-sync payment status with Mayar if order is still unpaid
-        if ($order->payment_status === 'unpaid' 
-            && in_array($order->payment_method, ['Payment Gateway', 'Payment Gateway (Mayar.id)'])
-            && $order->store
-            && $order->store->hasMayarConfigured()) {
-            try {
-                $mayarService = new \App\Services\MayarPaymentService();
-                $check = $mayarService->checkPaymentStatus($order->store, $order);
-                if ($check['success'] && $check['is_paid']) {
-                    $order->update([
-                        'payment_status' => 'paid',
-                        'status' => in_array($order->status, [Order::STATUS_CONFIRMED, 'pending']) ? Order::STATUS_PROCESSING : $order->status,
-                    ]);
-                    \App\Models\OrderStatusLog::create([
-                        'order_id' => $order->id,
-                        'status' => $order->status,
-                        'note' => 'Pembayaran terkonfirmasi lunas via Mayar.id (sinkronisasi live trace).',
-                    ]);
-                    try {
-                        broadcast(new \App\Events\OrderStatusUpdated($order))->toOthers();
-                    } catch (\Throwable $e) {}
-                    $order->refresh();
-                }
-            } catch (\Throwable $e) {}
+        // Auto-sync payment status if order is still unpaid
+        $isGatewayMethod = in_array($order->payment_method, [
+            'Payment Gateway',
+            'Payment Gateway (Midtrans)',
+            'Payment Gateway (Mayar.id)'
+        ]);
+
+        if ($order->payment_status === 'unpaid' && $isGatewayMethod && $order->store) {
+            $isMidtrans = ($order->payment_gateway_provider === 'midtrans')
+                || !empty($order->snap_token)
+                || ($order->payment_method === 'Payment Gateway (Midtrans)')
+                || ($order->store->isMidtrans() && $order->store->hasMidtransConfigured());
+
+            if ($isMidtrans && $order->store->hasMidtransConfigured()) {
+                try {
+                    $midtransService = new \App\Services\MidtransPaymentService();
+                    $check = $midtransService->checkPaymentStatus($order->store, $order);
+                    if (!empty($check['success']) && !empty($check['is_paid'])) {
+                        $order->update([
+                            'payment_status' => 'paid',
+                            'status' => in_array($order->status, [Order::STATUS_CONFIRMED, 'pending', 'Order Konfirmed']) ? Order::STATUS_PROCESSING : $order->status,
+                        ]);
+                        \App\Models\OrderStatusLog::create([
+                            'order_id' => $order->id,
+                            'status' => $order->status,
+                            'note' => 'Pembayaran terkonfirmasi lunas via Midtrans (sinkronisasi live trace).',
+                        ]);
+                        try {
+                            broadcast(new \App\Events\OrderStatusUpdated($order))->toOthers();
+                        } catch (\Throwable $e) {}
+                        $order->refresh();
+                    }
+                } catch (\Throwable $e) {}
+            } elseif ($order->store->hasMayarConfigured()) {
+                try {
+                    $mayarService = new \App\Services\MayarPaymentService();
+                    $check = $mayarService->checkPaymentStatus($order->store, $order);
+                    if (!empty($check['success']) && !empty($check['is_paid'])) {
+                        $order->update([
+                            'payment_status' => 'paid',
+                            'status' => in_array($order->status, [Order::STATUS_CONFIRMED, 'pending']) ? Order::STATUS_PROCESSING : $order->status,
+                        ]);
+                        \App\Models\OrderStatusLog::create([
+                            'order_id' => $order->id,
+                            'status' => $order->status,
+                            'note' => 'Pembayaran terkonfirmasi lunas via Mayar.id (sinkronisasi live trace).',
+                        ]);
+                        try {
+                            broadcast(new \App\Events\OrderStatusUpdated($order))->toOthers();
+                        } catch (\Throwable $e) {}
+                        $order->refresh();
+                    }
+                } catch (\Throwable $e) {}
+            }
         }
 
         $stages = [

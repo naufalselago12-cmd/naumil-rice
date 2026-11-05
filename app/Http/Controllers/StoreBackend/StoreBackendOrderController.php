@@ -106,6 +106,48 @@ class StoreBackendOrderController extends Controller
         return back()->with('success', "Status pesanan {$order->order_number} berhasil diubah menjadi {$validated['status']}.");
     }
 
+    public function syncMidtransPayment(Request $request, string $store_slug, Order $order)
+    {
+        $store = $this->getStore($request);
+
+        if ($order->store_id !== $store->id) {
+            abort(403, 'Pesanan ini bukan milik cabang ini.');
+        }
+
+        try {
+            $midtransService = new \App\Services\MidtransPaymentService();
+            $check = $midtransService->checkPaymentStatus($store, $order);
+
+            if (!empty($check['success']) && !empty($check['is_paid'])) {
+                if ($order->payment_status !== 'paid') {
+                    $order->update([
+                        'payment_status' => 'paid',
+                        'status' => in_array($order->status, [Order::STATUS_CONFIRMED, 'pending', 'Order Konfirmed']) ? Order::STATUS_PROCESSING : $order->status,
+                    ]);
+
+                    OrderStatusLog::create([
+                        'order_id' => $order->id,
+                        'status' => $order->status,
+                        'note' => 'Pembayaran lunas terverifikasi via Sinkronisasi Midtrans oleh admin cabang.',
+                    ]);
+
+                    if (class_exists(OrderStatusUpdated::class)) {
+                        try {
+                            broadcast(new OrderStatusUpdated($order));
+                        } catch (\Exception $e) {}
+                    }
+                }
+
+                return back()->with('success', "Status pembayaran pesanan {$order->order_number} berhasil diverifikasi: LUNAS (Settlement) dari Midtrans!");
+            }
+
+            $info = $check['message'] ?? ($check['transaction_status'] ?? 'Belum Lunas');
+            return back()->with('warning', "Respon dari server Midtrans: {$info}. Pembayaran belum terkonfirmasi lunas.");
+        } catch (\Throwable $e) {
+            return back()->with('error', "Gagal menghubungi server Midtrans: " . $e->getMessage());
+        }
+    }
+
     public function syncMayarPayment(Request $request, string $store_slug, Order $order)
     {
         $store = $this->getStore($request);
