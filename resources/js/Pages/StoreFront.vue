@@ -1509,24 +1509,93 @@ onMounted(() => {
       }))
     } catch (e) {}
   }, 100)
+
+  // Clean up any remaining sandbox ribbons if store is in production
+  if (props.store?.midtrans_environment === 'production') {
+    cleanupMidtransSandboxElements()
+  }
 })
 
 // Payment Gateway (Midtrans Snap & Mayar.id) Popup Window & Auto-close Polling
 let mayarPopup = null
 let paymentPollingInterval = null
 let messageListener = null
+let currentSnapEnv = null
+let currentSnapKey = null
+
+const cleanupMidtransSandboxElements = () => {
+  try {
+    // 1. Remove script tags pointing to sandbox snap.js
+    document.querySelectorAll('script[src*="sandbox.midtrans.com/snap"]').forEach(el => el.remove())
+
+    // 2. Remove injected elements from sandbox Midtrans (ribbon, badge, etc.)
+    const testRibbons = document.querySelectorAll(
+      '[class*="snap-test"], [id*="snap-test"], [class*="midtrans-test"], [id*="midtrans-test"], .snap-badge'
+    )
+    testRibbons.forEach(el => el.remove())
+
+    // 3. Remove fixed corner banner with text "TEST"
+    document.querySelectorAll('div, span, a').forEach(el => {
+      const txt = (el.innerText || el.textContent || '').trim()
+      if (txt === 'TEST') {
+        const style = window.getComputedStyle(el)
+        if (style.position === 'fixed' || style.position === 'absolute') {
+          el.remove()
+        }
+      }
+    })
+  } catch (e) {
+    console.warn('Sandbox element cleanup warning:', e)
+  }
+}
 
 const loadMidtransSnap = (clientKey, environment) => {
   return new Promise((resolve) => {
-    if (window.snap) return resolve(window.snap)
-    const script = document.createElement('script')
-    const snapUrl = (environment === 'production')
+    const targetEnv = (environment === 'production') ? 'production' : 'sandbox'
+    const targetUrl = targetEnv === 'production'
       ? 'https://app.midtrans.com/snap/snap.js'
       : 'https://app.sandbox.midtrans.com/snap/snap.js'
-    script.src = snapUrl
+
+    // If Snap is already loaded for the EXACT matching environment and clientKey, reuse it
+    if (window.snap && currentSnapEnv === targetEnv && currentSnapKey === clientKey) {
+      if (targetEnv === 'production') {
+        cleanupMidtransSandboxElements()
+      }
+      return resolve(window.snap)
+    }
+
+    // Changing environment / key: Remove old scripts, clear window.snap, and remove sandbox ribbon
+    document.querySelectorAll('script[src*="snap.js"]').forEach(s => s.remove())
+    const oldScript = document.getElementById('midtrans-snap-script')
+    if (oldScript) oldScript.remove()
+
+    if (targetEnv === 'production') {
+      cleanupMidtransSandboxElements()
+    }
+
+    try {
+      delete window.snap
+    } catch (e) {
+      window.snap = undefined
+    }
+
+    const script = document.createElement('script')
+    script.id = 'midtrans-snap-script'
+    script.src = targetUrl
     script.setAttribute('data-client-key', clientKey || '')
-    script.onload = () => resolve(window.snap)
-    script.onerror = () => resolve(null)
+    script.async = true
+    script.onload = () => {
+      currentSnapEnv = targetEnv
+      currentSnapKey = clientKey
+      if (targetEnv === 'production') {
+        cleanupMidtransSandboxElements()
+      }
+      resolve(window.snap)
+    }
+    script.onerror = () => {
+      console.error('Gagal memuat Midtrans Snap script dari:', targetUrl)
+      resolve(null)
+    }
     document.head.appendChild(script)
   })
 }

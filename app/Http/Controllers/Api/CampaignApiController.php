@@ -143,6 +143,10 @@ class CampaignApiController extends Controller
                     'qris_image' => $campaign->store->qris_image,
                     'qris_data' => $campaign->store->qris_data,
                     'payment_type' => $campaign->store->payment_type ?? 'qris_static',
+                    'payment_gateway_provider' => $campaign->store->payment_gateway_provider ?? 'midtrans',
+                    'midtrans_environment' => $campaign->store->active_midtrans_environment,
+                    'midtrans_client_key' => $campaign->store->active_midtrans_client_key,
+                    'has_midtrans' => $campaign->store->hasMidtransConfigured(),
                     'has_mayar' => $campaign->store->hasMayarConfigured(),
                 ],
                 'menus' => $menus
