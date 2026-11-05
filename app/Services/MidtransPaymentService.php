@@ -324,10 +324,10 @@ class MidtransPaymentService
 
         // Format check: Warn if keys don't match the environment
         if ($environment === 'sandbox') {
-            if (!str_starts_with($serverKey, 'SB-Mid-server-')) {
+            if (!str_starts_with($serverKey, 'SB-Mid-server-') && !str_starts_with($serverKey, 'Mid-server-')) {
                 return [
                     'success' => false,
-                    'message' => 'Format Server Key Sandbox tidak sesuai. Server Key Sandbox Midtrans umumnya diawali dengan "SB-Mid-server-".',
+                    'message' => 'Format Server Key Sandbox tidak sesuai. Server Key Sandbox Midtrans umumnya diawali dengan "SB-Mid-server-" atau "Mid-server-".',
                 ];
             }
         } else {
