@@ -423,6 +423,9 @@ class OrderApiController extends Controller
                 // If reverb daemon not running, gracefully ignore without interrupting response
             }
 
+            // 13. Notifikasi admin toko (COD: pesanan masuk; bayar langsung: menunggu pembayaran masuk)
+            app(\App\Services\StoreNotificationService::class)->notifyOrderPlaced($order);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Pre-Order berhasil dibuat!',

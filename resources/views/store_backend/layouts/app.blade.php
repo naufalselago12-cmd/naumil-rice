@@ -329,6 +329,16 @@
             <li class="sidebar-header">OPERASIONAL & TRANSAKSI</li>
 
             <li class="nav-item">
+                <a href="{{ route('store.backend.notification', $currentStore->slug) }}" 
+                   class="nav-link-side {{ request()->routeIs('store.backend.notification*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-bell"></i>
+                    <span>Notifikasi Realtime</span>
+                    @php $__unreadNotif = \App\Models\StoreNotification::where('store_id', $currentStore->id)->whereNull('read_at')->count(); @endphp
+                    <span class="badge bg-danger ms-auto" data-notif-badge style="{{ $__unreadNotif > 0 ? '' : 'display:none;' }}">{{ $__unreadNotif > 99 ? '99+' : $__unreadNotif }}</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
                 <a href="{{ route('store.backend.orders.index', $currentStore->slug) }}" 
                    class="nav-link-side {{ request()->routeIs('store.backend.orders*') ? 'active' : '' }}">
                     <i class="fa-solid fa-receipt"></i>
@@ -382,7 +392,7 @@
             @endif
 
             <li class="nav-item">
-                <form action="{{ route('store.backend.logout', $currentStore->slug) }}" method="POST">
+                <form action="{{ route('store.backend.logout', $currentStore->slug) }}" method="POST" id="storeLogoutForm">
                     @csrf
                     <button type="submit" class="nav-link-side w-100 text-start border-0 bg-transparent text-danger">
                         <i class="fa-solid fa-power-off"></i>
@@ -505,6 +515,7 @@
         document.body.classList.add('sidebar-collapsed');
     }
 </script>
+@include('store_backend.partials.notification_client')
 @stack('scripts')
 </body>
 </html>

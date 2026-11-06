@@ -26,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'superadmin' => \App\Http\Middleware\SuperAdminMiddleware::class,
             'store.scope' => \App\Http\Middleware\StoreScopeMiddleware::class,
+            'store.api' => \App\Http\Middleware\ApiStoreAdminMiddleware::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

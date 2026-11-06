@@ -31,6 +31,12 @@ class Order extends Model
             if ($order->isDirty('status') && $order->status === self::STATUS_READY) {
                 app(\App\Services\CustomerNotificationService::class)->sendOrderReadyNotification($order);
             }
+
+            // Notifikasi realtime admin toko: pembayaran langsung (QRIS / Payment Gateway) masuk
+            if ($order->wasChanged('payment_status')
+                && in_array($order->payment_status, ['paid', 'payment_on_review'], true)) {
+                app(\App\Services\StoreNotificationService::class)->notifyDirectPayment($order);
+            }
         });
     }
 

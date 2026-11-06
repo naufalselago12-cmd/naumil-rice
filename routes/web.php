@@ -17,6 +17,7 @@ use App\Http\Controllers\StoreBackend\StoreBackendCategoryController;
 use App\Http\Controllers\StoreBackend\StoreBackendCampaignController;
 use App\Http\Controllers\StoreBackend\StoreBackendOrderController;
 use App\Http\Controllers\StoreBackend\StoreBackendKdsController;
+use App\Http\Controllers\StoreBackend\StoreBackendNotificationController;
 use App\Http\Controllers\StoreBackend\StoreBackendReportController;
 use App\Http\Controllers\StoreBackend\StoreBackendSettingsController;
 use App\Http\Controllers\StoreBackend\StoreBackendLoyaltyCustomerController;
@@ -100,6 +101,12 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
         // Kitchen Display System (KDS)
         Route::get('/kds', [StoreBackendKdsController::class, 'index'])->name('kds');
 
+        // Notifikasi Realtime (OneSignal) - riwayat pesanan masuk & pembayaran
+        Route::get('/notification', [StoreBackendNotificationController::class, 'index'])->name('notification');
+        Route::get('/notification/feed', [StoreBackendNotificationController::class, 'feed'])->name('notification.feed');
+        Route::post('/notification/read-all', [StoreBackendNotificationController::class, 'markAllRead'])->name('notification.readAll');
+        Route::post('/notification/{notification}/read', [StoreBackendNotificationController::class, 'markRead'])->whereNumber('notification')->name('notification.read');
+
         // Reports
         Route::get('/reports', [StoreBackendReportController::class, 'index'])->name('reports');
 
@@ -170,6 +177,22 @@ Route::get('/kds', function () {
     return redirect()->route('admin.kds');
 })->name('kds.fullscreen');
 
+// Pintu masuk /notification -> halaman notifikasi toko milik admin yang sedang login
+Route::get('/notification', function () {
+    $user = \Illuminate\Support\Facades\Auth::guard('web')->user();
+
+    if ($user && $user->isStoreAdmin() && $user->store) {
+        return redirect()->route('store.backend.notification', $user->store->slug);
+    }
+
+    if ($user && $user->isSuperAdmin()) {
+        return redirect()->route('superadmin.dashboard')
+            ->with('warning', 'Pilih toko terlebih dahulu untuk melihat notifikasi pesanan.');
+    }
+
+    return redirect('/backend/login')->with('warning', 'Silakan login sebagai admin toko untuk melihat notifikasi.');
+})->name('notification.entry');
+
 /*
 |--------------------------------------------------------------------------
 | 4. PUBLIC FRONTEND ROUTES (INERTIA VUE 3)
@@ -233,4 +256,4 @@ Route::match(['get', 'post'], '/api/payment/mayar/webhook/{store_slug?}', [\App\
 // Menampilkan seluruh data yang terikat ke toko tersebut
 Route::get('/{store_slug}', [StoreFrontController::class, 'show'])
     ->name('store.front')
-    ->where('store_slug', '^(?!superadmin|backend|admin|api|campaign|po|trace|stores|storage|build|favicon|customer|payment|loyalty|orders).*$');
+    ->where('store_slug', '^(?!superadmin|backend|admin|api|campaign|po|trace|stores|storage|build|favicon|customer|payment|loyalty|orders|notification).*$');
