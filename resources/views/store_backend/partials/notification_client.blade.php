@@ -9,6 +9,21 @@
     // Hanya admin toko pemilik cabang ini yang didaftarkan ke OneSignal (external_id)
     $__nEligible = $__nUser && $__nUser->isStoreAdmin() && (int) $__nUser->store_id === (int) $currentStore->id;
     $__nLatestId = (int) \App\Models\StoreNotification::where('store_id', $currentStore->id)->max('id');
+    $__notifConfig = [
+        'appId' => $__nAppId,
+        'safariWebId' => config('onesignal.safari_web_id'),
+        'externalId' => $__nEligible ? config('onesignal.external_id_prefix') . $__nUser->id : null,
+        'eligible' => (bool) $__nEligible,
+        'feedUrl' => route('store.backend.notification.feed', $currentStore->slug),
+        'pageUrl' => route('store.backend.notification', $currentStore->slug),
+        'latestId' => $__nLatestId,
+        'isNotificationPage' => request()->routeIs('store.backend.notification'),
+        'pollMs' => 8000,
+        'sounds' => [
+            'cod' => asset('sounds/notif-pembelian.wav'),     // COD (bayar setelah makanan jadi)
+            'direct' => asset('sounds/notif-pembayaran.wav'), // Bayar langsung
+        ],
+    ];
 @endphp
 
 <div id="naumilToastHost" aria-live="polite"></div>
@@ -26,21 +41,7 @@
 </style>
 
 <script>
-    window.NaumilNotifConfig = @json([
-        'appId' => $__nAppId,
-        'safariWebId' => config('onesignal.safari_web_id'),
-        'externalId' => $__nEligible ? config('onesignal.external_id_prefix') . $__nUser->id : null,
-        'eligible' => (bool) $__nEligible,
-        'feedUrl' => route('store.backend.notification.feed', $currentStore->slug),
-        'pageUrl' => route('store.backend.notification', $currentStore->slug),
-        'latestId' => $__nLatestId,
-        'isNotificationPage' => request()->routeIs('store.backend.notification'),
-        'pollMs' => 8000,
-        'sounds' => [
-            'cod' => asset('sounds/notif-pembelian.wav'),     // COD (bayar setelah makanan jadi)
-            'direct' => asset('sounds/notif-pembayaran.wav'), // Bayar langsung
-        ],
-    ]);
+    window.NaumilNotifConfig = @json($__notifConfig);
 </script>
 
 @if($__nAppId)
