@@ -181,7 +181,10 @@ class StoreNotificationService
         }
 
         $prefix = (string) config('onesignal.external_id_prefix');
-        $externalIds = User::where('role', User::ROLE_STORE_ADMIN)
+        $externalIds = User::where(function ($q) {
+                $q->where('role', User::ROLE_STORE_ADMIN)
+                  ->orWhere('role', 'store_admin');
+            })
             ->where('store_id', $notification->store_id)
             ->pluck('id')
             ->map(fn ($id) => $prefix . $id)
@@ -224,8 +227,12 @@ class StoreNotificationService
                     ],
                 ]);
 
+            $resJson = $response->json();
+            $hasErrors = !empty($resJson['errors']);
+            $isSent = $response->successful() && !$hasErrors;
+
             $notification->update([
-                'push_status' => $response->successful() ? 'sent' : 'failed',
+                'push_status' => $isSent ? 'sent' : 'failed',
                 'push_response' => mb_substr($response->body(), 0, 2000),
             ]);
         } catch (\Throwable $e) {

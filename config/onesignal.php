@@ -10,7 +10,7 @@ return [
     | (Settings > Keys & IDs). REST API Key HANYA dipakai di server.
     */
 
-    'app_id' => env('ONESIGNAL_APP_ID'),
+    'app_id' => env('ONESIGNAL_APP_ID', '28d706da-25b6-4615-8728-1af01f3f871b'),
 
     'rest_api_key' => env('ONESIGNAL_REST_API_KEY'),
 
