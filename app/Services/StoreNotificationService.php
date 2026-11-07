@@ -64,7 +64,7 @@ class StoreNotificationService
     protected function record(Order $order, string $type, string $event): ?StoreNotification
     {
         try {
-            if (StoreNotification::where('order_id', $order->id)->where('type', $type)->exists()) {
+            if (StoreNotification::where('order_id', $order->id)->where('type', $type)->where('event', $event)->exists()) {
                 return null;
             }
 
@@ -224,6 +224,10 @@ class StoreNotificationService
                         'notification_id' => $notification->id,
                         'type' => $notification->type,
                         'order_id' => $notification->order_id,
+                        'event' => $notification->event,
+                        'payment_status' => $notification->data['payment_status'] ?? '',
+                        'total' => (float) ($notification->data['total'] ?? 0),
+                        'customer_name' => $notification->data['customer_name'] ?? '',
                     ],
                 ]);
 
