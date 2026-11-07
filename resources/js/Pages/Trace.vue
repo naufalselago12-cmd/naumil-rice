@@ -270,6 +270,9 @@
               <span v-else-if="orderData.order?.payment_status === 'payment_on_review'" class="badge bg-info text-white font-mono fs-6 px-3 py-1">
                 <i class="fa-solid fa-hourglass-half me-1"></i> On Review
               </span>
+              <span v-else-if="isCodOrder(orderData.order)" class="badge bg-success text-white font-mono fs-6 px-3 py-1">
+                <i class="fa-solid fa-hand-holding-dollar me-1"></i> Bayar di Tempat (COD)
+              </span>
               <span v-else class="badge bg-warning text-dark font-mono fs-6 px-3 py-1">
                 <i class="fa-solid fa-clock me-1"></i> Unpaid
               </span>
@@ -470,6 +473,22 @@
           </div>
         </div>
 
+        <!-- 5. If COD (Bayar di Tempat) -->
+        <div v-else-if="isCodOrder(orderData.order)" class="card p-4 mb-4 border-success-subtle bg-light shadow-sm">
+          <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle bg-success text-white p-2 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+              <i class="fa-solid fa-hand-holding-dollar fs-5"></i>
+            </div>
+            <div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success text-white font-mono">COD</span>
+                <h5 class="fw-bold mb-0 text-dark">Bayar Tunai di Tempat</h5>
+              </div>
+              <small class="text-muted d-block mt-1">Siapkan uang tunai sebesar <strong>Rp {{ formatNumber(orderData.order?.total_amount) }}</strong> saat pesanan tiba atau diambil.</small>
+            </div>
+          </div>
+        </div>
+
         <!-- Fallback if Mayar Payment Gateway chosen but payment_url is not yet generated -->
         <div v-else-if="orderData.order?.payment_status === 'unpaid' && (orderData.order?.payment_method === 'Payment Gateway' || orderData.order?.payment_method === 'Payment Gateway (Mayar.id)')" class="card p-4 mb-4 border-warning shadow-sm">
           <div class="d-flex align-items-center gap-2 mb-2">
@@ -512,6 +531,12 @@ const props = defineProps({
     default: ''
   }
 })
+
+const isCodOrder = (order) => {
+  if (!order) return false
+  const pm = String(order.payment_method || '').toLowerCase()
+  return pm === 'bayar terima makanan' || pm.includes('cod') || pm.includes('tunai') || pm.includes('terima makanan') || pm.includes('cash')
+}
 
 const orderSearchInput = ref(props.orderNumber || '')
 const loading = ref(false)

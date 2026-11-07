@@ -2,7 +2,7 @@
   <AppLayout>
     <div class="storefront-page">
       <!-- Sticky / Top Alert: Active Unpaid / On-Review Order for Returning Customer -->
-      <section v-if="pendingGuestOrder && showPendingOrderBanner" class="pending-order-banner py-2-5 px-3 shadow-sm">
+      <section v-if="pendingGuestOrder && showPendingOrderBanner && !isCodOrder(pendingGuestOrder)" class="pending-order-banner py-2-5 px-3 shadow-sm">
         <div class="container">
           <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="d-flex align-items-center gap-2">
@@ -875,6 +875,9 @@
             <span v-else-if="createdOrderData.payment_status === 'payment_on_review'" class="badge bg-info text-white font-mono fs-6 px-3 py-1">
               <i class="fa-solid fa-hourglass-half me-1"></i> Payment On Review
             </span>
+            <span v-else-if="isCodOrder(createdOrderData)" class="badge bg-success text-white font-mono fs-6 px-3 py-1">
+              <i class="fa-solid fa-hand-holding-dollar me-1"></i> Bayar di Tempat (COD)
+            </span>
             <span v-else class="badge bg-warning text-dark font-mono fs-6 px-3 py-1">
               <i class="fa-solid fa-clock me-1"></i> Unpaid
             </span>
@@ -1701,12 +1704,21 @@ const stopPaymentMonitoring = () => {
 // ==========================================
 // ACTIVE GUEST ORDER CACHING & REALTIME STATUS
 // ==========================================
+const isCodOrder = (order) => {
+  if (!order) return false
+  const pm = String(order.payment_method || '').toLowerCase()
+  return pm === 'bayar terima makanan' || pm.includes('cod') || pm.includes('tunai') || pm.includes('terima makanan') || pm.includes('cash')
+}
+
 const GUEST_ORDER_KEY = `naumil_active_guest_order_${props.store?.slug || props.store?.code || 'default'}`
 const pendingGuestOrder = ref(null)
 const showPendingOrderBanner = ref(true)
 
 const saveGuestOrderToCache = (orderData) => {
-  if (!orderData) return
+  if (!orderData || isCodOrder(orderData)) {
+    clearGuestOrderCache()
+    return
+  }
   try {
     const cacheObj = {
       order_number: orderData.order_number,
@@ -1740,10 +1752,17 @@ const checkCachedGuestOrder = async () => {
     const cached = JSON.parse(cachedStr)
     if (!cached || !cached.order_number) return
 
+    // Jika di cache sudah berstatus COD, bersihkan dan jangan tampilkan banner tagihan
+    if (isCodOrder(cached)) {
+      clearGuestOrderCache()
+      return
+    }
+
     const res = await axios.get(`/api/v1/orders/trace/${cached.order_number}`)
     if (res.data?.success && res.data?.data?.order) {
       const sOrder = res.data.data.order
-      if (sOrder.payment_status === 'paid') {
+      // Jika pesanan sudah lunas atau metode pembayarannya COD, hapus cache dan jangan munculkan banner
+      if (sOrder.payment_status === 'paid' || isCodOrder(sOrder)) {
         clearGuestOrderCache()
       } else {
         pendingGuestOrder.value = {
@@ -1798,7 +1817,7 @@ const handleOrderStatusUpdatedRealtime = (order) => {
     pendingGuestOrder.value.status = order.status
   }
 
-  if (order.payment_status === 'paid') {
+  if (order.payment_status === 'paid' || isCodOrder(order)) {
     clearGuestOrderCache()
   } else {
     saveGuestOrderToCache(order)
@@ -1947,13 +1966,15 @@ const submitOrder = async () => {
       localStorage.removeItem('naumil_customer_cart_backup')
       showCartModal.value = false
 
-      // Save active order to localStorage cache for returning guest customers
-      saveGuestOrderToCache(res.data.data)
-      pendingGuestOrder.value = res.data.data
-      showPendingOrderBanner.value = true
-
-      // Start live order monitoring (WebSocket & heartbeat polling)
-      startLiveOrderMonitoring(res.data.data.order_number)
+      // Save active order to localStorage cache only for online payment (QRIS / Gateway)
+      if (!isCodOrder(res.data.data)) {
+        saveGuestOrderToCache(res.data.data)
+        pendingGuestOrder.value = res.data.data
+        showPendingOrderBanner.value = true
+        startLiveOrderMonitoring(res.data.data.order_number)
+      } else {
+        clearGuestOrderCache()
+      }
 
       if (res.data.data.client) {
         applyClientData(res.data.data.client)
