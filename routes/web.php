@@ -94,6 +94,7 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
         Route::get('/orders/{order}', [StoreBackendOrderController::class, 'show'])->name('orders.show');
         Route::get('/orders/{order}/print', [StoreBackendOrderController::class, 'printBill'])->name('orders.print');
         Route::patch('/orders/{order}/status', [StoreBackendOrderController::class, 'updateStatus'])->name('orders.updateStatus');
+        Route::post('/orders/{order}/cancel', [StoreBackendOrderController::class, 'cancelOrder'])->name('orders.cancel');
         Route::post('/orders/{order}/sync-mayar', [StoreBackendOrderController::class, 'syncMayarPayment'])->name('orders.syncMayar');
         Route::post('/orders/{order}/sync-midtrans', [StoreBackendOrderController::class, 'syncMidtransPayment'])->name('orders.syncMidtrans');
         Route::post('/orders/{order}/verify-payment', [StoreBackendOrderController::class, 'verifyPayment'])->name('orders.verifyPayment');

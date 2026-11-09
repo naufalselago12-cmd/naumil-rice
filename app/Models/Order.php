@@ -64,6 +64,19 @@ class Order extends Model
         'total_amount',
         'notes',
         'rejection_reason',
+        'cancelled_by',
+        'cancellation_reason_id',
+        'cancellation_reason',
+        'cancellation_remark',
+        'cancelled_at',
+        'refund_email',
+        'refund_bank_name',
+        'refund_bank_account_number',
+        'refund_bank_account_name',
+        'refund_status',
+        'refund_otp',
+        'refund_otp_expires_at',
+        'refund_otp_verified_at',
     ];
 
     protected $casts = [
@@ -74,9 +87,24 @@ class Order extends Model
         'points_earned' => 'integer',
         'points_used' => 'integer',
         'payment_payload' => 'array',
+        'cancelled_at' => 'datetime',
+        'refund_otp_expires_at' => 'datetime',
+        'refund_otp_verified_at' => 'datetime',
     ];
 
-    protected $appends = ['payment_proof_url'];
+    protected $appends = ['payment_proof_url', 'is_cancelled', 'is_midtrans_payment'];
+
+    public function getIsCancelledAttribute(): bool
+    {
+        return $this->status === self::STATUS_REJECT || !empty($this->cancelled_at);
+    }
+
+    public function getIsMidtransPaymentAttribute(): bool
+    {
+        return $this->payment_gateway_provider === 'midtrans'
+            || !empty($this->snap_token)
+            || str_contains(strtolower((string)$this->payment_method), 'midtrans');
+    }
 
     public function getPaymentProofUrlAttribute(): ?string
     {
@@ -105,6 +133,11 @@ class Order extends Model
     public function loyaltyPromo()
     {
         return $this->belongsTo(LoyaltyPromo::class, 'loyalty_promo_id');
+    }
+
+    public function cancellationReason()
+    {
+        return $this->belongsTo(CancellationReason::class, 'cancellation_reason_id');
     }
 
     public function items()

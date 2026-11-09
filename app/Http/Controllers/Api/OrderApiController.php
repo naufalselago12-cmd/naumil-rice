@@ -10,10 +10,16 @@ use App\Models\Client;
 use App\Models\Menu;
 use App\Models\Campaign;
 use App\Models\LoyaltyPromo;
+use App\Models\CancellationReason;
 use App\Events\NewOrderCreated;
 use App\Events\OrderStatusUpdated;
+use App\Mail\OrderCancelOtpMail;
+use App\Mail\OrderRefundConfirmationMail;
+use App\Services\StoreNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -456,7 +462,7 @@ class OrderApiController extends Controller
      */
     public function trace(string $orderNumber)
     {
-        $order = Order::with(['store', 'client', 'items.menu', 'statusLogs', 'campaign'])
+        $order = Order::with(['store', 'client', 'items.menu', 'statusLogs', 'campaign', 'cancellationReason'])
             ->where('order_number', $orderNumber)
             ->first();
 
@@ -647,6 +653,13 @@ class OrderApiController extends Controller
                 'current_stage_index' => $currentStageIndex,
                 'is_rejected' => $order->status === Order::STATUS_REJECT,
                 'rejection_reason' => $order->rejection_reason,
+                'cancellation_reason' => $order->cancellation_reason,
+                'cancellation_remark' => $order->cancellation_remark,
+                'cancelled_by' => $order->cancelled_by,
+                'refund_status' => $order->refund_status,
+                'refund_bank_name' => $order->refund_bank_name,
+                'refund_bank_account_number' => $order->refund_bank_account_number,
+                'refund_bank_account_name' => $order->refund_bank_account_name,
                 'queue_info' => $queueInfo,
             ]
         ]);
@@ -792,5 +805,232 @@ class OrderApiController extends Controller
                 'payment_proof_url' => $order->payment_proof_url,
             ]
         ]);
+    }
+
+    /**
+     * Send OTP to customer email for cancelling a paid / Midtrans order
+     */
+    public function sendCancelOtp(Request $request, string $orderNumber)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email|max:255',
+            'bank_name' => 'required|string|max:100',
+            'account_number' => 'required|string|max:100',
+            'account_name' => 'required|string|max:100',
+        ]);
+
+        $order = Order::with(['client', 'store'])->where('order_number', $orderNumber)->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pesanan tidak ditemukan dengan nomor: ' . $orderNumber
+            ], 404);
+        }
+
+        if (in_array($order->status, [Order::STATUS_READY, Order::STATUS_DELIVERY, Order::STATUS_REJECT])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pesanan ini sudah tidak dapat dibatalkan (Status: ' . $order->status . ').'
+            ], 422);
+        }
+
+        // Generate 6-digit OTP
+        $otp = (string) random_int(100000, 999999);
+
+        $order->update([
+            'refund_email' => $validated['email'],
+            'refund_bank_name' => $validated['bank_name'],
+            'refund_bank_account_number' => $validated['account_number'],
+            'refund_bank_account_name' => $validated['account_name'],
+            'refund_otp' => $otp,
+            'refund_otp_expires_at' => now()->addMinutes(10),
+        ]);
+
+        try {
+            Mail::to($validated['email'])->send(new OrderCancelOtpMail($order, $otp, [
+                'bank_name' => $validated['bank_name'],
+                'account_number' => $validated['account_number'],
+                'account_name' => $validated['account_name'],
+            ]));
+        } catch (\Throwable $e) {
+            Log::warning("Gagal kirim email OTP pembatalan untuk order {$order->order_number}: " . $e->getMessage());
+        }
+
+        Log::info("OTP Pembatalan Pesanan #{$order->order_number} dikirim ke {$validated['email']}: {$otp}");
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kode OTP verifikasi 6 digit telah dikirim ke email ' . $validated['email'] . '. Kode berlaku 10 menit.',
+            'expires_in_seconds' => 600,
+            'debug_otp' => config('app.debug') ? $otp : null,
+        ]);
+    }
+
+    /**
+     * Cancel order from customer frontend
+     */
+    public function cancelOrder(Request $request, string $orderNumber)
+    {
+        $order = Order::with(['client', 'store', 'items.menu'])->where('order_number', $orderNumber)->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pesanan tidak ditemukan dengan nomor: ' . $orderNumber
+            ], 404);
+        }
+
+        if (in_array($order->status, [Order::STATUS_READY, Order::STATUS_DELIVERY, Order::STATUS_REJECT])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pesanan ini sudah tidak dapat dibatalkan (Status: ' . $order->status . ').'
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'reason_id' => 'nullable|exists:cancellation_reasons,id',
+            'reason' => 'required|string|max:255',
+            'remark' => 'nullable|string|max:1000',
+            'refund_email' => 'nullable|email|max:255',
+            'refund_bank_name' => 'nullable|string|max:100',
+            'refund_bank_account_number' => 'nullable|string|max:100',
+            'refund_bank_account_name' => 'nullable|string|max:100',
+            'otp' => 'nullable|string|size:6',
+        ]);
+
+        // Check if reason requires remark (e.g. "Lainnya")
+        $reason = $validated['reason'];
+        $remark = trim((string)($validated['remark'] ?? ''));
+
+        if (!empty($validated['reason_id'])) {
+            $reasonModel = CancellationReason::find($validated['reason_id']);
+            if ($reasonModel && $reasonModel->requires_remark && empty($remark)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mohon isi catatan/alasan detail jika memilih alasan Lainnya.'
+                ], 422);
+            }
+        } elseif (mb_strtolower($reason) === 'lainnya' && empty($remark)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mohon isi catatan/alasan detail jika memilih alasan Lainnya.'
+            ], 422);
+        }
+
+        // Check if order requires refund (Midtrans / payment gateway / paid online)
+        $isCod = $order->payment_method === StoreNotificationService::COD_METHOD;
+        $isMidtransOrPaid = !$isCod && (
+            $order->payment_status === 'paid'
+            || $order->payment_status === 'payment_on_review'
+            || $order->payment_gateway_provider === 'midtrans'
+            || !empty($order->snap_token)
+            || str_contains(strtolower((string)$order->payment_method), 'midtrans')
+            || str_contains(strtolower((string)$order->payment_method), 'payment gateway')
+        );
+
+        if ($isMidtransOrPaid) {
+            // Must have bank fields and valid OTP
+            if (empty($validated['refund_email']) || empty($validated['refund_bank_name']) || empty($validated['refund_bank_account_number']) || empty($validated['refund_bank_account_name'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Untuk pesanan pembayaran langsung (Midtrans), harap lengkapi email aktif dan informasi rekening bank pengembalian dana (Refund H+1).'
+                ], 422);
+            }
+
+            $inputOtp = trim((string)($validated['otp'] ?? ''));
+            if (empty($inputOtp)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Harap masukkan 6 digit kode OTP yang telah dikirim ke email Anda.'
+                ], 422);
+            }
+
+            if ($order->refund_otp !== $inputOtp || !$order->refund_otp_expires_at || $order->refund_otp_expires_at->isPast()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Kode OTP tidak valid atau sudah kedaluwarsa. Silakan kirim ulang kode OTP.'
+                ], 422);
+            }
+        }
+
+        return DB::transaction(function () use ($order, $validated, $reason, $remark, $isMidtransOrPaid) {
+            $fullReason = $reason . ($remark ? ' - ' . $remark : '');
+
+            // 1. Update order
+            $updateData = [
+                'status' => Order::STATUS_REJECT,
+                'rejection_reason' => $fullReason,
+                'cancelled_by' => 'customer',
+                'cancellation_reason_id' => $validated['reason_id'] ?? null,
+                'cancellation_reason' => $reason,
+                'cancellation_remark' => $remark ?: null,
+                'cancelled_at' => now(),
+            ];
+
+            if ($isMidtransOrPaid) {
+                $updateData['refund_email'] = $validated['refund_email'];
+                $updateData['refund_bank_name'] = $validated['refund_bank_name'];
+                $updateData['refund_bank_account_number'] = $validated['refund_bank_account_number'];
+                $updateData['refund_bank_account_name'] = $validated['refund_bank_account_name'];
+                $updateData['refund_status'] = 'pending';
+                $updateData['refund_otp_verified_at'] = now();
+            }
+
+            $order->update($updateData);
+
+            // 2. Restore menu stock if any
+            foreach ($order->items as $item) {
+                if ($item->menu) {
+                    $item->menu->increment('current_stock', $item->quantity);
+                }
+            }
+
+            // 3. Status log
+            $refundNote = $isMidtransOrPaid
+                ? " | Pengembalian dana (Refund H+1) diajukan ke {$validated['refund_bank_name']} {$validated['refund_bank_account_number']} a.n {$validated['refund_bank_account_name']}"
+                : "";
+
+            OrderStatusLog::create([
+                'order_id' => $order->id,
+                'status' => Order::STATUS_REJECT,
+                'note' => 'Pesanan dibatalkan oleh Pelanggan. Alasan: ' . $fullReason . $refundNote,
+            ]);
+
+            // 4. WebSocket Broadcast
+            try {
+                broadcast(new OrderStatusUpdated($order));
+            } catch (\Throwable $e) {}
+
+            // 5. Push notification to naumil_rice_apps & StoreNotification
+            app(StoreNotificationService::class)->notifyOrderCancelled($order, 'customer', $fullReason);
+
+            // 6. Send confirmation email to customer
+            $recipientEmail = $order->refund_email ?: ($order->client?->email);
+            if ($recipientEmail) {
+                try {
+                    Mail::to($recipientEmail)->send(new OrderRefundConfirmationMail($order));
+                } catch (\Throwable $e) {
+                    Log::warning("Gagal kirim email konfirmasi refund pembatalan order {$order->order_number}: " . $e->getMessage());
+                }
+            }
+
+            $order->load(['store', 'client', 'items.menu', 'statusLogs', 'campaign', 'cancellationReason']);
+
+            $refundMsg = $isMidtransOrPaid
+                ? ' Permohonan pengembalian dana telah dicatat dan akan diproses pada H+1 kerja ke rekening Anda.'
+                : '';
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pesanan berhasil dibatalkan.' . $refundMsg,
+                'data' => [
+                    'order' => $order,
+                    'is_rejected' => true,
+                    'rejection_reason' => $order->rejection_reason,
+                    'refund_status' => $order->refund_status,
+                ]
+            ]);
+        });
     }
 }

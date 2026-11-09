@@ -58,13 +58,19 @@
               <small class="text-muted d-block font-mono">
                 Live Sync Realtime
               </small>
-              <div class="mt-2">
+              <div class="mt-2 d-flex align-items-center justify-content-end gap-2 flex-wrap">
                 <a :href="'/orders/' + orderData.order?.order_number + '/print'" target="_blank" 
                    class="btn btn-sm btn-outline-dark font-mono d-inline-flex align-items-center gap-1 shadow-sm text-decoration-none"
                    style="font-size: 0.8rem; padding: 4px 10px;">
                   <i class="fa-solid fa-print"></i>
                   <span>Cetak Struk POS</span>
                 </a>
+                <button v-if="canCancelOrder" @click="openCancelModal" type="button"
+                        class="btn btn-sm btn-outline-danger font-mono d-inline-flex align-items-center gap-1 shadow-sm"
+                        style="font-size: 0.8rem; padding: 4px 10px;">
+                  <i class="fa-solid fa-ban"></i>
+                  <span>Batalkan Pesanan</span>
+                </button>
               </div>
             </div>
           </div>
@@ -164,23 +170,53 @@
           </div>
         </div>
 
-        <!-- REJECTED STATE -->
+        <!-- REJECTED / CANCELLED STATE -->
         <div v-if="orderData.is_rejected" class="card alert-reject p-4 mb-4">
           <div class="d-flex align-items-start gap-3">
-            <i class="fa-solid fa-triangle-exclamation text-danger fs-1"></i>
-            <div>
-              <h4 class="fw-bold text-danger mb-1">Pesanan Ditolak / Dibatalkan (Order Reject)</h4>
-              <p class="mb-2 text-dark">
-                Mohon maaf, pesanan ini tidak dapat dilanjutkan oleh pihak dapur.
+            <i class="fa-solid fa-circle-xmark text-danger fs-1 flex-shrink-0"></i>
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <h4 class="fw-bold text-danger mb-0">Pesanan Dibatalkan</h4>
+                <span class="badge" :class="orderData.order?.cancelled_by === 'customer' ? 'bg-primary' : 'bg-dark'">
+                  Dibatalkan oleh {{ orderData.order?.cancelled_by === 'customer' ? 'Pelanggan' : 'Dapur Cabang' }}
+                </span>
+              </div>
+              <p class="mb-2 text-dark small">
+                Pesanan ini telah resmi dibatalkan dan tidak akan diproses oleh dapur.
               </p>
-              <div class="p-3 bg-white rounded border border-danger-subtle">
-                <strong>Alasan Penolakan:</strong>
-                <div class="text-danger fw-semibold mt-1">
-                  {{ orderData.rejection_reason || 'Bahan baku habis atau kuota batch penuh.' }}
+              <div class="p-3 bg-white rounded border border-danger-subtle mb-3">
+                <strong class="text-dark small d-block">Alasan Pembatalan:</strong>
+                <div class="text-danger fw-bold mt-1">
+                  {{ orderData.cancellation_reason || orderData.order?.cancellation_reason || orderData.rejection_reason || 'Pesanan dibatalkan' }}
+                </div>
+                <div v-if="orderData.cancellation_remark || orderData.order?.cancellation_remark" class="text-muted small mt-1">
+                  Catatan: {{ orderData.cancellation_remark || orderData.order?.cancellation_remark }}
                 </div>
               </div>
+
+              <!-- Refund Info Banner if exists -->
+              <div v-if="orderData.refund_bank_name || orderData.order?.refund_bank_name" class="p-3 bg-white rounded border border-warning shadow-xs mb-3">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                  <i class="fa-solid fa-money-bill-transfer text-warning fs-5"></i>
+                  <strong class="text-dark small">Pengajuan Pengembalian Dana (Refund H+1)</strong>
+                  <span class="badge bg-warning text-dark font-mono ms-auto">{{ (orderData.refund_status || orderData.order?.refund_status || 'PENDING').toUpperCase() }}</span>
+                </div>
+                <p class="text-muted small mb-2" style="line-height: 1.45;">
+                  Pengembalian dana sebesar <strong class="text-success font-mono">Rp {{ formatNumber(orderData.order?.total_amount) }}</strong> 
+                  sedang diproses pada <strong>H+1 hari kerja</strong> ke rekening bank berikut:
+                </p>
+                <div class="p-2 bg-light rounded font-mono small">
+                  <div><strong>Bank:</strong> {{ orderData.refund_bank_name || orderData.order?.refund_bank_name }}</div>
+                  <div><strong>No. Rekening:</strong> {{ orderData.refund_bank_account_number || orderData.order?.refund_bank_account_number }}</div>
+                  <div><strong>Atas Nama:</strong> {{ orderData.refund_bank_account_name || orderData.order?.refund_bank_account_name }}</div>
+                </div>
+                <small class="text-muted d-block mt-2" style="font-size: 0.75rem;">
+                  <i class="fa-solid fa-circle-info text-primary me-1"></i> Bukti pengembalian dana akan dikirimkan ke email {{ orderData.order?.refund_email || orderData.order?.client?.email }}.
+                </small>
+              </div>
+
               <a v-if="orderData.order?.store?.phone" 
-                 :href="'https://wa.me/' + cleanPhone(orderData.order.store.phone)" target="_blank" class="btn-wa-sm mt-3">
+                 :href="'https://wa.me/' + cleanPhone(orderData.order.store.phone)" target="_blank" class="btn-wa-sm">
                 <i class="fa-brands fa-whatsapp text-success me-1"></i> Hubungi Dapur Toko
               </a>
             </div>
@@ -516,6 +552,191 @@
         </div>
       </div>
     </div>
+
+    <!-- CANCEL ORDER POPUP MODAL -->
+    <div v-if="showCancelModal" class="cancel-modal-backdrop" @click.self="closeCancelModal">
+      <div class="cancel-modal-dialog animate-scale-in">
+        <div class="cancel-modal-content">
+          <!-- Modal Header -->
+          <div class="cancel-modal-header d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <div class="cancel-icon-circle">
+                <i class="fa-solid fa-ban text-danger"></i>
+              </div>
+              <div>
+                <h5 class="fw-bold mb-0 text-dark">Batalkan Pesanan</h5>
+                <small class="text-muted font-mono">{{ orderData.order?.order_number }}</small>
+              </div>
+            </div>
+            <button type="button" class="btn-close-modal" @click="closeCancelModal" title="Tutup">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="cancel-modal-body p-4">
+            <div v-if="cancelError" class="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+              <i class="fa-solid fa-circle-exclamation flex-shrink-0"></i>
+              <div>{{ cancelError }}</div>
+            </div>
+
+            <p class="text-muted small mb-3">
+              Mohon beritahu kami alasan pembatalan pesanan Anda agar kami dapat terus meningkatkan kualitas layanan Naumil Rice.
+            </p>
+
+            <!-- 1. Alasan Pembatalan (Dropdown dari Master Backend) -->
+            <div class="mb-3">
+              <label class="form-label fw-bold text-dark small">Pilih Alasan Pembatalan <span class="text-danger">*</span></label>
+              <select v-model="cancelForm.reason_id" class="form-select form-select-custom" @change="onReasonChange" :disabled="cancelSubmitting">
+                <option value="">-- Pilih Alasan Pembatalan --</option>
+                <option v-for="r in cancellationReasons" :key="r.id" :value="r.id">
+                  {{ r.reason }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Jika 'Lainnya' dipilih -> Remark Wajib Diisi -->
+            <div v-if="isRemarkRequired" class="mb-3 animate-fade-in">
+              <label class="form-label fw-bold text-danger small">
+                Tuliskan Alasan / Catatan Pembatalan <span class="text-danger">*</span>
+              </label>
+              <textarea v-model="cancelForm.remark" rows="3" class="form-control form-control-custom" 
+                        placeholder="Contoh: Ada keperluan mendadak, mohon dibatalkan..." 
+                        :disabled="cancelSubmitting" required></textarea>
+              <small class="text-muted" style="font-size: 0.75rem;">* Wajib diisi karena Anda memilih opsi Lainnya.</small>
+            </div>
+
+            <!-- 2. Informasi Pengembalian Dana & OTP (HANYA JIKA BAYAR LANGSUNG / MIDTRANS) -->
+            <div v-if="isMidtransOrPaidOrder" class="refund-section mt-3 pt-3 border-top animate-fade-in">
+              <!-- Info Box H+1 -->
+              <div class="refund-notice-box mb-3 p-3 rounded border border-warning bg-warning-subtle">
+                <div class="d-flex align-items-start gap-2">
+                  <i class="fa-solid fa-shield-halved text-warning-emphasis fs-5 mt-1 flex-shrink-0"></i>
+                  <div>
+                    <strong class="text-dark d-block">💡 Informasi Pengembalian Dana (Refund H+1)</strong>
+                    <p class="mb-0 text-dark small" style="line-height: 1.45;">
+                      Untuk pesanan yang dibayar langsung menggunakan Midtrans/online, pengembalian dana sebesar 
+                      <strong class="text-success font-mono">Rp {{ formatNumber(orderData.order?.total_amount) }}</strong> 
+                      akan diproses pada <strong>H+1 hari kerja</strong>. Pastikan email aktif & nomor rekening Anda sudah benar untuk menerima notifikasi status pengembalian.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Form Rekening Bank -->
+              <div class="row g-2 mb-3">
+                <div class="col-12">
+                  <label class="form-label fw-bold text-dark small">Email Aktif untuk Notifikasi Refund <span class="text-danger">*</span></label>
+                  <input type="email" v-model="cancelForm.refund_email" class="form-control form-control-custom" 
+                         placeholder="email@anda.com" :disabled="cancelSubmitting || otpSent" required />
+                  <small class="text-muted" style="font-size: 0.74rem;">Kode OTP dan bukti transfer refund akan dikirimkan ke email ini.</small>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label fw-bold text-dark small">Nama Bank <span class="text-danger">*</span></label>
+                  <select v-model="cancelForm.refund_bank_name" class="form-select form-select-custom" :disabled="cancelSubmitting || otpSent">
+                    <option value="BCA">Bank BCA</option>
+                    <option value="Mandiri">Bank Mandiri</option>
+                    <option value="BRI">Bank BRI</option>
+                    <option value="BNI">Bank BNI</option>
+                    <option value="BSI">Bank Syariah Indonesia (BSI)</option>
+                    <option value="CIMB Niaga">Bank CIMB Niaga</option>
+                    <option value="Permata">Bank Permata</option>
+                    <option value="Danamon">Bank Danamon</option>
+                    <option value="BTN">Bank BTN</option>
+                    <option value="Jenius">Bank BTPN / Jenius</option>
+                    <option value="SeaBank">SeaBank</option>
+                    <option value="Lainnya">Bank Lainnya</option>
+                  </select>
+                </div>
+
+                <div v-if="cancelForm.refund_bank_name === 'Lainnya'" class="col-md-6 animate-fade-in">
+                  <label class="form-label fw-bold text-dark small">Sebutkan Nama Bank <span class="text-danger">*</span></label>
+                  <input type="text" v-model="cancelForm.custom_bank_name" class="form-control form-control-custom" 
+                         placeholder="Contoh: Bank Neo Commerce, dll" :disabled="cancelSubmitting || otpSent" required />
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label fw-bold text-dark small">Nomor Rekening Bank <span class="text-danger">*</span></label>
+                  <input type="text" v-model="cancelForm.refund_bank_account_number" class="form-control form-control-custom font-mono" 
+                         placeholder="Contoh: 1234567890" :disabled="cancelSubmitting || otpSent" required />
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-bold text-dark small">Nama Pemilik Rekening (Nama Akun) <span class="text-danger">*</span></label>
+                  <input type="text" v-model="cancelForm.refund_bank_account_name" class="form-control form-control-custom" 
+                         placeholder="Contoh: Sesuai buku tabungan / m-banking" :disabled="cancelSubmitting || otpSent" required />
+                </div>
+              </div>
+
+              <!-- OTP Verification Box -->
+              <div class="otp-box p-3 rounded border bg-light">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <label class="form-label fw-bold text-dark mb-0 small">
+                    <i class="fa-solid fa-key text-warning me-1"></i> Verifikasi OTP dari Email <span class="text-danger">*</span>
+                  </label>
+                  <span v-if="otpSent" class="badge bg-success-subtle text-success border border-success-subtle font-mono small">
+                    OTP Terkirim
+                  </span>
+                </div>
+
+                <div v-if="!otpSent">
+                  <p class="text-muted small mb-2" style="font-size: 0.8rem;">
+                    Klik tombol di bawah untuk mengirimkan 6 digit kode OTP ke email aktif Anda:
+                  </p>
+                  <button type="button" class="btn btn-primary btn-sm fw-bold w-100 py-2 shadow-xs" 
+                          :disabled="sendingOtp || !isRefundBankFormValid" @click="sendCancelOtp">
+                    <span v-if="sendingOtp"><i class="fa-solid fa-spinner fa-spin me-1"></i> Mengirim OTP...</span>
+                    <span v-else><i class="fa-solid fa-paper-plane me-1"></i> Kirim Kode OTP ke Email</span>
+                  </button>
+                  <small v-if="!isRefundBankFormValid" class="text-muted d-block text-center mt-1" style="font-size: 0.72rem;">
+                    (Lengkapi email dan data rekening di atas terlebih dahulu)
+                  </small>
+                </div>
+
+                <div v-else class="animate-fade-in">
+                  <div class="alert alert-info py-2 px-3 small d-flex align-items-center justify-content-between mb-2">
+                    <div>
+                      <i class="fa-solid fa-envelope-circle-check text-info me-1"></i>
+                      <span>Kode OTP telah dikirim ke <strong>{{ cancelForm.refund_email }}</strong>.</span>
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    <input type="text" v-model="cancelForm.otp" maxlength="6" 
+                           class="form-control form-control-custom font-mono text-center fs-4 fw-bold" 
+                           placeholder="------" style="letter-spacing: 6px;" :disabled="cancelSubmitting" />
+                    <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap py-2 px-3" 
+                            :disabled="sendingOtp || otpCountdown > 0" @click="sendCancelOtp">
+                      <span v-if="otpCountdown > 0">{{ otpCountdown }}s</span>
+                      <span v-else>Kirim Ulang</span>
+                    </button>
+                  </div>
+                  <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
+                    Periksa folder Inbox atau Spam email Anda. Masukkan 6 digit kode OTP.
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="cancel-modal-footer p-3 bg-light d-flex justify-content-end gap-2 border-top">
+            <button type="button" class="btn btn-light fw-semibold" @click="closeCancelModal" :disabled="cancelSubmitting">
+              Batal / Tutup
+            </button>
+            <button type="button" class="btn btn-danger fw-bold px-4 shadow-sm" 
+                    :disabled="!isCancelFormValid || cancelSubmitting" @click="submitCancelOrder">
+              <span v-if="cancelSubmitting">
+                <i class="fa-solid fa-spinner fa-spin me-1"></i> Membatalkan Pesanan...
+              </span>
+              <span v-else>
+                <i class="fa-solid fa-ban me-1"></i> Ya, Batalkan Pesanan
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </AppLayout>
 </template>
 
@@ -824,16 +1045,255 @@ const cleanPhone = (phone) => {
   return phone.replace(/[^0-9]/g, '').replace(/^0/, '62')
 }
 
+// ==========================================
+// CANCEL ORDER & REFUND STATE
+// ==========================================
+const showCancelModal = ref(false)
+const cancellationReasons = ref([])
+const loadingReasons = ref(false)
+const cancelSubmitting = ref(false)
+const cancelError = ref('')
+const otpSent = ref(false)
+const sendingOtp = ref(false)
+const otpCountdown = ref(0)
+let otpCountdownTimer = null
+
+const cancelForm = ref({
+  reason_id: '',
+  reason: '',
+  remark: '',
+  refund_email: '',
+  refund_bank_name: 'BCA',
+  custom_bank_name: '',
+  refund_bank_account_number: '',
+  refund_bank_account_name: '',
+  otp: ''
+})
+
+const canCancelOrder = computed(() => {
+  if (!orderData.value?.order) return false
+  const status = orderData.value.order.status
+  return status !== 'Order Reject' && status !== 'Order Ready' && status !== 'Order On Delivery' && !orderData.value.order.cancelled_at
+})
+
+const isMidtransOrPaidOrder = computed(() => {
+  if (!orderData.value?.order) return false
+  const ord = orderData.value.order
+  if (isCodOrder(ord)) return false
+
+  const pm = String(ord.payment_method || '').toLowerCase()
+  const isMidtransMethod = pm.includes('midtrans') || pm.includes('payment gateway') || ord.payment_gateway_provider === 'midtrans' || !!ord.snap_token
+  const isPaid = ord.payment_status === 'paid' || ord.payment_status === 'payment_on_review'
+
+  return isMidtransMethod || isPaid
+})
+
+const selectedReason = computed(() => {
+  return cancellationReasons.value.find(r => r.id === cancelForm.value.reason_id)
+})
+
+const isRemarkRequired = computed(() => {
+  if (!selectedReason.value) return false
+  return selectedReason.value.requires_remark || selectedReason.value.reason?.toLowerCase() === 'lainnya'
+})
+
+const isRefundBankFormValid = computed(() => {
+  if (!isMidtransOrPaidOrder.value) return true
+  const f = cancelForm.value
+  const hasEmail = !!f.refund_email && f.refund_email.includes('@')
+  const hasBank = f.refund_bank_name === 'Lainnya' ? !!f.custom_bank_name?.trim() : !!f.refund_bank_name
+  const hasNorek = !!f.refund_bank_account_number?.trim()
+  const hasNama = !!f.refund_bank_account_name?.trim()
+  return hasEmail && hasBank && hasNorek && hasNama
+})
+
+const isCancelFormValid = computed(() => {
+  if (!cancelForm.value.reason_id) return false
+  if (isRemarkRequired.value && !cancelForm.value.remark?.trim()) return false
+
+  if (isMidtransOrPaidOrder.value) {
+    if (!isRefundBankFormValid.value) return false
+    if (!cancelForm.value.otp || cancelForm.value.otp.trim().length !== 6) return false
+  }
+
+  return true
+})
+
+const fetchCancellationReasons = async () => {
+  if (cancellationReasons.value.length > 0) return
+  try {
+    loadingReasons.value = true
+    const res = await axios.get('/api/v1/cancellation-reasons?applies_to=customer')
+    if (res.data?.success && Array.isArray(res.data?.data)) {
+      cancellationReasons.value = res.data.data
+    }
+  } catch (e) {
+    console.warn('Gagal memuat master alasan pembatalan:', e)
+  } finally {
+    loadingReasons.value = false
+  }
+}
+
+const openCancelModal = () => {
+  cancelError.value = ''
+  otpSent.value = false
+  if (otpCountdownTimer) clearInterval(otpCountdownTimer)
+  otpCountdown.value = 0
+
+  cancelForm.value = {
+    reason_id: '',
+    reason: '',
+    remark: '',
+    refund_email: orderData.value?.order?.client?.email || '',
+    refund_bank_name: 'BCA',
+    custom_bank_name: '',
+    refund_bank_account_number: '',
+    refund_bank_account_name: orderData.value?.order?.client?.name || '',
+    otp: ''
+  }
+
+  fetchCancellationReasons()
+  showCancelModal.value = true
+}
+
+const closeCancelModal = () => {
+  if (cancelSubmitting.value) return
+  showCancelModal.value = false
+}
+
+const onReasonChange = () => {
+  const r = selectedReason.value
+  cancelForm.value.reason = r ? r.reason : ''
+  if (!isRemarkRequired.value) {
+    cancelForm.value.remark = ''
+  }
+}
+
+const sendCancelOtp = async () => {
+  if (!isRefundBankFormValid.value || sendingOtp.value || !orderData.value?.order) return
+
+  try {
+    sendingOtp.value = true
+    cancelError.value = ''
+
+    const effectiveBank = cancelForm.value.refund_bank_name === 'Lainnya'
+      ? cancelForm.value.custom_bank_name.trim()
+      : cancelForm.value.refund_bank_name
+
+    const orderNum = orderData.value.order.order_number
+    const res = await axios.post(`/api/v1/orders/${orderNum}/cancel-otp`, {
+      email: cancelForm.value.refund_email.trim(),
+      bank_name: effectiveBank,
+      account_number: cancelForm.value.refund_bank_account_number.trim(),
+      account_name: cancelForm.value.refund_bank_account_name.trim(),
+    })
+
+    if (res.data?.success) {
+      otpSent.value = true
+      startOtpCountdown(60)
+      if (res.data.debug_otp) {
+        cancelForm.value.otp = res.data.debug_otp
+      }
+    } else {
+      cancelError.value = res.data?.message || 'Gagal mengirim kode OTP.'
+    }
+  } catch (err) {
+    cancelError.value = err.response?.data?.message || 'Gagal mengirim kode OTP. Pastikan email valid.'
+  } finally {
+    sendingOtp.value = false
+  }
+}
+
+const startOtpCountdown = (seconds) => {
+  if (otpCountdownTimer) clearInterval(otpCountdownTimer)
+  otpCountdown.value = seconds
+  otpCountdownTimer = setInterval(() => {
+    otpCountdown.value--
+    if (otpCountdown.value <= 0) {
+      clearInterval(otpCountdownTimer)
+    }
+  }, 1000)
+}
+
+const submitCancelOrder = async () => {
+  if (!isCancelFormValid.value || cancelSubmitting.value || !orderData.value?.order) return
+
+  try {
+    cancelSubmitting.value = true
+    cancelError.value = ''
+
+    const effectiveBank = cancelForm.value.refund_bank_name === 'Lainnya'
+      ? cancelForm.value.custom_bank_name.trim()
+      : cancelForm.value.refund_bank_name
+
+    const payload = {
+      reason_id: cancelForm.value.reason_id,
+      reason: cancelForm.value.reason,
+      remark: cancelForm.value.remark ? cancelForm.value.remark.trim() : null,
+      refund_email: isMidtransOrPaidOrder.value ? cancelForm.value.refund_email.trim() : null,
+      refund_bank_name: isMidtransOrPaidOrder.value ? effectiveBank : null,
+      refund_bank_account_number: isMidtransOrPaidOrder.value ? cancelForm.value.refund_bank_account_number.trim() : null,
+      refund_bank_account_name: isMidtransOrPaidOrder.value ? cancelForm.value.refund_bank_account_name.trim() : null,
+      otp: isMidtransOrPaidOrder.value ? cancelForm.value.otp.trim() : null,
+    }
+
+    const orderNum = orderData.value.order.order_number
+    const res = await axios.post(`/api/v1/orders/${orderNum}/cancel`, payload)
+
+    if (res.data?.success) {
+      try {
+        localStorage.removeItem('naumil_guest_pending_order')
+      } catch (e) {}
+
+      if (res.data.data?.order) {
+        orderData.value.order = res.data.data.order
+      } else {
+        orderData.value.order.status = 'Order Reject'
+        orderData.value.order.rejection_reason = payload.reason
+      }
+      orderData.value.is_rejected = true
+      orderData.value.rejection_reason = res.data.data?.rejection_reason || payload.reason
+      orderData.value.cancellation_reason = payload.reason
+      orderData.value.cancellation_remark = payload.remark
+      orderData.value.refund_bank_name = payload.refund_bank_name
+      orderData.value.refund_bank_account_number = payload.refund_bank_account_number
+      orderData.value.refund_bank_account_name = payload.refund_bank_account_name
+      orderData.value.refund_status = res.data.data?.refund_status || (isMidtransOrPaidOrder.value ? 'pending' : null)
+
+      showCancelModal.value = false
+      alert(res.data.message || 'Pesanan berhasil dibatalkan.')
+    } else {
+      cancelError.value = res.data?.message || 'Gagal membatalkan pesanan.'
+    }
+  } catch (err) {
+    cancelError.value = err.response?.data?.message || 'Terjadi kesalahan saat membatalkan pesanan.'
+  } finally {
+    cancelSubmitting.value = false
+  }
+}
+
 onMounted(() => {
   if (props.orderNumber) {
     loadTrace(props.orderNumber)
   }
+
+  // Auto open cancel modal if action=cancel in URL query
+  setTimeout(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('action') === 'cancel') {
+        openCancelModal()
+      }
+    }
+  }, 1000)
+
   // 3-second live heartbeat polling backup
   pollTimer = setInterval(silentRefresh, 3000)
 })
 
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
+  if (otpCountdownTimer) clearInterval(otpCountdownTimer)
   if (pusherInstance) {
     try {
       if (currentSubscribedOrder) pusherInstance.unsubscribe(`order.${currentSubscribedOrder}`)
@@ -981,5 +1441,110 @@ onUnmounted(() => {
   0% { opacity: 1; }
   50% { opacity: 0.4; }
   100% { opacity: 1; }
+}
+
+/* ================= CANCEL MODAL STYLES ================= */
+.cancel-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(5px);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.cancel-modal-dialog {
+  max-width: 580px;
+  width: 100%;
+  background: #ffffff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.cancel-modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+}
+
+.cancel-icon-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #fee2e2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.btn-close-modal {
+  background: transparent;
+  border: none;
+  font-size: 1.3rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+}
+
+.btn-close-modal:hover {
+  color: #0f172a;
+}
+
+.cancel-modal-body {
+  overflow-y: auto;
+}
+
+.form-select-custom, .form-control-custom {
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+}
+
+.form-select-custom:focus, .form-control-custom:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.refund-notice-box {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+}
+
+.otp-box {
+  background: #f8fafc;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 </style>

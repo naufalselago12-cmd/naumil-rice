@@ -8,6 +8,7 @@ class StoreNotification extends Model
 {
     public const TYPE_COD = 'cod';       // Bayar setelah makanan jadi
     public const TYPE_DIRECT = 'direct'; // Bayar langsung (QRIS / Payment Gateway)
+    public const TYPE_CANCEL = 'cancel'; // Pesanan dibatalkan (customer / admin)
 
     protected $fillable = [
         'store_id',

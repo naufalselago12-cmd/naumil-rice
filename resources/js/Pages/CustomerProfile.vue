@@ -270,9 +270,16 @@
                         </span>
                       </div>
 
-                      <Link :href="'/trace/' + order.order_number" class="btn btn-sm btn-outline-primary">
-                        <i class="fa-solid fa-location-crosshairs me-1"></i> Lacak Status Pesanan
-                      </Link>
+                      <div class="d-flex align-items-center gap-2">
+                        <Link :href="'/trace/' + order.order_number" class="btn btn-sm btn-outline-primary">
+                          <i class="fa-solid fa-location-crosshairs me-1"></i> Lacak Status Pesanan
+                        </Link>
+                        <Link v-if="order.status !== 'Order Reject' && order.status !== 'Order Ready' && order.status !== 'Order On Delivery'" 
+                              :href="'/trace/' + order.order_number + '?action=cancel'" 
+                              class="btn btn-sm btn-outline-danger">
+                          <i class="fa-solid fa-ban me-1"></i> Batalkan
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>

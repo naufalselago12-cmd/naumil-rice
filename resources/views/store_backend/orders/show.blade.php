@@ -134,19 +134,66 @@
 
     <!-- Right Column: Status Updater & Payment Info -->
     <div class="col-lg-4">
+        @if($order->status === 'Order Reject' || $order->is_cancelled)
+        <!-- Cancellation Details Card -->
+        <div class="card-custom mb-4 border-danger">
+            <div class="card-custom-header bg-danger text-white">
+                <h5 class="card-custom-title text-white"><i class="fa-solid fa-ban me-2"></i> Pesanan Dibatalkan</h5>
+            </div>
+            <div class="p-3">
+                <div class="mb-2">
+                    <small class="text-muted d-block">Dibatalkan Oleh:</small>
+                    <span class="badge {{ $order->cancelled_by === 'customer' ? 'bg-info text-white' : 'bg-dark' }}">
+                        {{ $order->cancelled_by === 'customer' ? 'Pelanggan (Customer)' : 'Admin Toko' }}
+                    </span>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted d-block">Alasan Pembatalan:</small>
+                    <strong class="text-danger">{{ $order->cancellation_reason ?: ($order->rejection_reason ?: 'Tidak dicantumkan') }}</strong>
+                </div>
+                @if($order->cancellation_remark)
+                <div class="mb-2 p-2 bg-light rounded border small">
+                    <strong>Catatan Tambahan:</strong> {{ $order->cancellation_remark }}
+                </div>
+                @endif
+                @if($order->cancelled_at)
+                <div class="mb-2">
+                    <small class="text-muted d-block">Waktu Pembatalan:</small>
+                    <span class="font-mono small">{{ $order->cancelled_at->format('d/m/Y H:i:s') }} WIB</span>
+                </div>
+                @endif
+
+                @if($order->refund_bank_name || $order->refund_bank_account_number)
+                <div class="mt-3 p-3 bg-warning-subtle border border-warning rounded">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <i class="fa-solid fa-money-bill-transfer text-warning-emphasis fs-5"></i>
+                        <strong class="text-dark small">Pengajuan Pengembalian Dana (Refund H+1)</strong>
+                    </div>
+                    <div class="small">
+                        <div><strong>Bank:</strong> {{ $order->refund_bank_name }}</div>
+                        <div><strong>No. Rekening:</strong> <span class="font-mono">{{ $order->refund_bank_account_number }}</span></div>
+                        <div><strong>Atas Nama:</strong> {{ $order->refund_bank_account_name }}</div>
+                        <div><strong>Email Notifikasi:</strong> {{ $order->refund_email ?: $order->client?->email }}</div>
+                        <div><strong>Status Refund:</strong> <span class="badge bg-warning text-dark">{{ strtoupper($order->refund_status ?: 'PENDING') }}</span></div>
+                    </div>
+                </div>
+                @endif
+            </div>
+        </div>
+        @else
         <!-- Update Status Card -->
         <div class="card-custom mb-4 border-primary">
             <div class="card-custom-header bg-primary text-white">
                 <h5 class="card-custom-title text-white"><i class="fa-solid fa-sliders me-2"></i> Update Tahapan Pesanan</h5>
             </div>
             <div class="p-3">
-                <form action="{{ route('store.backend.orders.updateStatus', ['store_slug' => $store->slug, 'order' => $order->id]) }}" method="POST">
+                <form action="{{ route('store.backend.orders.updateStatus', ['store_slug' => $store->slug, 'order' => $order->id]) }}" method="POST" id="formUpdateStatus">
                     @csrf
                     @method('PATCH')
 
                     <div class="mb-3">
                         <label class="form-label fw-bold">Pilih Status Baru <span class="text-danger">*</span></label>
-                        <select name="status" class="form-select" required>
+                        <select name="status" class="form-select" id="statusSelect" required>
                             <option value="Order Konfirmed" {{ $order->status === 'Order Konfirmed' ? 'selected' : '' }}>1. Order Konfirmed (Pesanan Diterima)</option>
                             <option value="Order On Proses" {{ $order->status === 'Order On Proses' ? 'selected' : '' }}>2. Order On Proses (Sedang Dimasak di Dapur)</option>
                             <option value="Order On Packaging" {{ $order->status === 'Order On Packaging' ? 'selected' : '' }}>3. Order On Packaging (Sedang Dikemas)</option>
@@ -154,6 +201,24 @@
                             <option value="Order Ready" {{ $order->status === 'Order Ready' ? 'selected' : '' }}>5. Order Ready (Selesai / Siap Diambil)</option>
                             <option value="Order Reject" {{ $order->status === 'Order Reject' ? 'selected' : '' }}>6. Order Reject (Pesanan Dibatalkan)</option>
                         </select>
+                    </div>
+
+                    <div id="rejectReasonBox" style="display: none;" class="p-3 mb-3 bg-danger-subtle border border-danger-subtle rounded">
+                        <label class="form-label fw-bold text-danger">Pilih Alasan Pembatalan <span class="text-danger">*</span></label>
+                        <select name="cancellation_reason_id" id="cancelReasonSelect" class="form-select mb-2">
+                            <option value="">-- Pilih Alasan Pembatalan --</option>
+                            @foreach($cancellationReasons ?? [] as $reason)
+                                <option value="{{ $reason->id }}" data-text="{{ $reason->reason }}" data-requires-remark="{{ $reason->requires_remark ? '1' : '0' }}">
+                                    {{ $reason->reason }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <input type="hidden" name="cancellation_reason" id="cancellationReasonInput" value="">
+
+                        <div id="cancelRemarkBox" style="display: none;">
+                            <label class="form-label fw-bold small text-danger">Catatan Detail (Wajib untuk 'Lainnya') <span class="text-danger">*</span></label>
+                            <textarea name="cancellation_remark" id="cancelRemarkInput" rows="2" class="form-control" placeholder="Tuliskan alasan pembatalan..."></textarea>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -165,8 +230,14 @@
                         <i class="fa-solid fa-check me-1"></i> Perbarui Status Sekarang
                     </button>
                 </form>
+
+                <hr class="my-3">
+                <button type="button" class="btn btn-outline-danger w-100 fw-bold btn-sm" data-bs-toggle="modal" data-bs-target="#modalCancelOrderAdmin">
+                    <i class="fa-solid fa-ban me-1"></i> Batalkan Pesanan Ini
+                </button>
             </div>
         </div>
+        @endif
 
         <!-- Payment Info Card -->
         <div class="card-custom">
@@ -310,4 +381,116 @@
         </div>
     </div>
 </div>
+
+{{-- Modal Cancel Order Admin --}}
+<div class="modal fade" id="modalCancelOrderAdmin" tabindex="-1" aria-labelledby="modalCancelOrderAdminLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold" id="modalCancelOrderAdminLabel">
+                    <i class="fa-solid fa-ban me-2"></i> Batalkan Pesanan #{{ $order->order_number }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('store.backend.orders.cancel', ['store_slug' => $store->slug, 'order' => $order->id]) }}" method="POST">
+                @csrf
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">
+                        Apakah Anda yakin ingin membatalkan pesanan ini? Stok menu akan otomatis dikembalikan ke dapur dan status pesanan berubah menjadi <strong>Order Reject</strong>.
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Pilih Alasan Pembatalan <span class="text-danger">*</span></label>
+                        <select name="cancellation_reason_id" id="modalCancelReasonSelect" class="form-select" required>
+                            <option value="">-- Pilih Alasan --</option>
+                            @foreach($cancellationReasons ?? [] as $reason)
+                                <option value="{{ $reason->id }}" data-text="{{ $reason->reason }}" data-requires-remark="{{ $reason->requires_remark ? '1' : '0' }}">
+                                    {{ $reason->reason }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <input type="hidden" name="reason" id="modalReasonTextInput" value="">
+                    </div>
+
+                    <div class="mb-3" id="modalRemarkGroup" style="display: none;">
+                        <label class="form-label fw-bold">Catatan Tambahan (Remark) <span class="text-danger">*</span></label>
+                        <textarea name="remark" id="modalRemarkText" rows="3" class="form-control" placeholder="Tuliskan keterangan detail alasan pembatalan..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                    <button type="submit" class="btn btn-danger fw-bold" id="btnSubmitCancelAdmin">
+                        <i class="fa-solid fa-ban me-1"></i> Ya, Batalkan Pesanan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // 1. In-page update status reject toggle
+    const statusSelect = document.getElementById('statusSelect');
+    const rejectReasonBox = document.getElementById('rejectReasonBox');
+    const cancelReasonSelect = document.getElementById('cancelReasonSelect');
+    const cancellationReasonInput = document.getElementById('cancellationReasonInput');
+    const cancelRemarkBox = document.getElementById('cancelRemarkBox');
+    const cancelRemarkInput = document.getElementById('cancelRemarkInput');
+
+    if (statusSelect && rejectReasonBox) {
+        statusSelect.addEventListener('change', function () {
+            if (this.value === 'Order Reject') {
+                rejectReasonBox.style.display = 'block';
+                if (cancelReasonSelect) cancelReasonSelect.required = true;
+            } else {
+                rejectReasonBox.style.display = 'none';
+                if (cancelReasonSelect) cancelReasonSelect.required = false;
+            }
+        });
+
+        if (cancelReasonSelect) {
+            cancelReasonSelect.addEventListener('change', function () {
+                const opt = this.options[this.selectedIndex];
+                const text = opt ? opt.getAttribute('data-text') : '';
+                const req = opt ? opt.getAttribute('data-requires-remark') === '1' : false;
+                if (cancellationReasonInput) cancellationReasonInput.value = text || '';
+
+                if (req || (text && text.toLowerCase() === 'lainnya')) {
+                    if (cancelRemarkBox) cancelRemarkBox.style.display = 'block';
+                    if (cancelRemarkInput) cancelRemarkInput.required = true;
+                } else {
+                    if (cancelRemarkBox) cancelRemarkBox.style.display = 'none';
+                    if (cancelRemarkInput) cancelRemarkInput.required = false;
+                }
+            });
+        }
+    }
+
+    // 2. Modal cancel order toggle
+    const modalSelect = document.getElementById('modalCancelReasonSelect');
+    const modalReasonInput = document.getElementById('modalReasonTextInput');
+    const modalRemarkGroup = document.getElementById('modalRemarkGroup');
+    const modalRemarkText = document.getElementById('modalRemarkText');
+
+    if (modalSelect) {
+        modalSelect.addEventListener('change', function () {
+            const opt = this.options[this.selectedIndex];
+            const text = opt ? opt.getAttribute('data-text') : '';
+            const req = opt ? opt.getAttribute('data-requires-remark') === '1' : false;
+            if (modalReasonInput) modalReasonInput.value = text || '';
+
+            if (req || (text && text.toLowerCase() === 'lainnya')) {
+                if (modalRemarkGroup) modalRemarkGroup.style.display = 'block';
+                if (modalRemarkText) modalRemarkText.required = true;
+            } else {
+                if (modalRemarkGroup) modalRemarkGroup.style.display = 'none';
+                if (modalRemarkText) modalRemarkText.required = false;
+            }
+        });
+    }
+});
+</script>
+@endpush
 @endsection

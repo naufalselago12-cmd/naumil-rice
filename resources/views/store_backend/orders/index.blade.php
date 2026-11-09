@@ -117,6 +117,14 @@
                         </td>
                         <td>
                             <span class="badge {{ $statusBadgeClass }}">{{ $ord->status }}</span>
+                            @if($ord->cancellation_reason)
+                                <small class="text-danger d-block mt-1 text-truncate" style="max-width: 140px;" title="{{ $ord->cancellation_reason }}">
+                                    <i class="fa-solid fa-ban me-1"></i>{{ $ord->cancellation_reason }}
+                                </small>
+                            @endif
+                            @if($ord->refund_status === 'pending')
+                                <span class="badge bg-warning text-dark d-block mt-1">Refund H+1</span>
+                            @endif
                         </td>
                         <td class="text-end text-nowrap">
                             <a href="{{ route('store.backend.orders.print', ['store_slug' => $store->slug, 'order' => $ord->id]) }}" 

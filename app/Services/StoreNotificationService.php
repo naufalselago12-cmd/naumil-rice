@@ -61,7 +61,18 @@ class StoreNotificationService
         return $this->record($order, StoreNotification::TYPE_DIRECT, $event);
     }
 
-    protected function record(Order $order, string $type, string $event): ?StoreNotification
+    /**
+     * Pesanan dibatalkan (oleh pelanggan atau admin).
+     */
+    public function notifyOrderCancelled(Order $order, string $cancelledBy = 'customer', ?string $reason = null): ?StoreNotification
+    {
+        return $this->record($order, StoreNotification::TYPE_CANCEL, 'order_cancelled', [
+            'cancelled_by' => $cancelledBy,
+            'cancellation_reason' => $reason,
+        ]);
+    }
+
+    protected function record(Order $order, string $type, string $event, array $extraData = []): ?StoreNotification
     {
         try {
             if (StoreNotification::where('order_id', $order->id)->where('type', $type)->where('event', $event)->exists()) {
@@ -69,7 +80,7 @@ class StoreNotificationService
             }
 
             $order->loadMissing(['client', 'items']);
-            $data = $this->snapshot($order);
+            $data = array_merge($this->snapshot($order), $extraData);
 
             [$title, $body] = $this->compose($type, $event, $data);
 
@@ -134,6 +145,14 @@ class StoreNotificationService
             'payment_status' => $order->payment_status,
             'order_status' => $order->status,
             'notes' => $order->notes,
+            'cancelled_by' => $order->cancelled_by,
+            'cancellation_reason' => $order->cancellation_reason,
+            'cancellation_remark' => $order->cancellation_remark,
+            'refund_status' => $order->refund_status,
+            'refund_email' => $order->refund_email,
+            'refund_bank_name' => $order->refund_bank_name,
+            'refund_bank_account_number' => $order->refund_bank_account_number,
+            'refund_bank_account_name' => $order->refund_bank_account_name,
         ];
     }
 
@@ -144,7 +163,12 @@ class StoreNotificationService
             ->implode(', ');
         $total = 'Rp ' . number_format($data['total'], 0, ',', '.');
 
-        if ($type === StoreNotification::TYPE_COD) {
+        if ($type === StoreNotification::TYPE_CANCEL || $event === 'order_cancelled') {
+            $actor = ($data['cancelled_by'] ?? 'customer') === 'customer' ? 'Pelanggan' : 'Admin';
+            $title = "Pesanan Dibatalkan ({$actor}) - " . $data['customer_name'];
+            $reasonStr = !empty($data['cancellation_reason']) ? " | Alasan: " . $data['cancellation_reason'] : "";
+            $body = "Pesanan #{$data['order_number']} telah dibatalkan ({$summary})\nTotal {$total}{$reasonStr}";
+        } elseif ($type === StoreNotification::TYPE_COD) {
             $title = 'Pesanan Baru (COD) - ' . $data['customer_name'];
             $body = "{$summary}\nTotal {$total} - Bayar setelah makanan jadi";
         } elseif ($event === 'payment_review') {
@@ -228,6 +252,9 @@ class StoreNotificationService
                         'payment_status' => $notification->data['payment_status'] ?? '',
                         'total' => (float) ($notification->data['total'] ?? 0),
                         'customer_name' => $notification->data['customer_name'] ?? '',
+                        'order_number' => $notification->data['order_number'] ?? '',
+                        'cancelled_by' => $notification->data['cancelled_by'] ?? '',
+                        'cancellation_reason' => $notification->data['cancellation_reason'] ?? '',
                     ],
                 ]);
 

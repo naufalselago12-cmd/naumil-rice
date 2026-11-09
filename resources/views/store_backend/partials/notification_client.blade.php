@@ -32,8 +32,10 @@
     #naumilToastHost { position: fixed; top: 76px; right: 18px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; width: min(380px, calc(100vw - 36px)); pointer-events: none; }
     .naumil-toast { pointer-events: auto; cursor: pointer; background: #fff; border-radius: 14px; padding: .85rem 1rem; box-shadow: 0 10px 30px rgba(15,23,42,.18); border-left: 6px solid #f59e0b; display: flex; gap: .75rem; align-items: flex-start; animation: naumilToastIn .35s cubic-bezier(.2,.9,.3,1.2); text-decoration: none; color: inherit; }
     .naumil-toast.is-direct { border-left-color: #10b981; }
+    .naumil-toast.is-cancel { border-left-color: #ef4444; }
     .naumil-toast .t-ico { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; background: #f59e0b; }
     .naumil-toast.is-direct .t-ico { background: #10b981; }
+    .naumil-toast.is-cancel .t-ico { background: #ef4444; }
     .naumil-toast .t-title { font-weight: 700; font-size: .88rem; color: #0f172a; line-height: 1.25; }
     .naumil-toast .t-sub { font-size: .78rem; color: #64748b; margin-top: 2px; }
     .naumil-toast.leaving { opacity: 0; transform: translateX(30px); transition: all .3s; }
@@ -102,13 +104,15 @@
         const host = document.getElementById('naumilToastHost');
         if (!host) return;
         const d = item.data || {};
+        const isCancel = item.type === 'cancel';
+        const isDirect = item.type === 'direct';
         const a = document.createElement('a');
-        a.className = 'naumil-toast ' + (item.type === 'direct' ? 'is-direct' : 'is-cod');
+        a.className = 'naumil-toast ' + (isCancel ? 'is-cancel' : (isDirect ? 'is-direct' : 'is-cod'));
         a.href = cfg.pageUrl;
 
         const ico = document.createElement('div');
         ico.className = 't-ico';
-        ico.innerHTML = '<i class="fa-solid ' + (item.type === 'direct' ? 'fa-circle-check' : 'fa-bell-concierge') + '"></i>';
+        ico.innerHTML = '<i class="fa-solid ' + (isCancel ? 'fa-ban' : (isDirect ? 'fa-circle-check' : 'fa-bell-concierge')) + '"></i>';
         const box = document.createElement('div');
         const t = document.createElement('div'); t.className = 't-title'; t.textContent = item.title;
         const s = document.createElement('div'); s.className = 't-sub';

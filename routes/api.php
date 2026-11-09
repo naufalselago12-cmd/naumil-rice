@@ -34,8 +34,13 @@ Route::prefix('v1')->group(function () {
     Route::post('/orders', [OrderApiController::class, 'store']);
     Route::get('/orders/trace/{orderNumber}', [OrderApiController::class, 'trace']);
     Route::post('/orders/{orderNumber}/upload-proof', [OrderApiController::class, 'uploadPaymentProof']);
+    Route::post('/orders/{orderNumber}/cancel-otp', [OrderApiController::class, 'sendCancelOtp']);
+    Route::post('/orders/{orderNumber}/cancel', [OrderApiController::class, 'cancelOrder']);
     Route::get('/orders/kds', [OrderApiController::class, 'kdsQueue']);
     Route::patch('/orders/{id}/status', [OrderApiController::class, 'updateStatus']);
+
+    // 4b. Master Cancellation Reasons (Customer & Admin)
+    Route::get('/cancellation-reasons', [\App\Http\Controllers\Api\CancellationReasonApiController::class, 'index']);
 
     // 5. Payment Gateway Webhook (Midtrans & Mayar.id)
     Route::match(['get', 'post'], '/payment/midtrans/notification/{store_slug?}', [\App\Http\Controllers\Api\MidtransWebhookController::class, 'handle']);
@@ -92,6 +97,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/orders/kds', [AdminOrderController::class, 'kds']);
             Route::get('/orders/{order}', [AdminOrderController::class, 'show']);
             Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus']);
+            Route::post('/orders/{order}/cancel', [AdminOrderController::class, 'cancel']);
             Route::post('/orders/{order}/verify-payment', [AdminOrderController::class, 'verifyPayment']);
             Route::post('/orders/{order}/sync-midtrans', [AdminOrderController::class, 'syncMidtrans']);
             Route::post('/orders/{order}/sync-mayar', [AdminOrderController::class, 'syncMayar']);

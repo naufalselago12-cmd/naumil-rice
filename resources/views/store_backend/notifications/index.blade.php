@@ -19,6 +19,7 @@
     .legend-chip { display: inline-flex; align-items: center; gap: .45rem; font-size: .78rem; font-weight: 700; padding: .3rem .75rem; border-radius: 999px; }
     .legend-chip.cod { background: #fef3c7; color: #92400e; }
     .legend-chip.direct { background: #d1fae5; color: #065f46; }
+    .legend-chip.cancel { background: #fee2e2; color: #991b1b; }
 
     .filter-tabs .btn { border-radius: 999px; font-size: .82rem; font-weight: 600; }
 
@@ -29,6 +30,8 @@
     .n-card.cod::before { background: linear-gradient(180deg, #f59e0b, #ea580c); }
     .n-card.direct { background: linear-gradient(135deg, #ecfdf5 0%, #e6faf1 100%); border-color: #a7f3d0; }
     .n-card.direct::before { background: linear-gradient(180deg, #10b981, #059669); }
+    .n-card.cancel { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-color: #fecaca; }
+    .n-card.cancel::before { background: linear-gradient(180deg, #ef4444, #b91c1c); }
     .n-card.unread { box-shadow: 0 6px 18px rgba(15,23,42,.08); }
     .n-card.is-new { animation: cardIn .6s ease, cardFlash 2.2s ease; }
     @keyframes cardIn { from { opacity: 0; transform: translateY(-14px) scale(.98); } to { opacity: 1; transform: none; } }
@@ -37,12 +40,14 @@
     .n-icon { width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; color: #fff; flex-shrink: 0; }
     .cod .n-icon { background: linear-gradient(135deg, #f59e0b, #ea580c); }
     .direct .n-icon { background: linear-gradient(135deg, #10b981, #059669); }
+    .cancel .n-icon { background: linear-gradient(135deg, #ef4444, #b91c1c); }
 
     .n-name { font-weight: 800; color: #0f172a; font-size: 1.02rem; line-height: 1.2; }
     .n-meta { font-size: .76rem; color: #64748b; }
     .n-badge { font-size: .7rem; font-weight: 800; padding: .25rem .65rem; border-radius: 999px; letter-spacing: .02em; white-space: nowrap; }
     .cod .n-badge { background: #f59e0b; color: #fff; }
     .direct .n-badge { background: #10b981; color: #fff; }
+    .cancel .n-badge { background: #ef4444; color: #fff; }
     .n-unread-dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; display: inline-block; margin-right: 6px; }
 
     .n-items { background: rgba(255,255,255,.75); border-radius: 12px; padding: .65rem .9rem; margin: .85rem 0; font-size: .86rem; }
@@ -52,7 +57,7 @@
     .n-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; }
     .n-total { font-family: var(--font-mono); font-weight: 800; font-size: 1.2rem; color: #0f172a; }
     .n-pay { font-size: .8rem; font-weight: 700; display: inline-flex; align-items: center; gap: .4rem; background: rgba(255,255,255,.85); padding: .3rem .7rem; border-radius: 10px; color: #334155; }
-    .cod .n-pay i { color: #ea580c; } .direct .n-pay i { color: #059669; }
+    .cod .n-pay i { color: #ea580c; } .direct .n-pay i { color: #059669; } .cancel .n-pay i { color: #dc2626; }
     .empty-state { text-align: center; padding: 3.5rem 1rem; color: #64748b; }
     .empty-state i { font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem; }
 </style>
@@ -98,6 +103,7 @@
             <button type="button" class="btn btn-sm btn-outline-dark" data-filter="unread">Belum dibaca <span class="badge bg-danger ms-1" data-notif-badge style="display:none;">0</span></button>
             <button type="button" class="btn btn-sm btn-outline-warning" data-filter="cod">COD</button>
             <button type="button" class="btn btn-sm btn-outline-success" data-filter="direct">Bayar Langsung</button>
+            <button type="button" class="btn btn-sm btn-outline-danger" data-filter="cancel">Dibatalkan</button>
         </div>
         <button type="button" class="btn btn-sm btn-outline-secondary" id="btnReadAll"><i class="fa-solid fa-check-double me-1"></i>Tandai semua dibaca</button>
     </div>
@@ -142,13 +148,15 @@
     function buildCard(item, isNew) {
         const d = item.data || {};
         const isCod = item.type === 'cod';
-        const card = el('div', 'n-card ' + (isCod ? 'cod' : 'direct') + (item.is_read ? '' : ' unread') + (isNew ? ' is-new' : ''));
+        const isCancel = item.type === 'cancel';
+        const cardType = isCancel ? 'cancel' : (isCod ? 'cod' : 'direct');
+        const card = el('div', 'n-card ' + cardType + (item.is_read ? '' : ' unread') + (isNew ? ' is-new' : ''));
         card.dataset.id = item.id;
 
         // Header
         const head = el('div', 'd-flex align-items-start gap-3');
         const icon = el('div', 'n-icon');
-        icon.innerHTML = '<i class="fa-solid ' + (isCod ? 'fa-bell-concierge' : 'fa-circle-check') + '"></i>';
+        icon.innerHTML = '<i class="fa-solid ' + (isCancel ? 'fa-ban' : (isCod ? 'fa-bell-concierge' : 'fa-circle-check')) + '"></i>';
         const who = el('div', 'flex-grow-1');
         const nameRow = el('div', 'n-name');
         if (!item.is_read) nameRow.append(el('span', 'n-unread-dot'));
@@ -161,9 +169,19 @@
         if (d.customer_whatsapp) meta.append(document.createTextNode(' · ' + d.customer_whatsapp));
         who.append(nameRow, meta);
 
-        const label = isCod ? 'COD · BAYAR SETELAH MAKANAN JADI'
-            : (item.event === 'payment_review' ? 'BAYAR LANGSUNG · MENUNGGU VERIFIKASI' : 'BAYAR LANGSUNG · LUNAS');
+        let label = isCancel ? 'PESANAN DIBATALKAN'
+            : (isCod ? 'COD · BAYAR SETELAH MAKANAN JADI'
+            : (item.event === 'payment_review' ? 'BAYAR LANGSUNG · MENUNGGU VERIFIKASI' : 'BAYAR LANGSUNG · LUNAS'));
+        if (isCancel && d.cancelled_by) {
+            label += ' (' + (d.cancelled_by === 'customer' ? 'PELANGGAN' : 'ADMIN') + ')';
+        }
         head.append(icon, who, el('span', 'n-badge', label));
+
+        if (isCancel && d.cancellation_reason) {
+            const reasonBox = el('div', 'alert alert-danger py-1 px-2 my-2 small');
+            reasonBox.innerHTML = '<strong>Alasan Pembatalan:</strong> ' + d.cancellation_reason;
+            who.append(reasonBox);
+        }
 
         // Rincian pembelian
         const items = el('div', 'n-items');

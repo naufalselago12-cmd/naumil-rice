@@ -74,23 +74,97 @@ class AdminOrderController extends BaseAdminController
             'status' => 'required|in:' . implode(',', Order::ALL_STATUSES),
             'note' => 'nullable|string',
             'rejection_reason' => 'nullable|string',
+            'cancellation_reason_id' => 'nullable|exists:cancellation_reasons,id',
+            'cancellation_reason' => 'nullable|string',
+            'cancellation_remark' => 'nullable|string',
         ]);
 
         $order->status = $v['status'];
         if ($v['status'] === Order::STATUS_REJECT) {
-            $order->rejection_reason = $v['rejection_reason'] ?? 'Pesanan dibatalkan oleh dapur cabang.';
+            $reason = $v['cancellation_reason'] ?? ($v['rejection_reason'] ?? 'Pesanan dibatalkan oleh dapur cabang.');
+            $remark = trim((string)($v['cancellation_remark'] ?? ''));
+            $fullReason = $reason . ($remark ? ' - ' . $remark : '');
+
+            $order->rejection_reason = $fullReason;
+            $order->cancelled_by = 'admin';
+            $order->cancellation_reason_id = $v['cancellation_reason_id'] ?? null;
+            $order->cancellation_reason = $reason;
+            $order->cancellation_remark = $remark ?: null;
+            $order->cancelled_at = now();
+
+            foreach ($order->items as $item) {
+                if ($item->menu) {
+                    $item->menu->increment('current_stock', $item->quantity);
+                }
+            }
+
+            app(\App\Services\StoreNotificationService::class)->notifyOrderCancelled($order, 'admin', $fullReason);
         }
         $order->save();
 
         OrderStatusLog::create([
             'order_id' => $order->id,
             'status' => $v['status'],
-            'note' => $v['note'] ?? 'Status diubah via Aplikasi Mobile ' . $store->name,
+            'note' => $v['note'] ?? ($v['status'] === Order::STATUS_REJECT ? ($order->rejection_reason ?? 'Pesanan dibatalkan oleh admin') : 'Status diubah via Aplikasi Mobile ' . $store->name),
         ]);
         $this->broadcast($order);
 
         return $this->ok(['data' => $order->load(['client', 'items.menu', 'statusLogs', 'campaign'])],
             "Status pesanan {$order->order_number} menjadi {$v['status']}.");
+    }
+
+    public function cancel(Request $request, Order $order)
+    {
+        $this->own($request, $order, 'Pesanan');
+        $store = $this->currentStore($request);
+
+        $v = $request->validate([
+            'cancellation_reason_id' => 'nullable|exists:cancellation_reasons,id',
+            'reason' => 'required|string|max:255',
+            'remark' => 'nullable|string|max:1000',
+        ]);
+
+        $reason = $v['reason'];
+        $remark = trim((string)($v['remark'] ?? ''));
+
+        if (!empty($v['cancellation_reason_id'])) {
+            $reasonModel = \App\Models\CancellationReason::find($v['cancellation_reason_id']);
+            if ($reasonModel && $reasonModel->requires_remark && empty($remark)) {
+                return $this->fail('Mohon isi catatan detail jika memilih alasan Lainnya.', 422);
+            }
+        } elseif (mb_strtolower($reason) === 'lainnya' && empty($remark)) {
+            return $this->fail('Mohon isi catatan detail jika memilih alasan Lainnya.', 422);
+        }
+
+        $fullReason = $reason . ($remark ? ' - ' . $remark : '');
+
+        $order->update([
+            'status' => Order::STATUS_REJECT,
+            'rejection_reason' => $fullReason,
+            'cancelled_by' => 'admin',
+            'cancellation_reason_id' => $v['cancellation_reason_id'] ?? null,
+            'cancellation_reason' => $reason,
+            'cancellation_remark' => $remark ?: null,
+            'cancelled_at' => now(),
+        ]);
+
+        foreach ($order->items as $item) {
+            if ($item->menu) {
+                $item->menu->increment('current_stock', $item->quantity);
+            }
+        }
+
+        OrderStatusLog::create([
+            'order_id' => $order->id,
+            'status' => Order::STATUS_REJECT,
+            'note' => 'Pesanan dibatalkan oleh Admin Dapur Cabang ' . $store->name . '. Alasan: ' . $fullReason,
+        ]);
+
+        $this->broadcast($order);
+        app(\App\Services\StoreNotificationService::class)->notifyOrderCancelled($order, 'admin', $fullReason);
+
+        return $this->ok(['data' => $order->load(['client', 'items.menu', 'statusLogs', 'campaign'])],
+            "Pesanan {$order->order_number} berhasil dibatalkan oleh Admin.");
     }
 
     public function verifyPayment(Request $request, Order $order)

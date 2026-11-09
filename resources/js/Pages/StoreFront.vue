@@ -30,6 +30,9 @@
               <Link :href="'/trace/' + pendingGuestOrder.order_number" class="btn btn-outline-dark btn-sm fw-semibold">
                 <i class="fa-solid fa-location-crosshairs me-1"></i> Lacak
               </Link>
+              <Link :href="'/trace/' + pendingGuestOrder.order_number + '?action=cancel'" class="btn btn-outline-danger btn-sm fw-semibold">
+                <i class="fa-solid fa-ban me-1"></i> Batal
+              </Link>
               <button type="button" class="btn-close ms-1" @click="showPendingOrderBanner = false" title="Tutup pemberitahuan"></button>
             </div>
           </div>
@@ -993,6 +996,9 @@
             <Link :href="'/trace/' + createdOrderData.order_number" class="btn btn-primary btn-modal-confirm py-2-5 text-decoration-none fw-bold">
               <i class="fa-solid fa-location-crosshairs me-2"></i> Lacak Status Pesanan (Kitchen Tracking)
             </Link>
+            <Link :href="'/trace/' + createdOrderData.order_number + '?action=cancel'" class="btn btn-outline-danger py-2 fw-semibold text-decoration-none">
+              <i class="fa-solid fa-ban me-1"></i> Batalkan Pesanan
+            </Link>
             <button class="btn btn-secondary btn-modal-back py-2-5" @click="resetAndCloseSuccessModal">
               Tutup & Selesai
             </button>
@@ -1761,8 +1767,8 @@ const checkCachedGuestOrder = async () => {
     const res = await axios.get(`/api/v1/orders/trace/${cached.order_number}`)
     if (res.data?.success && res.data?.data?.order) {
       const sOrder = res.data.data.order
-      // Jika pesanan sudah lunas atau metode pembayarannya COD, hapus cache dan jangan munculkan banner
-      if (sOrder.payment_status === 'paid' || isCodOrder(sOrder)) {
+      // Jika pesanan sudah lunas, metodenya COD, atau sudah dibatalkan/reject, hapus cache
+      if (sOrder.payment_status === 'paid' || isCodOrder(sOrder) || sOrder.status === 'Order Reject') {
         clearGuestOrderCache()
       } else {
         pendingGuestOrder.value = {
