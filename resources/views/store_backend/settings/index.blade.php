@@ -741,12 +741,302 @@
                 </div>
             </div>
 
+            <!-- 3. PENGATURAN KIRIM LANGSUNG KE RUMAH (KIRIMINAJA + GEOTAG OPENSTREETMAP) -->
+            <hr class="my-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                <div>
+                    <h6 class="fw-bold text-dark mb-1">
+                        <i class="fa-solid fa-truck-fast text-primary me-1"></i>
+                        3. Opsi Pengiriman KiriminAja (Kirim Langsung ke Rumah) & Geotag Toko
+                    </h6>
+                    <small class="text-muted">Aktifkan opsi kirim ke rumah untuk outlet ini menggunakan Select2 wilayah & pin peta OpenStreetMap.</small>
+                </div>
+                <span class="badge {{ ($kaEnv ?? 'sandbox') === 'production' ? 'bg-success' : 'bg-warning text-dark' }}">
+                    KiriminAja: {{ strtoupper($kaEnv ?? 'SANDBOX') }}
+                    {{ !empty($kaConfigured) ? '(API Key Aktif)' : '(API Key Belum Diisi)' }}
+                </span>
+            </div>
+
+            <div class="p-3 border rounded-3 bg-light mb-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="deliveryEnabledSwitch"
+                               name="delivery_enabled" value="1"
+                               {{ old('delivery_enabled', $store->delivery_enabled) ? 'checked' : '' }}
+                               onchange="toggleDeliverySettings(this.checked)">
+                        <label class="form-check-label fw-bold text-dark" for="deliveryEnabledSwitch">
+                            Aktifkan Opsi Kirim Langsung ke Rumah (KiriminAja) di Outlet Ini
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mt-1">
+                        Jika diaktifkan, admin toko wajib melengkapi alamat asal (Provinsi, Kota, Kecamatan, Kelurahan), Kode Pos, Catatan Gang/Patokan, dan Geotag Peta.
+                    </small>
+                </div>
+            </div>
+
+            <div id="section_delivery_settings" class="{{ old('delivery_enabled', $store->delivery_enabled) ? '' : 'd-none' }}">
+                <div class="p-3 border rounded-3 bg-white mb-4 shadow-sm">
+                    @if(empty($kaConfigured))
+                        <div class="alert alert-warning small py-2 mb-3">
+                            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                            <strong>Perhatian:</strong> <code>KIRIMINAJA_API_KEY</code> di file <code>.env</code> belum diisi. Dropdown wilayah & cek ongkir membutuhkan API Key KiriminAja yang valid.
+                        </div>
+                    @endif
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Provinsi Asal Toko <span class="text-danger">*</span></label>
+                            <select name="ka_province_id" id="selectKaProvince" class="form-select ka-delivery-required">
+                                @if(old('ka_province_id', $store->ka_province_id))
+                                    <option value="{{ old('ka_province_id', $store->ka_province_id) }}" selected>
+                                        {{ old('ka_province_name', $store->ka_province_name) }}
+                                    </option>
+                                @endif
+                            </select>
+                            <input type="hidden" name="ka_province_name" id="kaProvinceName" value="{{ old('ka_province_name', $store->ka_province_name) }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Kota / Kabupaten Asal <span class="text-danger">*</span></label>
+                            <select name="ka_city_id" id="selectKaCity" class="form-select ka-delivery-required">
+                                @if(old('ka_city_id', $store->ka_city_id))
+                                    <option value="{{ old('ka_city_id', $store->ka_city_id) }}" selected>
+                                        {{ old('ka_city_name', $store->ka_city_name) }}
+                                    </option>
+                                @endif
+                            </select>
+                            <input type="hidden" name="ka_city_name" id="kaCityName" value="{{ old('ka_city_name', $store->ka_city_name) }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Kecamatan Asal <span class="text-danger">*</span></label>
+                            <select name="ka_district_id" id="selectKaDistrict" class="form-select ka-delivery-required">
+                                @if(old('ka_district_id', $store->ka_district_id))
+                                    <option value="{{ old('ka_district_id', $store->ka_district_id) }}" selected>
+                                        {{ old('ka_district_name', $store->ka_district_name) }}
+                                    </option>
+                                @endif
+                            </select>
+                            <input type="hidden" name="ka_district_name" id="kaDistrictName" value="{{ old('ka_district_name', $store->ka_district_name) }}">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Kelurahan / Desa Asal <span class="text-danger">*</span></label>
+                            <select name="ka_subdistrict_id" id="selectKaSubdistrict" class="form-select ka-delivery-required">
+                                @if(old('ka_subdistrict_id', $store->ka_subdistrict_id))
+                                    <option value="{{ old('ka_subdistrict_id', $store->ka_subdistrict_id) }}" selected>
+                                        {{ old('ka_subdistrict_name', $store->ka_subdistrict_name) }}
+                                    </option>
+                                @endif
+                            </select>
+                            <input type="hidden" name="ka_subdistrict_name" id="kaSubdistrictName" value="{{ old('ka_subdistrict_name', $store->ka_subdistrict_name) }}">
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold small">Kode Pos <span class="text-danger">*</span></label>
+                            <input type="text" name="ka_postal_code" id="kaPostalCode" class="form-control font-mono ka-delivery-required"
+                                   maxlength="5" pattern="\d{5}" placeholder="12345"
+                                   value="{{ old('ka_postal_code', $store->ka_postal_code) }}">
+                        </div>
+
+                        <div class="col-md-7">
+                            <label class="form-label fw-semibold small">Alamat Lengkap Jalan / Ruko Toko (Min 10 karakter) <span class="text-danger">*</span></label>
+                            <textarea name="ka_address" id="kaAddress" rows="2" class="form-control ka-delivery-required"
+                                      minlength="10" placeholder="Jl. Contoh Raya No. 12, RT 01 / RW 02...">{{ old('ka_address', $store->ka_address) }}</textarea>
+                        </div>
+
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold small">Catatan Gang / Patokan Toko</label>
+                            <textarea name="ka_address_note" id="kaAddressNote" rows="2" class="form-control"
+                                      maxlength="150" placeholder="Contoh: Sebelah Alfamart, masuk gang mawar 20m pagar hitam...">{{ old('ka_address_note', $store->ka_address_note) }}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- Geotag Peta OpenStreetMap (NON-GMAPS) -->
+                    <div class="border rounded-3 p-3 bg-light mb-3">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+                            <label class="fw-bold text-dark small mb-0">
+                                <i class="fa-solid fa-map-pin text-danger me-1"></i>
+                                Geotag Lokasi Toko (OpenStreetMap - Klik & Geser Marker) <span class="text-danger">*</span>
+                            </label>
+                            <button type="button" class="btn btn-sm btn-outline-success fw-semibold" onclick="useStoreGpsLocation()">
+                                <i class="fa-solid fa-crosshairs me-1"></i> Deteksi GPS Saya
+                            </button>
+                        </div>
+
+                        <div class="input-group input-group-sm mb-2">
+                            <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass"></i></span>
+                            <input type="text" id="storeGeoSearchInput" class="form-control" placeholder="Cari lokasi di peta (mis: Jl. Sudirman Jakarta, Pasar Minggu)...">
+                            <button type="button" class="btn btn-primary" onclick="searchStoreGeo()">Cari Lokasi</button>
+                        </div>
+                        <div id="storeGeoSearchResults" class="list-group mb-2 d-none" style="max-height: 150px; overflow-y: auto;"></div>
+
+                        <div id="storeOriginMap" style="height: 300px; border-radius: 10px; border: 1px solid #cbd5e1; z-index: 1;"></div>
+
+                        <div class="row g-2 mt-2">
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted mb-1">Latitude <span class="text-danger">*</span></label>
+                                <input type="text" name="ka_latitude" id="kaLatitude" class="form-control form-control-sm font-mono bg-white ka-delivery-required"
+                                       readonly value="{{ old('ka_latitude', $store->ka_latitude) }}" placeholder="-6.208800">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted mb-1">Longitude <span class="text-danger">*</span></label>
+                                <input type="text" name="ka_longitude" id="kaLongitude" class="form-control form-control-sm font-mono bg-white ka-delivery-required"
+                                       readonly value="{{ old('ka_longitude', $store->ka_longitude) }}" placeholder="106.845600">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1">Alamat Terdeteksi Peta (Otomatis)</label>
+                                <input type="text" name="ka_geo_address" id="kaGeoAddress" class="form-control form-control-sm bg-white"
+                                       value="{{ old('ka_geo_address', $store->ka_geo_address) }}" placeholder="Klik atau geser marker di peta untuk mendeteksi alamat...">
+                            </div>
+                        </div>
+                        <div id="storeGeoRegionHint" class="small text-info-emphasis mt-2 d-none"></div>
+                    </div>
+
+                    <!-- Konfigurasi Kurir & Dimensi Paket -->
+                    <input type="hidden" name="delivery_couriers_submitted" value="1">
+                    @php
+                        $savedCouriers = old('delivery_couriers', $store->delivery_couriers ?? []);
+                    @endphp
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label fw-semibold small mb-1">Kurir Diizinkan (Kosongkan = Semua Kurir Aktif)</label>
+                            <div class="d-flex flex-wrap gap-3 p-2 border rounded bg-light">
+                                <div>
+                                    <span class="badge bg-primary-subtle text-primary me-1">Express:</span>
+                                    @foreach(($defaultExpressCouriers ?? ['jne','jnt','sicepat','anteraja','ninja','sap','idx','tiki']) as $code)
+                                        <div class="form-check form-check-inline mb-0">
+                                            <input class="form-check-input delivery-courier-checkbox" type="checkbox" name="delivery_couriers[]"
+                                                   id="courier_{{ $code }}" value="{{ $code }}"
+                                                   {{ in_array($code, (array) $savedCouriers, true) ? 'checked' : '' }}>
+                                            <label class="form-check-label small fw-semibold text-uppercase" for="courier_{{ $code }}">{{ $code }}</label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <div>
+                                    <span class="badge bg-success-subtle text-success me-1">Instant:</span>
+                                    @foreach(($defaultInstantCouriers ?? ['gosend','grab_express','borzo']) as $code)
+                                        <div class="form-check form-check-inline mb-0">
+                                            <input class="form-check-input delivery-courier-checkbox" type="checkbox" name="delivery_couriers[]"
+                                                   id="courier_{{ $code }}" value="{{ $code }}"
+                                                   {{ in_array($code, (array) $savedCouriers, true) ? 'checked' : '' }}>
+                                            <label class="form-check-label small fw-semibold text-uppercase" for="courier_{{ $code }}">{{ str_replace('_', ' ', $code) }}</label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 col-6">
+                            <label class="form-label small text-muted mb-1">Berat Default / Porsi (gram)</label>
+                            <input type="number" name="delivery_weight_per_item" class="form-control form-control-sm font-mono"
+                                   min="1" max="50000" value="{{ old('delivery_weight_per_item', $store->delivery_weight_per_item ?: 500) }}">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label small text-muted mb-1">Panjang Paket (cm)</label>
+                            <input type="number" name="delivery_package_length" class="form-control form-control-sm font-mono"
+                                   min="1" max="500" value="{{ old('delivery_package_length', $store->delivery_package_length ?: 20) }}">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label small text-muted mb-1">Lebar Paket (cm)</label>
+                            <input type="number" name="delivery_package_width" class="form-control form-control-sm font-mono"
+                                   min="1" max="500" value="{{ old('delivery_package_width', $store->delivery_package_width ?: 20) }}">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label small text-muted mb-1">Tinggi Paket (cm)</label>
+                            <input type="number" name="delivery_package_height" class="form-control form-control-sm font-mono"
+                                   min="1" max="500" value="{{ old('delivery_package_height', $store->delivery_package_height ?: 10) }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex justify-content-end pt-3 border-top">
                 <button type="submit" class="btn btn-primary px-4 py-2 fw-bold shadow-sm">
                     <i class="fa-solid fa-save me-1"></i> Simpan Pengaturan Cabang
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- 4. SIMULASI BIAYA PENGIRIMAN KIRIMINAJA (SELECT2 SEARCHABLE) -->
+<div class="card-custom mt-4">
+    <div class="card-custom-header bg-light d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <h5 class="card-custom-title mb-0">
+            <i class="fa-solid fa-calculator text-success me-2"></i>
+            4. Simulasi Biaya Pengiriman KiriminAja
+        </h5>
+        <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" onclick="fetchKiriminAjaAccountInfo()">
+            <i class="fa-solid fa-wallet me-1"></i> Cek Saldo KA Credit & Kurir Aktif
+        </button>
+    </div>
+    <div class="p-4">
+        <div id="kaAccountInfoBox" class="alert alert-info small d-none mb-3"></div>
+
+        <p class="text-muted small mb-3">
+            Uji tarif ongkos kirim <strong>Express</strong> &amp; <strong>Instant</strong> dari alamat asal toko (menggunakan data form di atas atau data tersimpan) ke wilayah tujuan menggunakan dropdown Select2 yang dapat dicari.
+        </p>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold small">Provinsi Tujuan</label>
+                <select id="simProvince" class="form-select"></select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold small">Kota / Kabupaten Tujuan</label>
+                <select id="simCity" class="form-select"></select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold small">Kecamatan Tujuan</label>
+                <select id="simDistrict" class="form-select"></select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold small">Kelurahan Tujuan</label>
+                <select id="simSubdistrict" class="form-select"></select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold small">Berat Total Paket (gram)</label>
+                <input type="number" id="simWeight" class="form-control font-mono" value="1000" min="1" max="50000">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold small">Estimasi Nilai Pesanan (Rp)</label>
+                <input type="number" id="simItemValue" class="form-control font-mono" value="50000" min="0">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold small">Koordinat Tujuan (Opsional utk Instant)</label>
+                <div class="input-group input-group-sm">
+                    <input type="text" id="simDestLat" class="form-control font-mono" placeholder="Lat (-6.2...)">
+                    <input type="text" id="simDestLng" class="form-control font-mono" placeholder="Lng (106.8...)">
+                </div>
+            </div>
+        </div>
+
+        <div class="border rounded-3 p-3 bg-light mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="fw-bold text-dark"><i class="fa-solid fa-map-location-dot text-danger me-1"></i> Pin Peta Tujuan Simulasi (OpenStreetMap — untuk Kurir Instant)</small>
+                <small class="text-muted" id="simDestAddressPreview">Klik / geser marker untuk memilih koordinat tujuan</small>
+            </div>
+            <div class="input-group input-group-sm mb-2">
+                <input type="text" id="simGeoSearchInput" class="form-control" placeholder="Cari lokasi tujuan di peta...">
+                <button type="button" class="btn btn-outline-secondary" onclick="searchSimGeo()">Cari</button>
+            </div>
+            <div id="simGeoSearchResults" class="list-group mb-2 d-none" style="max-height: 120px; overflow-y: auto;"></div>
+            <div id="simDestMap" style="height: 220px; border-radius: 8px; border: 1px solid #cbd5e1; z-index: 1;"></div>
+            <input type="hidden" id="simDestAddress">
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <button type="button" id="btnSimulateShipping" class="btn btn-success fw-bold px-4" onclick="runShippingSimulation()">
+                <i class="fa-solid fa-magnifying-glass-dollar me-1"></i> Hitung Simulasi Biaya Pengiriman
+            </button>
+            <span id="simLoadingIndicator" class="small text-muted d-none">
+                <i class="fa-solid fa-spinner fa-spin me-1"></i> Menghitung tarif dari KiriminAja...
+            </span>
+        </div>
+
+        <div id="simErrorBox" class="alert alert-danger small d-none"></div>
+        <div id="simResultsBox" class="d-none"></div>
     </div>
 </div>
 
@@ -1170,6 +1460,541 @@ async function testMayarSpecific(env) {
     }
 }
 </script>
+
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet" />
+@endpush
+
+@push('scripts')
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+    const KA_PROVINCE_CACHE = { list: null };
+    let originMapInstance = null;
+    let originMarkerInstance = null;
+    let simMapInstance = null;
+    let simMarkerInstance = null;
+
+    function syncDeliveryRequired(enabled) {
+        document.querySelectorAll('.ka-delivery-required').forEach(function (el) {
+            if (enabled) {
+                el.setAttribute('required', 'required');
+            } else {
+                el.removeAttribute('required');
+            }
+        });
+    }
+
+    window.toggleDeliverySettings = function (enabled) {
+        const box = document.getElementById('section_delivery_settings');
+        if (box) {
+            box.classList.toggle('d-none', !enabled);
+        }
+        syncDeliveryRequired(enabled);
+        if (enabled && originMapInstance) {
+            setTimeout(function () { originMapInstance.invalidateSize(); }, 200);
+        }
+    };
+
+    async function fetchJson(url) {
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data.message || 'Gagal memuat data');
+        }
+        return data.data || [];
+    }
+
+    function populateSelect2($el, items, placeholder, selectedId, extraMapper) {
+        const currentVal = selectedId !== undefined && selectedId !== null ? String(selectedId) : '';
+        $el.empty().append(new Option(placeholder, '', !currentVal, !currentVal));
+        (items || []).forEach(function (item) {
+            const isSel = currentVal && String(item.id) === currentVal;
+            const opt = new Option(item.name, item.id, isSel, isSel);
+            if (extraMapper) {
+                extraMapper(opt, item);
+            }
+            $el.append(opt);
+        });
+        $el.trigger('change.select2');
+    }
+
+    async function getProvinces() {
+        if (!KA_PROVINCE_CACHE.list) {
+            KA_PROVINCE_CACHE.list = await fetchJson('/api/v1/shipping/provinces');
+        }
+        return KA_PROVINCE_CACHE.list;
+    }
+
+    function createRegionCascade(config) {
+        const $prov = $(config.province);
+        const $city = $(config.city);
+        const $dist = $(config.district);
+        const $sub = $(config.subdistrict);
+
+        [$prov, $city, $dist, $sub].forEach(function ($s, idx) {
+            const labels = ['-- Pilih Provinsi --', '-- Pilih Kota/Kab --', '-- Pilih Kecamatan --', '-- Pilih Kelurahan --'];
+            $s.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: labels[idx],
+                allowClear: true
+            });
+        });
+
+        async function loadInitial() {
+            const initProv = config.initial?.provinceId || '';
+            const initCity = config.initial?.cityId || '';
+            const initDist = config.initial?.districtId || '';
+            const initSub = config.initial?.subdistrictId || '';
+
+            try {
+                const provinces = await getProvinces();
+                populateSelect2($prov, provinces, '-- Pilih Provinsi --', initProv);
+                if (initProv) {
+                    const cities = await fetchJson('/api/v1/shipping/cities?province_id=' + initProv);
+                    populateSelect2($city, cities, '-- Pilih Kota/Kab --', initCity, function (opt, item) {
+                        if (item.postal_code) $(opt).attr('data-postal', item.postal_code);
+                    });
+                }
+                if (initCity) {
+                    const districts = await fetchJson('/api/v1/shipping/districts?city_id=' + initCity);
+                    populateSelect2($dist, districts, '-- Pilih Kecamatan --', initDist);
+                }
+                if (initDist) {
+                    const subdistricts = await fetchJson('/api/v1/shipping/subdistricts?district_id=' + initDist);
+                    populateSelect2($sub, subdistricts, '-- Pilih Kelurahan --', initSub);
+                }
+            } catch (err) {
+                console.warn('Region init warning:', err.message);
+            }
+        }
+
+        $prov.on('select2:select select2:clear', async function () {
+            const val = $prov.val();
+            const text = val ? $prov.find('option:selected').text().trim() : '';
+            if (config.provinceNameInput) $(config.provinceNameInput).val(text);
+            if (config.cityNameInput) $(config.cityNameInput).val('');
+            if (config.districtNameInput) $(config.districtNameInput).val('');
+            if (config.subdistrictNameInput) $(config.subdistrictNameInput).val('');
+
+            populateSelect2($city, [], '-- Pilih Kota/Kab --', '');
+            populateSelect2($dist, [], '-- Pilih Kecamatan --', '');
+            populateSelect2($sub, [], '-- Pilih Kelurahan --', '');
+
+            if (!val) return;
+            try {
+                const cities = await fetchJson('/api/v1/shipping/cities?province_id=' + val);
+                populateSelect2($city, cities, '-- Pilih Kota/Kab --', '', function (opt, item) {
+                    if (item.postal_code) $(opt).attr('data-postal', item.postal_code);
+                });
+            } catch (e) {
+                alert(e.message);
+            }
+        });
+
+        $city.on('select2:select select2:clear', async function () {
+            const val = $city.val();
+            const $opt = $city.find('option:selected');
+            const text = val ? $opt.text().trim() : '';
+            if (config.cityNameInput) $(config.cityNameInput).val(text);
+            if (config.districtNameInput) $(config.districtNameInput).val('');
+            if (config.subdistrictNameInput) $(config.subdistrictNameInput).val('');
+
+            const postal = $opt.attr('data-postal');
+            if (postal && config.postalInput && !$(config.postalInput).val()) {
+                $(config.postalInput).val(postal);
+            }
+
+            populateSelect2($dist, [], '-- Pilih Kecamatan --', '');
+            populateSelect2($sub, [], '-- Pilih Kelurahan --', '');
+
+            if (!val) return;
+            try {
+                const districts = await fetchJson('/api/v1/shipping/districts?city_id=' + val);
+                populateSelect2($dist, districts, '-- Pilih Kecamatan --', '');
+            } catch (e) {
+                alert(e.message);
+            }
+        });
+
+        $dist.on('select2:select select2:clear', async function () {
+            const val = $dist.val();
+            const text = val ? $dist.find('option:selected').text().trim() : '';
+            if (config.districtNameInput) $(config.districtNameInput).val(text);
+            if (config.subdistrictNameInput) $(config.subdistrictNameInput).val('');
+
+            populateSelect2($sub, [], '-- Pilih Kelurahan --', '');
+
+            if (!val) return;
+            try {
+                const subdistricts = await fetchJson('/api/v1/shipping/subdistricts?district_id=' + val);
+                populateSelect2($sub, subdistricts, '-- Pilih Kelurahan --', '');
+            } catch (e) {
+                alert(e.message);
+            }
+        });
+
+        $sub.on('select2:select select2:clear', function () {
+            const val = $sub.val();
+            const text = val ? $sub.find('option:selected').text().trim() : '';
+            if (config.subdistrictNameInput) $(config.subdistrictNameInput).val(text);
+        });
+
+        async function applyMatchedRegion(m) {
+            if (!m || !m.province_id) return;
+            try {
+                const provinces = await getProvinces();
+                populateSelect2($prov, provinces, '-- Pilih Provinsi --', m.province_id);
+                if (config.provinceNameInput) $(config.provinceNameInput).val(m.province_name || '');
+
+                if (m.city_id) {
+                    const cities = await fetchJson('/api/v1/shipping/cities?province_id=' + m.province_id);
+                    populateSelect2($city, cities, '-- Pilih Kota/Kab --', m.city_id);
+                    if (config.cityNameInput) $(config.cityNameInput).val(m.city_name || '');
+                }
+                if (m.district_id) {
+                    const districts = await fetchJson('/api/v1/shipping/districts?city_id=' + m.city_id);
+                    populateSelect2($dist, districts, '-- Pilih Kecamatan --', m.district_id);
+                    if (config.districtNameInput) $(config.districtNameInput).val(m.district_name || '');
+                }
+                if (m.subdistrict_id) {
+                    const subdistricts = await fetchJson('/api/v1/shipping/subdistricts?district_id=' + m.district_id);
+                    populateSelect2($sub, subdistricts, '-- Pilih Kelurahan --', m.subdistrict_id);
+                    if (config.subdistrictNameInput) $(config.subdistrictNameInput).val(m.subdistrict_name || '');
+                }
+            } catch (e) {
+                alert('Gagal menerapkan wilayah: ' + e.message);
+            }
+        }
+
+        loadInitial();
+        return { applyMatchedRegion };
+    }
+
+    function createLeafletPicker(opts) {
+        const el = document.getElementById(opts.mapId);
+        if (!el || typeof L === 'undefined') return null;
+
+        const hasInit = opts.initLat !== null && opts.initLat !== '' && opts.initLng !== null && opts.initLng !== '';
+        const centerLat = hasInit ? parseFloat(opts.initLat) : -6.2088;
+        const centerLng = hasInit ? parseFloat(opts.initLng) : 106.8456;
+
+        const map = L.map(el, { center: [centerLat, centerLng], zoom: hasInit ? 16 : 13 });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        let marker = null;
+
+        function placeMarker(lat, lng, center) {
+            if (!marker) {
+                marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+                marker.on('dragend', function () {
+                    const pos = marker.getLatLng();
+                    onCoordsPicked(pos.lat, pos.lng);
+                });
+            } else {
+                marker.setLatLng([lat, lng]);
+            }
+            if (center) {
+                map.setView([lat, lng], Math.max(map.getZoom() || 15, 16));
+            }
+        }
+
+        async function onCoordsPicked(lat, lng) {
+            const fixedLat = Number(lat).toFixed(7);
+            const fixedLng = Number(lng).toFixed(7);
+            $(opts.latInput).val(fixedLat);
+            $(opts.lngInput).val(fixedLng);
+            placeMarker(lat, lng, false);
+
+            try {
+                const res = await fetch('/api/v1/geo/reverse?latitude=' + fixedLat + '&longitude=' + fixedLng + '&match_region=' + (opts.matchRegion ? '1' : '0'), {
+                    headers: { 'Accept': 'application/json' }
+                });
+                const json = await res.json();
+                if (json.success && json.data) {
+                    const d = json.data;
+                    if (opts.onReverse) opts.onReverse(d, fixedLat, fixedLng);
+                }
+            } catch (e) {}
+        }
+
+        if (hasInit) {
+            placeMarker(centerLat, centerLng, false);
+        }
+
+        map.on('click', function (e) {
+            placeMarker(e.latlng.lat, e.latlng.lng, false);
+            onCoordsPicked(e.latlng.lat, e.latlng.lng);
+        });
+
+        return {
+            map,
+            setPoint: function (lat, lng) {
+                placeMarker(lat, lng, true);
+                onCoordsPicked(lat, lng);
+            }
+        };
+    }
+
+    let storeCascade = null;
+    let originPicker = null;
+    let simPicker = null;
+    let lastMatchedRegion = null;
+
+    $(document).ready(function () {
+        const initialEnabled = document.getElementById('deliveryEnabledSwitch')?.checked || false;
+        syncDeliveryRequired(initialEnabled);
+
+        storeCascade = createRegionCascade({
+            province: '#selectKaProvince',
+            city: '#selectKaCity',
+            district: '#selectKaDistrict',
+            subdistrict: '#selectKaSubdistrict',
+            provinceNameInput: '#kaProvinceName',
+            cityNameInput: '#kaCityName',
+            districtNameInput: '#kaDistrictName',
+            subdistrictNameInput: '#kaSubdistrictName',
+            postalInput: '#kaPostalCode',
+            initial: {
+                provinceId: @json(old('ka_province_id', $store->ka_province_id)),
+                cityId: @json(old('ka_city_id', $store->ka_city_id)),
+                districtId: @json(old('ka_district_id', $store->ka_district_id)),
+                subdistrictId: @json(old('ka_subdistrict_id', $store->ka_subdistrict_id)),
+            }
+        });
+
+        createRegionCascade({
+            province: '#simProvince',
+            city: '#simCity',
+            district: '#simDistrict',
+            subdistrict: '#simSubdistrict',
+            initial: {}
+        });
+
+        originPicker = createLeafletPicker({
+            mapId: 'storeOriginMap',
+            latInput: '#kaLatitude',
+            lngInput: '#kaLongitude',
+            initLat: @json(old('ka_latitude', $store->ka_latitude)),
+            initLng: @json(old('ka_longitude', $store->ka_longitude)),
+            matchRegion: true,
+            onReverse: function (d) {
+                $('#kaGeoAddress').val(d.display_name || '');
+                if (d.postal_code && !$('#kaPostalCode').val()) {
+                    $('#kaPostalCode').val(d.postal_code);
+                }
+                if (d.short_address && !$('#kaAddress').val()) {
+                    $('#kaAddress').val(d.short_address);
+                }
+                if (d.matched_region && d.matched_region.province_id) {
+                    lastMatchedRegion = d.matched_region;
+                    const parts = [d.matched_region.subdistrict_name, d.matched_region.district_name, d.matched_region.city_name, d.matched_region.province_name].filter(Boolean).join(', ');
+                    $('#storeGeoRegionHint')
+                        .removeClass('d-none')
+                        .html('<i class="fa-solid fa-wand-magic-sparkles me-1"></i> Wilayah KiriminAja terdeteksi: <strong>' + parts + '</strong> <button type="button" class="btn btn-link btn-sm p-0 ms-2 fw-bold" onclick="applyDetectedStoreRegion()">Terapkan ke Dropdown</button>');
+                }
+            }
+        });
+        originMapInstance = originPicker ? originPicker.map : null;
+
+        simPicker = createLeafletPicker({
+            mapId: 'simDestMap',
+            latInput: '#simDestLat',
+            lngInput: '#simDestLng',
+            initLat: null,
+            initLng: null,
+            matchRegion: false,
+            onReverse: function (d) {
+                $('#simDestAddress').val(d.display_name || '');
+                $('#simDestAddressPreview').text(d.display_name || 'Koordinat dipilih');
+            }
+        });
+        simMapInstance = simPicker ? simPicker.map : null;
+
+        $('#storeGeoSearchInput').on('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); window.searchStoreGeo(); }
+        });
+        $('#simGeoSearchInput').on('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); window.searchSimGeo(); }
+        });
+
+        if (initialEnabled && originMapInstance) {
+            setTimeout(function () { originMapInstance.invalidateSize(); }, 250);
+        }
+    });
+
+    window.applyDetectedStoreRegion = function () {
+        if (lastMatchedRegion && storeCascade) {
+            storeCascade.applyMatchedRegion(lastMatchedRegion);
+        }
+    };
+
+    window.useStoreGpsLocation = function () {
+        if (!navigator.geolocation) {
+            alert('Browser tidak mendukung GPS.');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            function (pos) {
+                if (originPicker) originPicker.setPoint(pos.coords.latitude, pos.coords.longitude);
+            },
+            function () {
+                alert('Gagal mendeteksi lokasi GPS. Klik langsung pada peta untuk menentukan titik toko.');
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
+
+    async function performGeoSearch(queryInputId, resultsId, picker) {
+        const q = $(queryInputId).val().trim();
+        if (q.length < 2) return;
+        const $box = $(resultsId);
+        $box.removeClass('d-none').html('<div class="list-group-item small text-muted"><i class="fa-solid fa-spinner fa-spin me-1"></i> Mencari di OpenStreetMap...</div>');
+        try {
+            const items = await fetchJson('/api/v1/geo/search?q=' + encodeURIComponent(q));
+            $box.empty();
+            if (!items.length) {
+                $box.html('<div class="list-group-item small text-muted">Lokasi tidak ditemukan.</div>');
+                return;
+            }
+            items.forEach(function (item) {
+                const $btn = $('<button type="button" class="list-group-item list-group-item-action small py-2 text-start"></button>');
+                $btn.html('<i class="fa-solid fa-location-dot text-danger me-1"></i> ' + $('<div>').text(item.display_name).html());
+                $btn.on('click', function () {
+                    $box.addClass('d-none');
+                    if (picker) picker.setPoint(item.latitude, item.longitude);
+                });
+                $box.append($btn);
+            });
+        } catch (err) {
+            $box.html('<div class="list-group-item small text-danger">' + err.message + '</div>');
+        }
+    }
+
+    window.searchStoreGeo = function () {
+        performGeoSearch('#storeGeoSearchInput', '#storeGeoSearchResults', originPicker);
+    };
+
+    window.searchSimGeo = function () {
+        performGeoSearch('#simGeoSearchInput', '#simGeoSearchResults', simPicker);
+    };
+
+    window.runShippingSimulation = async function () {
+        const districtId = $('#simDistrict').val();
+        if (!districtId) {
+            alert('Pilih Provinsi, Kota, dan Kecamatan tujuan terlebih dahulu.');
+            return;
+        }
+
+        const $err = $('#simErrorBox').addClass('d-none').text('');
+        const $resBox = $('#simResultsBox').addClass('d-none').empty();
+        $('#simLoadingIndicator').removeClass('d-none');
+        $('#btnSimulateShipping').prop('disabled', true);
+
+        const selectedCouriers = [];
+        document.querySelectorAll('.delivery-courier-checkbox:checked').forEach(function (cb) {
+            selectedCouriers.push(cb.value);
+        });
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const res = await fetch("{{ route('store.backend.settings.simulateShipping', $store->slug) }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    destination_district_id: parseInt(districtId, 10),
+                    destination_subdistrict_id: $('#simSubdistrict').val() ? parseInt($('#simSubdistrict').val(), 10) : null,
+                    destination_latitude: $('#simDestLat').val() || null,
+                    destination_longitude: $('#simDestLng').val() || null,
+                    destination_address: $('#simDestAddress').val() || null,
+                    weight_grams: parseInt($('#simWeight').val() || '1000', 10),
+                    item_value: parseFloat($('#simItemValue').val() || '50000'),
+                    origin_district_id: $('#selectKaDistrict').val() ? parseInt($('#selectKaDistrict').val(), 10) : null,
+                    origin_subdistrict_id: $('#selectKaSubdistrict').val() ? parseInt($('#selectKaSubdistrict').val(), 10) : null,
+                    origin_postal_code: $('#kaPostalCode').val() || null,
+                    origin_address: $('#kaAddress').val() || null,
+                    origin_province_name: $('#kaProvinceName').val() || null,
+                    origin_city_name: $('#kaCityName').val() || null,
+                    origin_district_name: $('#kaDistrictName').val() || null,
+                    origin_subdistrict_name: $('#kaSubdistrictName').val() || null,
+                    origin_latitude: $('#kaLatitude').val() || null,
+                    origin_longitude: $('#kaLongitude').val() || null,
+                    delivery_couriers: selectedCouriers
+                })
+            });
+
+            const json = await res.json();
+            if (!res.ok || !json.success) {
+                $err.removeClass('d-none').html('<i class="fa-solid fa-circle-exclamation me-1"></i> ' + (json.message || 'Gagal menghitung simulasi tarif.'));
+                return;
+            }
+
+            const data = json.data || {};
+            const options = data.options || [];
+            let html = '<div class="small text-muted mb-2"><strong>Asal:</strong> ' + $('<div>').text(data.origin || '-').html() + ' · <strong>Berat:</strong> ' + (data.weight_grams || 0) + 'g</div>';
+
+            if (data.errors && data.errors.length) {
+                html += '<div class="alert alert-warning py-2 small mb-2">' + data.errors.map(function (e) { return $('<div>').text(e).html(); }).join('<br>') + '</div>';
+            }
+
+            if (!options.length) {
+                html += '<div class="alert alert-secondary small">Tidak ada tarif kurir yang tersedia untuk rute ini.</div>';
+            } else {
+                html += '<div class="table-responsive"><table class="table table-sm table-hover align-middle border"><thead class="table-light"><tr><th>Tipe</th><th>Kurir</th><th>Layanan</th><th>Estimasi</th><th class="text-end">Ongkos Kirim</th></tr></thead><tbody>';
+                options.forEach(function (opt) {
+                    const badge = opt.type === 'instant'
+                        ? '<span class="badge bg-success">INSTANT</span>'
+                        : '<span class="badge bg-primary">EXPRESS</span>';
+                    const costFormatted = new Intl.NumberFormat('id-ID').format(opt.cost || 0);
+                    html += '<tr>'
+                        + '<td>' + badge + '</td>'
+                        + '<td class="fw-bold text-dark">' + $('<div>').text(opt.courier_name || opt.courier).html() + '</td>'
+                        + '<td>' + $('<div>').text(opt.service_name || opt.service_type).html() + ' <small class="text-muted font-mono">(' + $('<div>').text(opt.service_type || '').html() + ')</small></td>'
+                        + '<td class="small text-muted">' + $('<div>').text(opt.etd || '-').html() + '</td>'
+                        + '<td class="text-end font-mono fw-bold text-success">Rp ' + costFormatted + '</td>'
+                        + '</tr>';
+                });
+                html += '</tbody></table></div>';
+            }
+            $resBox.removeClass('d-none').html(html);
+        } catch (err) {
+            $err.removeClass('d-none').html('<i class="fa-solid fa-circle-xmark me-1"></i> ' + err.message);
+        } finally {
+            $('#simLoadingIndicator').addClass('d-none');
+            $('#btnSimulateShipping').prop('disabled', false);
+        }
+    };
+
+    window.fetchKiriminAjaAccountInfo = async function () {
+        const $box = $('#kaAccountInfoBox');
+        $box.removeClass('d-none alert-danger').addClass('alert-info').html('<i class="fa-solid fa-spinner fa-spin me-1"></i> Menghubungi KiriminAja...');
+        try {
+            const data = await fetchJson("{{ route('store.backend.settings.kiriminajaInfo', $store->slug) }}");
+            const bal = data.balance || {};
+            const balText = bal.error
+                ? '<span class="text-warning">' + bal.error + '</span>'
+                : ('Saldo: <strong>Rp ' + new Intl.NumberFormat('id-ID').format(bal.balance || 0) + '</strong> (Pending: Rp ' + new Intl.NumberFormat('id-ID').format(bal.pending || 0) + ')');
+            const couriers = (data.couriers || []).map(function (c) { return c.name || c.code; }).join(', ');
+            $box.html('<strong>Mode:</strong> ' + (data.environment || 'sandbox').toUpperCase() + ' · ' + balText + '<br><strong>Kurir Aktif (' + (data.couriers || []).length + '):</strong> ' + (couriers || '-'));
+        } catch (err) {
+            $box.removeClass('alert-info').addClass('alert-danger').html('<i class="fa-solid fa-circle-xmark me-1"></i> ' + err.message);
+        }
+    };
+})();
+</script>
+@endpush
 
 <style>
 .cursor-pointer {

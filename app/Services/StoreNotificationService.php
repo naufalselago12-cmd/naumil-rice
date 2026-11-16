@@ -139,6 +139,12 @@ class StoreNotificationService
             'items' => $items,
             'subtotal' => (float) $order->subtotal,
             'discount' => (float) $order->discount_amount,
+            'shipping_cost' => (float) ($order->shipping_cost ?? 0),
+            'fulfillment_type' => $order->fulfillment_type ?? 'pickup',
+            'shipping_courier' => $order->shipping_courier,
+            'shipping_service_name' => $order->shipping_service_name,
+            'shipping_address' => $order->shipping_address,
+            'ka_awb' => $order->ka_awb,
             'total' => (float) $order->total_amount,
             'payment_method' => $order->payment_method,
             'payment_label' => self::paymentLabel($order->payment_method),
@@ -162,6 +168,9 @@ class StoreNotificationService
             ->map(fn ($i) => $i['quantity'] . 'x ' . $i['name'])
             ->implode(', ');
         $total = 'Rp ' . number_format($data['total'], 0, ',', '.');
+        $deliveryTag = ($data['fulfillment_type'] ?? 'pickup') === 'delivery'
+            ? ' | Kirim ke Rumah (' . strtoupper((string) ($data['shipping_courier'] ?? 'Kurir')) . ' - Rp ' . number_format((float) ($data['shipping_cost'] ?? 0), 0, ',', '.') . ')'
+            : '';
 
         if ($type === StoreNotification::TYPE_CANCEL || $event === 'order_cancelled') {
             $actor = ($data['cancelled_by'] ?? 'customer') === 'customer' ? 'Pelanggan' : 'Admin';
@@ -170,13 +179,13 @@ class StoreNotificationService
             $body = "Pesanan #{$data['order_number']} telah dibatalkan ({$summary})\nTotal {$total}{$reasonStr}";
         } elseif ($type === StoreNotification::TYPE_COD) {
             $title = 'Pesanan Baru (COD) - ' . $data['customer_name'];
-            $body = "{$summary}\nTotal {$total} - Bayar setelah makanan jadi";
+            $body = "{$summary}\nTotal {$total} - Bayar setelah makanan jadi{$deliveryTag}";
         } elseif ($event === 'payment_review') {
             $title = 'Bukti Bayar Masuk - ' . $data['customer_name'];
-            $body = "{$summary}\nTotal {$total} - {$data['payment_method']} (menunggu verifikasi)";
+            $body = "{$summary}\nTotal {$total} - {$data['payment_method']} (menunggu verifikasi){$deliveryTag}";
         } else {
             $title = 'Pembayaran Diterima - ' . $data['customer_name'];
-            $body = "{$summary}\nTotal {$total} - {$data['payment_method']}";
+            $body = "{$summary}\nTotal {$total} - {$data['payment_method']}{$deliveryTag}";
         }
 
         return [$title, $body];

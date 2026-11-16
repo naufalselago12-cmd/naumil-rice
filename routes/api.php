@@ -62,6 +62,30 @@ Route::prefix('v1')->group(function () {
     Route::get('/customer/current-session', [\App\Http\Controllers\CustomerAuthController::class, 'currentSession']);
     Route::post('/customer/logout', [\App\Http\Controllers\CustomerAuthController::class, 'logout']);
 
+    // 6b. Customer Address Book (Pelanggan Setia Multi-Alamat)
+    Route::get('/customer/addresses', [\App\Http\Controllers\Api\ClientAddressController::class, 'index']);
+    Route::post('/customer/addresses', [\App\Http\Controllers\Api\ClientAddressController::class, 'store']);
+    Route::put('/customer/addresses/{address}', [\App\Http\Controllers\Api\ClientAddressController::class, 'update']);
+    Route::post('/customer/addresses/{address}/default', [\App\Http\Controllers\Api\ClientAddressController::class, 'setDefault']);
+    Route::delete('/customer/addresses/{address}', [\App\Http\Controllers\Api\ClientAddressController::class, 'destroy']);
+
+    // 6c. KiriminAja Shipping, Coverage Area, OpenStreetMap Geotag & Webhook
+    Route::prefix('shipping')->group(function () {
+        Route::get('/provinces', [\App\Http\Controllers\Api\ShippingApiController::class, 'provinces']);
+        Route::get('/cities', [\App\Http\Controllers\Api\ShippingApiController::class, 'cities']);
+        Route::get('/districts', [\App\Http\Controllers\Api\ShippingApiController::class, 'districts']);
+        Route::get('/subdistricts', [\App\Http\Controllers\Api\ShippingApiController::class, 'subdistricts']);
+        Route::get('/search-addresses', [\App\Http\Controllers\Api\ShippingApiController::class, 'searchAddresses']);
+        Route::post('/quote', [\App\Http\Controllers\Api\ShippingApiController::class, 'quote']);
+    });
+
+    Route::prefix('geo')->group(function () {
+        Route::get('/reverse', [\App\Http\Controllers\Api\ShippingApiController::class, 'geoReverse']);
+        Route::get('/search', [\App\Http\Controllers\Api\ShippingApiController::class, 'geoSearch']);
+    });
+
+    Route::post('/kiriminaja/webhook', [\App\Http\Controllers\Api\ShippingApiController::class, 'webhook']);
+
     // 7. Store Loyalty Promos (Public / Storefront)
     Route::get('/stores/{store_id}/loyalty-promos', function ($store_id) {
         $promos = \App\Models\LoyaltyPromo::where('store_id', $store_id)

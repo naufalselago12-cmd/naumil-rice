@@ -114,6 +114,19 @@ class MidtransPaymentService
             ];
         }
 
+        if ((float) ($order->shipping_cost ?? 0) > 0) {
+            $itemDetails[] = [
+                'id' => 'SHIPPING',
+                'price' => (int) round((float) $order->shipping_cost),
+                'quantity' => 1,
+                'name' => \Illuminate\Support\Str::limit(
+                    'Ongkos Kirim ' . strtoupper((string) ($order->shipping_courier ?? 'KiriminAja')),
+                    50,
+                    ''
+                ),
+            ];
+        }
+
         // Midtrans Requirement: sum(price * quantity) MUST strictly equal gross_amount!
         $calculatedSum = 0;
         foreach ($itemDetails as $it) {

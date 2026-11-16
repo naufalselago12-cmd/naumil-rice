@@ -105,7 +105,7 @@ class CustomerAuthController extends Controller
         ]);
 
         $email = strtolower(trim($validated['email']));
-        $client = Client::with('stores')->where('email', $email)->first();
+        $client = Client::with(['stores', 'addresses'])->where('email', $email)->first();
 
         if (!$client) {
             return response()->json([
@@ -257,7 +257,7 @@ class CustomerAuthController extends Controller
     {
         $clientId = session('customer_client_id');
         if ($clientId) {
-            $client = Client::with(['stores', 'pointTransactions' => function ($q) {
+            $client = Client::with(['stores', 'addresses', 'pointTransactions' => function ($q) {
                 $q->limit(5);
             }])->find($clientId);
 
@@ -305,6 +305,7 @@ class CustomerAuthController extends Controller
         if ($clientId) {
             $client = Client::with([
                 'stores',
+                'addresses',
                 'orders' => function ($q) {
                     $q->with(['store', 'items.menu'])->orderBy('id', 'desc');
                 },
@@ -335,6 +336,7 @@ class CustomerAuthController extends Controller
         if ($clientId) {
             $client = Client::with([
                 'stores',
+                'addresses',
                 'orders' => function ($q) {
                     $q->with(['store', 'items.menu'])->orderBy('id', 'desc');
                 },
@@ -348,6 +350,7 @@ class CustomerAuthController extends Controller
             $email = strtolower(trim($request->input('email')));
             $client = Client::with([
                 'stores',
+                'addresses',
                 'orders' => function ($q) {
                     $q->with(['store', 'items.menu'])->orderBy('id', 'desc');
                 },
@@ -421,6 +424,7 @@ class CustomerAuthController extends Controller
         // Reload relations
         $client->load([
             'stores',
+            'addresses',
             'orders' => function ($q) {
                 $q->with(['store', 'items.menu'])->orderBy('id', 'desc');
             },

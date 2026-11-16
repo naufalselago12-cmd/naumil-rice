@@ -294,6 +294,13 @@
               <span>Diskon Promo:</span>
               <span>- Rp {{ formatNumber(orderData.order?.discount_amount) }}</span>
             </div>
+            <div v-if="orderData.order?.fulfillment_type === 'delivery' || Number(orderData.order?.shipping_cost) > 0" class="d-flex justify-content-between mb-1 small text-dark">
+              <span>
+                Ongkos Kirim ({{ String(orderData.order?.shipping_courier || 'KiriminAja').toUpperCase() }}
+                <template v-if="orderData.order?.shipping_service_name"> - {{ orderData.order.shipping_service_name }}</template>):
+              </span>
+              <span class="font-mono">Rp {{ formatNumber(orderData.order?.shipping_cost) }}</span>
+            </div>
             <div class="d-flex justify-content-between fs-5 fw-bold text-dark pt-2 border-top">
               <span>Total Pembayaran:</span>
               <span class="text-primary font-mono">Rp {{ formatNumber(orderData.order?.total_amount) }}</span>
@@ -320,6 +327,44 @@
                 <i class="fa-solid fa-print"></i>
                 <span>Cetak Struk Resmi POS</span>
               </a>
+            </div>
+          </div>
+
+          <!-- Delivery / Shipping Info (Kirim Langsung ke Rumah) -->
+          <div v-if="orderData.order?.fulfillment_type === 'delivery'" class="mt-3 p-3 rounded-3 border border-info-subtle bg-light">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+              <span class="fw-bold text-dark small">
+                <i class="fa-solid fa-motorcycle text-primary me-1"></i>
+                Pengiriman KiriminAja ({{ String(orderData.order?.shipping_courier || '-').toUpperCase() }} — {{ orderData.order?.shipping_service_name || '-' }})
+              </span>
+              <span class="badge bg-info text-dark font-mono">
+                {{ String(orderData.order?.shipping_status || 'waiting_shipment').toUpperCase() }}
+              </span>
+            </div>
+            <div v-if="orderData.order?.ka_awb" class="small mb-1">
+              <span class="text-muted">No. Resi (AWB):</span>
+              <strong class="font-mono text-primary ms-1">{{ orderData.order.ka_awb }}</strong>
+            </div>
+            <div v-if="orderData.order?.shipping_etd" class="small mb-1 text-muted">
+              Estimasi Pengiriman: <strong class="text-dark">{{ orderData.order.shipping_etd }}</strong>
+            </div>
+            <div v-if="orderData.order?.shipping_address" class="small mt-2 pt-2 border-top">
+              <strong class="d-block text-dark">Alamat Tujuan:</strong>
+              <span class="text-dark">
+                {{ orderData.order.shipping_address.address }},
+                <template v-if="orderData.order.shipping_address.subdistrict_name">Kel. {{ orderData.order.shipping_address.subdistrict_name }}, </template>
+                <template v-if="orderData.order.shipping_address.district_name">Kec. {{ orderData.order.shipping_address.district_name }}, </template>
+                {{ orderData.order.shipping_address.city_name || '' }} {{ orderData.order.shipping_address.postal_code || '' }}
+              </span>
+              <div v-if="orderData.order.shipping_address.address_note" class="text-primary mt-1">
+                <i class="fa-solid fa-signs-post me-1"></i> Patokan / Gang: {{ orderData.order.shipping_address.address_note }}
+              </div>
+              <div v-if="orderData.order.shipping_address.latitude && orderData.order.shipping_address.longitude" class="mt-1">
+                <a :href="'https://www.openstreetmap.org/?mlat=' + orderData.order.shipping_address.latitude + '&mlon=' + orderData.order.shipping_address.longitude + '#map=17/' + orderData.order.shipping_address.latitude + '/' + orderData.order.shipping_address.longitude"
+                   target="_blank" rel="noopener" class="text-decoration-none fw-semibold">
+                  <i class="fa-solid fa-map-pin text-danger me-1"></i> Lihat Pin Lokasi (OpenStreetMap)
+                </a>
+              </div>
             </div>
           </div>
         </div>

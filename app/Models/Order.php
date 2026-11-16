@@ -77,9 +77,34 @@ class Order extends Model
         'refund_otp',
         'refund_otp_expires_at',
         'refund_otp_verified_at',
+        // Kirim Langsung ke Rumah (KiriminAja)
+        'fulfillment_type',
+        'shipping_cost',
+        'shipping_type',
+        'shipping_courier',
+        'shipping_service_name',
+        'shipping_service_type',
+        'shipping_etd',
+        'shipping_address',
+        'shipping_status',
+        'ka_order_id',
+        'ka_awb',
+        'ka_pickup_number',
+        'ka_payload',
+        'shipping_booked_at',
     ];
 
+    public const FULFILLMENT_PICKUP = 'pickup';
+    public const FULFILLMENT_DELIVERY = 'delivery';
+
+    // Payload mentah KiriminAja tidak ikut ter-serialize ke API publik (trace).
+    protected $hidden = ['ka_payload'];
+
     protected $casts = [
+        'shipping_cost' => 'float',
+        'shipping_address' => 'array',
+        'ka_payload' => 'array',
+        'shipping_booked_at' => 'datetime',
         'subtotal' => 'float',
         'discount_amount' => 'float',
         'total_amount' => 'float',
@@ -97,6 +122,11 @@ class Order extends Model
     public function getIsCancelledAttribute(): bool
     {
         return $this->status === self::STATUS_REJECT || !empty($this->cancelled_at);
+    }
+
+    public function isDelivery(): bool
+    {
+        return $this->fulfillment_type === self::FULFILLMENT_DELIVERY;
     }
 
     public function getIsMidtransPaymentAttribute(): bool

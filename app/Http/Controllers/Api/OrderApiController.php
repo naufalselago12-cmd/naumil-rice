@@ -50,7 +50,7 @@ class OrderApiController extends Controller
             'customer_name' => 'required|string|max:255',
             'customer_whatsapp' => 'required|string|max:50',
             'customer_email' => 'required|email|max:255',
-            'customer_address' => 'required|string|max:1000',
+            'customer_address' => 'nullable|string|max:1000',
             'payment_method' => 'required|in:QRIS Statik,QRIS Dinamis,Payment Gateway,Payment Gateway (Mayar.id),Payment Gateway (Midtrans),Bayar Terima Makanan',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
@@ -58,9 +58,69 @@ class OrderApiController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.selected_options' => 'nullable|array',
             'items.*.special_notes' => 'nullable|string',
+            'fulfillment_type' => 'nullable|in:pickup,delivery',
+            'client_address_id' => 'nullable|integer',
+            'shipping' => 'nullable|array',
+            'shipping.type' => 'nullable|in:express,instant',
+            'shipping.courier' => 'nullable|string|max:50',
+            'shipping.service_type' => 'nullable|string|max:80',
+            'shipping.province_id' => 'nullable|integer|min:1',
+            'shipping.province_name' => 'nullable|string|max:120',
+            'shipping.city_id' => 'nullable|integer|min:1',
+            'shipping.city_name' => 'nullable|string|max:120',
+            'shipping.district_id' => 'nullable|integer|min:1',
+            'shipping.district_name' => 'nullable|string|max:120',
+            'shipping.subdistrict_id' => 'nullable|integer|min:1',
+            'shipping.subdistrict_name' => 'nullable|string|max:120',
+            'shipping.postal_code' => 'nullable|digits:5',
+            'shipping.address' => 'nullable|string|max:500',
+            'shipping.address_note' => 'nullable|string|max:150',
+            'shipping.latitude' => 'nullable|numeric|between:-90,90',
+            'shipping.longitude' => 'nullable|numeric|between:-180,180',
+            'shipping.geo_address' => 'nullable|string|max:500',
+            'shipping.save_address' => 'nullable|boolean',
+            'shipping.address_label' => 'nullable|string|max:50',
         ]);
 
-        return DB::transaction(function () use ($validated, $request) {
+        $fulfillmentType = $validated['fulfillment_type'] ?? Order::FULFILLMENT_PICKUP;
+        if (empty($validated['customer_address'])) {
+            $validated['customer_address'] = data_get($validated, 'shipping.address') ?: 'Ambil Sendiri di Outlet';
+        }
+
+        if ($fulfillmentType === Order::FULFILLMENT_DELIVERY) {
+            $deliveryStore = \App\Models\Store::findOrFail($validated['store_id']);
+            if (!$deliveryStore->isDeliveryAvailable()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Opsi Kirim Langsung ke Rumah belum aktif pada outlet ini.',
+                ], 422);
+            }
+            if ($validated['payment_method'] === 'Bayar Terima Makanan') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pengiriman Kirim Langsung ke Rumah wajib menggunakan pembayaran langsung (QRIS / Payment Gateway), tidak bisa COD.',
+                ], 422);
+            }
+            if (empty(data_get($validated, 'shipping.type')) || empty(data_get($validated, 'shipping.courier')) || empty(data_get($validated, 'shipping.service_type'))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pilih layanan kurir pengiriman terlebih dahulu.',
+                ], 422);
+            }
+            if (empty($validated['client_address_id'])) {
+                $shipInput = $validated['shipping'] ?? [];
+                foreach (['province_id', 'province_name', 'city_id', 'city_name', 'district_id', 'district_name', 'subdistrict_id', 'subdistrict_name', 'postal_code', 'address', 'latitude', 'longitude'] as $reqField) {
+                    if (!isset($shipInput[$reqField]) || trim((string) $shipInput[$reqField]) === '') {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Alamat pengiriman belum lengkap. Pilih Provinsi, Kota, Kecamatan, Kelurahan, Kode Pos, Alamat Lengkap, dan tandai Pin Peta Geotag.',
+                        ], 422);
+                    }
+                }
+            }
+        }
+
+        return DB::transaction(function () use ($validated, $request, $fulfillmentType) {
             $orderType = $validated['order_type'] ?? 'guest';
             $isLoyalty = false;
             $client = null;
@@ -331,6 +391,137 @@ class OrderApiController extends Controller
             $discountAmount = min($subtotal, $discountAmount);
             $totalAmount = max(0, $subtotal - $discountAmount);
 
+            $shippingCost = 0;
+            $shippingCourier = null;
+            $shippingServiceName = null;
+            $shippingServiceType = null;
+            $shippingType = null;
+            $shippingEtd = null;
+            $shippingAddressJson = null;
+            $shippingStatus = null;
+            $resolvedClientAddressId = null;
+
+            if ($fulfillmentType === Order::FULFILLMENT_DELIVERY) {
+                $deliveryStore = \App\Models\Store::findOrFail($validated['store_id']);
+                $destData = null;
+
+                if (!empty($validated['client_address_id'])) {
+                    $savedAddress = \App\Models\ClientAddress::where('id', $validated['client_address_id'])
+                        ->where('client_id', $client->id)
+                        ->first();
+                    if (!$savedAddress) {
+                        throw new \Illuminate\Http\Exceptions\HttpResponseException(response()->json([
+                            'success' => false,
+                            'message' => 'Alamat tersimpan tidak ditemukan untuk akun Anda.',
+                        ], 422));
+                    }
+                    $resolvedClientAddressId = $savedAddress->id;
+                    $destData = [
+                        'recipient_name' => $validated['customer_name'] ?: ($savedAddress->recipient_name ?: $client->name),
+                        'phone' => $validated['customer_whatsapp'] ?: ($savedAddress->phone ?: $client->whatsapp),
+                        'province_id' => (int) $savedAddress->province_id,
+                        'province_name' => $savedAddress->province_name,
+                        'city_id' => (int) $savedAddress->city_id,
+                        'city_name' => $savedAddress->city_name,
+                        'district_id' => (int) $savedAddress->district_id,
+                        'district_name' => $savedAddress->district_name,
+                        'subdistrict_id' => (int) $savedAddress->subdistrict_id,
+                        'subdistrict_name' => $savedAddress->subdistrict_name,
+                        'postal_code' => $savedAddress->postal_code,
+                        'address' => $savedAddress->address,
+                        'address_note' => $savedAddress->address_note,
+                        'latitude' => (float) $savedAddress->latitude,
+                        'longitude' => (float) $savedAddress->longitude,
+                        'geo_address' => $savedAddress->geo_address,
+                    ];
+                } else {
+                    $shipInput = $validated['shipping'] ?? [];
+                    $destData = [
+                        'recipient_name' => $validated['customer_name'],
+                        'phone' => $validated['customer_whatsapp'],
+                        'province_id' => (int) $shipInput['province_id'],
+                        'province_name' => $shipInput['province_name'],
+                        'city_id' => (int) $shipInput['city_id'],
+                        'city_name' => $shipInput['city_name'],
+                        'district_id' => (int) $shipInput['district_id'],
+                        'district_name' => $shipInput['district_name'],
+                        'subdistrict_id' => (int) $shipInput['subdistrict_id'],
+                        'subdistrict_name' => $shipInput['subdistrict_name'],
+                        'postal_code' => (string) $shipInput['postal_code'],
+                        'address' => $shipInput['address'],
+                        'address_note' => $shipInput['address_note'] ?? null,
+                        'latitude' => (float) $shipInput['latitude'],
+                        'longitude' => (float) $shipInput['longitude'],
+                        'geo_address' => $shipInput['geo_address'] ?? null,
+                    ];
+
+                    if ($client->is_loyalty_member && !empty($shipInput['save_address'])) {
+                        $hasAnyAddr = $client->addresses()->exists();
+                        $newAddr = $client->addresses()->create([
+                            'label' => !empty($shipInput['address_label']) ? $shipInput['address_label'] : ($hasAnyAddr ? 'Alamat Lain' : 'Alamat Utama'),
+                            'recipient_name' => $destData['recipient_name'],
+                            'phone' => $destData['phone'],
+                            'province_id' => $destData['province_id'],
+                            'province_name' => $destData['province_name'],
+                            'city_id' => $destData['city_id'],
+                            'city_name' => $destData['city_name'],
+                            'district_id' => $destData['district_id'],
+                            'district_name' => $destData['district_name'],
+                            'subdistrict_id' => $destData['subdistrict_id'],
+                            'subdistrict_name' => $destData['subdistrict_name'],
+                            'postal_code' => $destData['postal_code'],
+                            'address' => $destData['address'],
+                            'address_note' => $destData['address_note'],
+                            'latitude' => $destData['latitude'],
+                            'longitude' => $destData['longitude'],
+                            'geo_address' => $destData['geo_address'],
+                            'is_default' => !$hasAnyAddr,
+                        ]);
+                        $resolvedClientAddressId = $newAddr->id;
+                    }
+                }
+
+                $totalQty = max(1, (int) collect($itemsData)->sum('quantity'));
+                $shippingService = app(\App\Services\KiriminAja\ShippingService::class);
+                try {
+                    $quote = $shippingService->quote(
+                        $deliveryStore,
+                        $destData,
+                        $totalQty,
+                        (int) round($totalAmount)
+                    );
+                } catch (\App\Services\KiriminAja\KiriminAjaException $e) {
+                    throw new \Illuminate\Http\Exceptions\HttpResponseException(response()->json([
+                        'success' => false,
+                        'message' => 'Gagal menghitung ongkos kirim KiriminAja: ' . $e->getMessage(),
+                    ], 422));
+                }
+
+                $pickedOption = $shippingService->findOption(
+                    $quote['options'] ?? [],
+                    (string) data_get($validated, 'shipping.type'),
+                    (string) data_get($validated, 'shipping.courier'),
+                    (string) data_get($validated, 'shipping.service_type')
+                );
+
+                if (!$pickedOption) {
+                    throw new \Illuminate\Http\Exceptions\HttpResponseException(response()->json([
+                        'success' => false,
+                        'message' => 'Layanan kurir yang dipilih tidak tersedia untuk rute ini. Silakan muat ulang daftar kurir.',
+                    ], 422));
+                }
+
+                $shippingCost = (float) $pickedOption['cost'];
+                $shippingCourier = $pickedOption['courier'];
+                $shippingServiceName = $pickedOption['service_name'];
+                $shippingServiceType = $pickedOption['service_type'];
+                $shippingType = $pickedOption['type'];
+                $shippingEtd = $pickedOption['etd'];
+                $shippingAddressJson = $destData;
+                $shippingStatus = \App\Services\KiriminAja\ShippingService::STATUS_WAITING;
+                $totalAmount += $shippingCost;
+            }
+
             // 6. Generate unique order number
             $datePrefix = Carbon::now()->format('ymd');
             $randomSuffix = strtoupper(Str::random(4));
@@ -352,6 +543,16 @@ class OrderApiController extends Controller
                 'loyalty_benefit_choice' => $benefitChoice,
                 'points_earned' => $pointsEarned,
                 'points_used' => 0,
+                'fulfillment_type' => $fulfillmentType,
+                'client_address_id' => $resolvedClientAddressId,
+                'shipping_cost' => $shippingCost,
+                'shipping_type' => $shippingType,
+                'shipping_courier' => $shippingCourier,
+                'shipping_service_name' => $shippingServiceName,
+                'shipping_service_type' => $shippingServiceType,
+                'shipping_etd' => $shippingEtd,
+                'shipping_address' => $shippingAddressJson,
+                'shipping_status' => $shippingStatus,
                 'total_amount' => $totalAmount,
                 'notes' => $validated['notes'] ?? null,
             ]);
@@ -384,6 +585,7 @@ class OrderApiController extends Controller
 
             // Load full relationships
             $order->load(['store', 'client', 'items.menu', 'statusLogs', 'campaign', 'loyaltyPromo']);
+            $client->load('addresses');
 
             // 11. If Payment Gateway (Midtrans or Mayar), create payment link / snap transaction
             $paymentUrl = null;
@@ -439,6 +641,13 @@ class OrderApiController extends Controller
                     'order_number' => $order->order_number,
                     'order_id' => $order->id,
                     'status' => $order->status,
+                    'fulfillment_type' => $order->fulfillment_type,
+                    'shipping_cost' => $order->shipping_cost,
+                    'shipping_courier' => $order->shipping_courier,
+                    'shipping_service_name' => $order->shipping_service_name,
+                    'shipping_etd' => $order->shipping_etd,
+                    'shipping_status' => $order->shipping_status,
+                    'shipping_address' => $order->shipping_address,
                     'total_amount' => $order->total_amount,
                     'payment_method' => $order->payment_method,
                     'payment_url' => $order->payment_url ?? $paymentUrl,

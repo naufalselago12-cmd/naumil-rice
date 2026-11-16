@@ -205,6 +205,30 @@
             </div>
         @endif
 
+        @if(($order->fulfillment_type ?? 'pickup') === 'delivery')
+            <div class="receipt-row">
+                <span>Ongkos Kirim ({{ strtoupper($order->shipping_courier ?? 'KiriminAja') }}{{ $order->shipping_service_name ? ' - ' . $order->shipping_service_name : '' }}):</span>
+                <span class="font-mono">Rp {{ number_format($order->shipping_cost ?? 0, 0, ',', '.') }}</span>
+            </div>
+            @if(!empty($order->ka_awb))
+                <div class="receipt-row">
+                    <span>No. Resi (AWB):</span>
+                    <span class="font-mono">{{ $order->ka_awb }}</span>
+                </div>
+            @endif
+            @if(!empty($order->shipping_address['address']))
+                <div style="font-size: 11px; margin-top: 4px; color: #333;">
+                    <strong>Tujuan:</strong> {{ $order->shipping_address['address'] }}
+                    @if(!empty($order->shipping_address['subdistrict_name']))
+                        , Kel. {{ $order->shipping_address['subdistrict_name'] }}, Kec. {{ $order->shipping_address['district_name'] ?? '' }}, {{ $order->shipping_address['city_name'] ?? '' }} {{ $order->shipping_address['postal_code'] ?? '' }}
+                    @endif
+                    @if(!empty($order->shipping_address['address_note']))
+                        <br><strong>Patokan/Gang:</strong> {{ $order->shipping_address['address_note'] }}
+                    @endif
+                </div>
+            @endif
+        @endif
+
         @if(!empty($order->points_used) && $order->points_used > 0)
             <div class="receipt-row text-discount">
                 <span>Tukar Poin ({{ $order->points_used }} Pts):</span>

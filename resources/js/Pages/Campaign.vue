@@ -622,12 +622,26 @@
                   </div>
                 </div>
 
-                <div class="mb-2">
-                  <label class="form-label small fw-bold">Alamat Pengiriman Lengkap <span class="text-danger">*</span></label>
-                  <textarea v-model="clientForm.address" rows="2" class="form-textarea" placeholder="Jalan, nomor rumah, RT/RW, patokan..." required></textarea>
+                <div v-if="!store.delivery_enabled || deliveryState.fulfillment_type === 'pickup'" class="mb-2">
+                  <label class="form-label small fw-bold">
+                    {{ store.delivery_enabled ? 'Catatan / Alamat (Opsional untuk Ambil Sendiri di Outlet)' : 'Alamat Pengiriman Lengkap' }}
+                    <span v-if="!store.delivery_enabled" class="text-danger">*</span>
+                  </label>
+                  <textarea v-model="clientForm.address" rows="2" class="form-textarea" placeholder="Jalan, nomor rumah, RT/RW, patokan..." :required="!store.delivery_enabled"></textarea>
                 </div>
               </div>
             </div>
+
+            <!-- 3b. Fulfillment & Ongkos Kirim KiriminAja -->
+            <CheckoutDeliveryPanel
+              v-model="deliveryState"
+              :store="store"
+              :is-loyalty="checkoutMode === 'loyalty' && isReturningUser"
+              :saved-addresses="customerSavedAddresses"
+              :total-qty="totalCartQty"
+              :subtotal-after-discount="Math.max(0, cartSubtotal - calculatedDiscount)"
+              @fulfillment-changed="handleFulfillmentChanged"
+            />
 
             <!-- 4. Payment Method Selection -->
             <div class="form-section mb-4">
@@ -666,13 +680,16 @@
                 </label>
 
                 <!-- Method 3: COD -->
-                <label :class="['payment-card', clientForm.payment_method === 'Bayar Terima Makanan' ? 'selected' : '']">
+                <label v-if="deliveryState.fulfillment_type !== 'delivery'" :class="['payment-card', clientForm.payment_method === 'Bayar Terima Makanan' ? 'selected' : '']">
                   <input type="radio" value="Bayar Terima Makanan" v-model="clientForm.payment_method" />
                   <div class="payment-card-body">
                     <span class="fw-bold d-block mb-1"><i class="fa-solid fa-hand-holding-dollar text-success me-1"></i> Bayar Ketika Terima Makanan</span>
-                    <p class="text-muted small mb-0">Bayar tunai/transfer saat makanan sampai di lokasi atau diambil.</p>
+                    <p class="text-muted small mb-0">{{ store.delivery_enabled ? 'Bayar tunai/transfer saat mengambil pesanan di outlet.' : 'Bayar tunai/transfer saat makanan sampai di lokasi atau diambil.' }}</p>
                   </div>
                 </label>
+                <div v-else class="alert alert-info py-2 px-3 small mb-0">
+                  <i class="fa-solid fa-circle-info me-1"></i> Pengiriman Kirim Langsung ke Rumah menggunakan pembayaran langsung (QRIS / Payment Gateway).
+                </div>
               </div>
 
               <!-- Dynamic QRIS Preview Box if QRIS chosen -->
@@ -788,6 +805,10 @@
                   <span>Diskon Promo {{ (campaign.is_early_bird_available && totalCartQty < (campaign.min_order_qty || 15)) ? 'Early Bird (5 Pembeli Pertama)' : 'Campaign' }}:</span>
                   <span class="fw-bold font-mono">- Rp {{ formatNumber(calculatedDiscount) }}</span>
                 </div>
+                <div v-if="deliveryState.fulfillment_type === 'delivery'" class="total-row text-primary">
+                  <span>Ongkos Kirim ({{ deliveryState.shipping.courier ? String(deliveryState.shipping.courier).toUpperCase() : 'Pilih Kurir' }}):</span>
+                  <span class="fw-bold font-mono">Rp {{ formatNumber(deliveryState.shipping.cost || 0) }}</span>
+                </div>
                 <div class="total-row grand-total mt-2 pt-2 border-top">
                   <span>Total Akhir:</span>
                   <span class="text-primary fs-5 fw-bold font-mono">Rp {{ formatNumber(finalPayableTotal) }}</span>
@@ -834,6 +855,7 @@ import { router, Link } from '@inertiajs/vue3'
 import axios from 'axios'
 import confetti from 'canvas-confetti'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import CheckoutDeliveryPanel from '@/Components/CheckoutDeliveryPanel.vue'
 
 const props = defineProps({
   token: {
@@ -954,6 +976,62 @@ const fetchCampaign = async () => {
   }
 }
 
+// Delivery / KiriminAja State
+const customerSavedAddresses = ref([])
+const createBlankShipping = () => ({
+  type: '',
+  courier: '',
+  service_type: '',
+  service_name: '',
+  cost: 0,
+  etd: '',
+  province_id: '',
+  province_name: '',
+  city_id: '',
+  city_name: '',
+  district_id: '',
+  district_name: '',
+  subdistrict_id: '',
+  subdistrict_name: '',
+  postal_code: '',
+  address: '',
+  address_note: '',
+  latitude: null,
+  longitude: null,
+  geo_address: '',
+  save_address: true,
+  address_label: 'Rumah',
+})
+const deliveryState = ref({
+  fulfillment_type: 'pickup',
+  client_address_id: null,
+  shipping: createBlankShipping(),
+})
+
+const handleFulfillmentChanged = (type) => {
+  if (type === 'delivery' && clientForm.value.payment_method === 'Bayar Terima Makanan') {
+    clientForm.value.payment_method = store.value?.payment_type === 'payment_gateway'
+      ? (store.value?.payment_gateway_provider === 'mayar' ? 'Payment Gateway (Mayar.id)' : 'Payment Gateway (Midtrans)')
+      : 'QRIS Statik'
+  }
+}
+
+const loadSavedAddressesForClient = async (user) => {
+  if (Array.isArray(user?.addresses)) {
+    customerSavedAddresses.value = user.addresses
+  }
+  if (user?.id && user?.email) {
+    try {
+      const res = await axios.get('/api/v1/customer/addresses', {
+        params: { client_id: user.id, email: user.email },
+      })
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        customerSavedAddresses.value = res.data.data
+      }
+    } catch (e) {}
+  }
+}
+
 const applyLoyaltyUser = (user) => {
   clientForm.value.name = user.name || ''
   clientForm.value.whatsapp = user.whatsapp || ''
@@ -962,6 +1040,7 @@ const applyLoyaltyUser = (user) => {
   clientConcat.value = `${user.name} (${user.email})`
   customerLoyaltyPoints.value = user.loyalty_points || 0
   isReturningUser.value = true
+  loadSavedAddressesForClient(user)
   localStorage.setItem('naumil_customer_session', JSON.stringify(user))
   localStorage.setItem('naumil_user', JSON.stringify(user))
 }
@@ -1053,6 +1132,8 @@ const clearReturningUser = async () => {
   isReturningUser.value = false
   clientConcat.value = ''
   customerLoyaltyPoints.value = 0
+  customerSavedAddresses.value = []
+  deliveryState.value.client_address_id = null
   clientForm.value.name = ''
   clientForm.value.whatsapp = ''
   clientForm.value.email = ''
@@ -1216,7 +1297,11 @@ const calculatedDiscount = computed(() => {
 })
 
 const finalPayableTotal = computed(() => {
-  return Math.max(0, cartSubtotal.value - calculatedDiscount.value)
+  const base = Math.max(0, cartSubtotal.value - calculatedDiscount.value)
+  const ship = deliveryState.value.fulfillment_type === 'delivery'
+    ? Number(deliveryState.value.shipping?.cost || 0)
+    : 0
+  return base + ship
 })
 
 // Payment Gateway (Midtrans Snap & Mayar.id) Popup Window & Auto-close Polling
@@ -1439,14 +1524,37 @@ const submitOrder = async () => {
       alert('Silakan Masuk atau Daftarkan Akun Pelanggan Setia terlebih dahulu, atau pilih opsi "Beli Makanan Saja".')
       return
     }
-    if (!clientForm.value.address) {
+    if (!store.value?.delivery_enabled && !clientForm.value.address) {
       alert('Mohon isi Alamat Pengiriman Lengkap.')
       return
     }
   } else {
     // Guest checkout
-    if (!clientForm.value.name || !clientForm.value.whatsapp || !clientForm.value.email || !clientForm.value.address) {
-      alert('Mohon lengkapi Nama Lengkap, Nomor HP/WhatsApp, Email Aktif, dan Alamat Pengiriman.')
+    if (!clientForm.value.name || !clientForm.value.whatsapp || !clientForm.value.email) {
+      alert('Mohon lengkapi Nama Lengkap, Nomor HP/WhatsApp, dan Email Aktif.')
+      return
+    }
+    if (!store.value?.delivery_enabled && !clientForm.value.address) {
+      alert('Mohon isi Alamat Pengiriman Lengkap.')
+      return
+    }
+  }
+
+  const isDelivery = Boolean(store.value?.delivery_enabled && deliveryState.value.fulfillment_type === 'delivery')
+  if (isDelivery) {
+    if (clientForm.value.payment_method === 'Bayar Terima Makanan') {
+      alert('Pengiriman Kirim Langsung ke Rumah wajib menggunakan pembayaran langsung (QRIS / Payment Gateway).')
+      return
+    }
+    const s = deliveryState.value.shipping || {}
+    if (!deliveryState.value.client_address_id) {
+      if (!s.province_id || !s.city_id || !s.district_id || !s.subdistrict_id || !/^\d{5}$/.test(String(s.postal_code || '')) || !s.address || s.address.trim().length < 10 || s.latitude === null || s.longitude === null) {
+        alert('Lengkapi Provinsi, Kota, Kecamatan, Kelurahan, Kode Pos (5 digit), Alamat Lengkap (min 10 karakter), dan tandai Pin Peta Geotag tujuan.')
+        return
+      }
+    }
+    if (!s.courier || !s.service_type) {
+      alert('Silakan pilih kurir pengiriman KiriminAja terlebih dahulu.')
       return
     }
   }
@@ -1458,6 +1566,7 @@ const submitOrder = async () => {
 
   try {
     submitting.value = true
+    const finalAddress = clientForm.value.address || (deliveryState.value.shipping?.address || 'Ambil Sendiri di Outlet')
     const payload = {
       store_id: store.value.id,
       campaign_id: campaign.value.id,
@@ -1465,8 +1574,11 @@ const submitOrder = async () => {
       customer_name: clientForm.value.name,
       customer_whatsapp: clientForm.value.whatsapp,
       customer_email: clientForm.value.email,
-      customer_address: clientForm.value.address,
+      customer_address: finalAddress,
       payment_method: clientForm.value.payment_method,
+      fulfillment_type: isDelivery ? 'delivery' : 'pickup',
+      client_address_id: isDelivery ? deliveryState.value.client_address_id : null,
+      shipping: isDelivery ? deliveryState.value.shipping : null,
       items: cart.value.map(it => ({
         menu_id: it.menu_id,
         quantity: it.quantity,

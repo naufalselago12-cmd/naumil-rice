@@ -117,6 +117,18 @@
                         </td>
                         <td>
                             <span class="badge {{ $statusBadgeClass }}">{{ $ord->status }}</span>
+                            @if(($ord->fulfillment_type ?? 'pickup') === 'delivery')
+                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle d-block mt-1">
+                                    <i class="fa-solid fa-motorcycle me-1"></i> Kirim ({{ strtoupper($ord->shipping_courier ?? 'KA') }})
+                                </span>
+                                @if($ord->ka_awb)
+                                    <small class="font-mono text-muted d-block mt-1" style="font-size: 0.72rem;">Resi: {{ $ord->ka_awb }}</small>
+                                @endif
+                            @else
+                                <span class="badge bg-light text-muted border d-block mt-1">
+                                    <i class="fa-solid fa-store me-1"></i> Ambil di Outlet
+                                </span>
+                            @endif
                             @if($ord->cancellation_reason)
                                 <small class="text-danger d-block mt-1 text-truncate" style="max-width: 140px;" title="{{ $ord->cancellation_reason }}">
                                     <i class="fa-solid fa-ban me-1"></i>{{ $ord->cancellation_reason }}

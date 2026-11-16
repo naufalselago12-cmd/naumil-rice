@@ -148,6 +148,12 @@ class CampaignApiController extends Controller
                     'midtrans_client_key' => $campaign->store->active_midtrans_client_key,
                     'has_midtrans' => $campaign->store->hasMidtransConfigured(),
                     'has_mayar' => $campaign->store->hasMayarConfigured(),
+                    'delivery_enabled' => $campaign->store->isDeliveryAvailable(),
+                    'delivery_configured' => $campaign->store->hasDeliveryOriginConfigured(),
+                    'delivery_weight_per_item' => (int) ($campaign->store->delivery_weight_per_item ?: config('kiriminaja.package.weight_per_item')),
+                    'ka_latitude' => $campaign->store->ka_latitude,
+                    'ka_longitude' => $campaign->store->ka_longitude,
+                    'ka_address_note' => $campaign->store->ka_address_note,
                 ],
                 'menus' => $menus
             ]

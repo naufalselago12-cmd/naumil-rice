@@ -40,6 +40,42 @@ class Store extends Model
         'midtrans_client_key_production',
         'midtrans_merchant_id_production',
         'status',
+        // Modul Kirim Langsung ke Rumah (KiriminAja)
+        'delivery_enabled',
+        'ka_province_id',
+        'ka_province_name',
+        'ka_city_id',
+        'ka_city_name',
+        'ka_district_id',
+        'ka_district_name',
+        'ka_subdistrict_id',
+        'ka_subdistrict_name',
+        'ka_postal_code',
+        'ka_address',
+        'ka_address_note',
+        'ka_latitude',
+        'ka_longitude',
+        'ka_geo_address',
+        'delivery_couriers',
+        'delivery_weight_per_item',
+        'delivery_package_length',
+        'delivery_package_width',
+        'delivery_package_height',
+    ];
+
+    protected $casts = [
+        'delivery_enabled' => 'boolean',
+        'delivery_couriers' => 'array',
+        'ka_latitude' => 'float',
+        'ka_longitude' => 'float',
+        'ka_province_id' => 'integer',
+        'ka_city_id' => 'integer',
+        'ka_district_id' => 'integer',
+        'ka_subdistrict_id' => 'integer',
+        'delivery_weight_per_item' => 'integer',
+        'delivery_package_length' => 'integer',
+        'delivery_package_width' => 'integer',
+        'delivery_package_height' => 'integer',
     ];
 
     protected static function booted()
@@ -197,5 +233,47 @@ class Store extends Model
     public function hasProductionConfigured(): bool
     {
         return !empty($this->mayar_api_key_production);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Kirim Langsung ke Rumah (KiriminAja)
+    |--------------------------------------------------------------------------
+    */
+
+    /** Alamat & geotag toko sudah lengkap sebagai titik asal pengiriman? */
+    public function hasDeliveryOriginConfigured(): bool
+    {
+        return !empty($this->ka_province_id)
+            && !empty($this->ka_city_id)
+            && !empty($this->ka_district_id)
+            && !empty($this->ka_subdistrict_id)
+            && !empty($this->ka_address)
+            && !empty($this->ka_postal_code)
+            && $this->ka_latitude !== null
+            && $this->ka_longitude !== null;
+    }
+
+    /** Opsi "Kirim Langsung ke Rumah" tersedia untuk pembeli? */
+    public function isDeliveryAvailable(): bool
+    {
+        return (bool) config('kiriminaja.enabled')
+            && (bool) $this->delivery_enabled
+            && $this->hasDeliveryOriginConfigured();
+    }
+
+    /** Alamat lengkap asal pengiriman (dikirim sebagai alamat pickup ke KiriminAja). */
+    public function getDeliveryOriginFullAddressAttribute(): string
+    {
+        $parts = array_filter([
+            $this->ka_address,
+            $this->ka_subdistrict_name,
+            $this->ka_district_name,
+            $this->ka_city_name,
+            $this->ka_province_name,
+            $this->ka_postal_code,
+        ], fn ($v) => $v !== null && trim((string) $v) !== '');
+
+        return implode(', ', $parts);
     }
 }

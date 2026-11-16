@@ -16,15 +16,50 @@ class StoreBackendSettingsController extends Controller
     public function index(Request $request, string $store_slug)
     {
         $store = $this->getStore($request);
-        return view('store_backend.settings.index', compact('store'));
+        $kaClient = app(\App\Services\KiriminAja\KiriminAjaClient::class);
+        $kaConfigured = $kaClient->isConfigured();
+        $kaEnv = $kaClient->environment();
+        $defaultExpressCouriers = config('kiriminaja.default_express_couriers', []);
+        $defaultInstantCouriers = config('kiriminaja.default_instant_couriers', []);
+
+        return view('store_backend.settings.index', compact(
+            'store',
+            'kaConfigured',
+            'kaEnv',
+            'defaultExpressCouriers',
+            'defaultInstantCouriers'
+        ));
     }
 
     public function update(Request $request, string $store_slug)
     {
         $store = $this->getStore($request);
 
+        $deliveryEnabled = $request->boolean('delivery_enabled');
+
         $validated = $request->validate([
             'address' => 'required|string',
+            'delivery_enabled' => 'nullable|boolean',
+            'ka_province_id' => [\Illuminate\Validation\Rule::requiredIf($deliveryEnabled), 'nullable', 'integer', 'min:1'],
+            'ka_province_name' => [\Illuminate\Validation\Rule::requiredIf($deliveryEnabled), 'nullable', 'string', 'max:120'],
+            'ka_city_id' => [\Illuminate\Validation\Rule::requiredIf($deliveryEnabled), 'nullable', 'integer', 'min:1'],
+            'ka_city_name' => [\Illuminate\Validation\Rule::requiredIf($deliveryEnabled), 'nullable', 'string', 'max:120'],
+            'ka_district_id' => [\Illuminate\Validation\Rule::requiredIf($deliveryEnabled), 'nullable', 'integer', 'min:1'],
+            'ka_district_name' => [\Illuminate\Validation\Rule::requiredIf($deliveryEnabled), 'nullable', 'string', 'max:120'],
+            'ka_subdistrict_id' => [\Illuminate\Validation\Rule::requiredIf($deliveryEnabled), 'nullable', 'integer', 'min:1'],
+            'ka_subdistrict_name' => [\Illuminate\Validation\Rule::requiredIf($deliveryEnabled), 'nullable', 'string', 'max:120'],
+            'ka_postal_code' => [\Illuminate\Validation\Rule::requiredIf($deliveryEnabled), 'nullable', 'digits:5'],
+            'ka_address' => [\Illuminate\Validation\Rule::requiredIf($deliveryEnabled), 'nullable', 'string', 'min:10', 'max:500'],
+            'ka_address_note' => 'nullable|string|max:150',
+            'ka_latitude' => [\Illuminate\Validation\Rule::requiredIf($deliveryEnabled), 'nullable', 'numeric', 'between:-90,90'],
+            'ka_longitude' => [\Illuminate\Validation\Rule::requiredIf($deliveryEnabled), 'nullable', 'numeric', 'between:-180,180'],
+            'ka_geo_address' => 'nullable|string|max:500',
+            'delivery_couriers' => 'nullable|array',
+            'delivery_couriers.*' => 'string|max:40',
+            'delivery_weight_per_item' => 'nullable|integer|min:1|max:50000',
+            'delivery_package_length' => 'nullable|integer|min:1|max:500',
+            'delivery_package_width' => 'nullable|integer|min:1|max:500',
+            'delivery_package_height' => 'nullable|integer|min:1|max:500',
             'phone' => 'nullable|string|max:50',
             'logo' => 'nullable|string',
             'logo_file' => 'nullable|image|max:3072',
@@ -121,6 +156,10 @@ class StoreBackendSettingsController extends Controller
 
         $validated['midtrans_environment'] = $validated['midtrans_environment'] ?? 'sandbox';
         $validated['mayar_environment'] = $validated['mayar_environment'] ?? 'sandbox';
+        $validated['delivery_enabled'] = $deliveryEnabled;
+        if ($request->has('delivery_couriers_submitted')) {
+            $validated['delivery_couriers'] = array_values(array_filter((array) ($validated['delivery_couriers'] ?? [])));
+        }
 
         $store->update($validated);
 

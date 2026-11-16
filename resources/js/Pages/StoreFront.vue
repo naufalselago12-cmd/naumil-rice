@@ -264,11 +264,49 @@
             </div>
           </div>
 
+          <!-- Search Menu Bar (Toleran Typo / Fuzzy String Search) -->
+          <div class="mb-4">
+            <div class="input-group shadow-sm rounded-3 overflow-hidden border bg-white">
+              <span class="input-group-text bg-white border-0 text-primary px-3">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </span>
+              <input
+                v-model="menuSearchQuery"
+                type="text"
+                class="form-control border-0 shadow-none py-2"
+                placeholder="Cari menu favorit Anda (contoh: nasi goreng, ayam bakar, es teh)..."
+              />
+              <button
+                v-if="menuSearchQuery"
+                type="button"
+                class="btn btn-light border-0 text-muted px-3"
+                @click="menuSearchQuery = ''"
+                title="Hapus pencarian"
+              >
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div v-if="menuSearchQuery && menuSearchResult.hadFuzzyMatch" class="small text-primary mt-2 ps-1 fw-semibold">
+              <i class="fa-solid fa-wand-magic-sparkles me-1"></i>
+              Pencarian terdekat untuk "<strong>{{ menuSearchQuery }}</strong>" — menampilkan {{ menuSearchResult.items.length }} menu paling relevan.
+            </div>
+          </div>
+
           <!-- Empty State -->
           <div v-if="filteredMenus.length === 0" class="text-center py-5">
             <i class="fa-solid fa-bowl-food fa-3x text-muted mb-3"></i>
-            <h5>Belum ada menu di kategori ini</h5>
-            <p class="text-muted">Silakan pilih kategori lain atau cek kembali nanti.</p>
+            <h5>{{ menuSearchQuery ? 'Menu tidak ditemukan' : 'Belum ada menu di kategori ini' }}</h5>
+            <p class="text-muted">
+              {{ menuSearchQuery ? 'Tidak ada menu yang cocok dengan kata "' + menuSearchQuery + '".' : 'Silakan pilih kategori lain atau cek kembali nanti.' }}
+            </p>
+            <div v-if="menuSearchQuery" class="d-flex justify-content-center gap-2 mt-2">
+              <button v-if="activeCategory !== null" type="button" class="btn btn-sm btn-primary" @click="activeCategory = null">
+                Cari di Semua Kategori
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="menuSearchQuery = ''">
+                Reset Pencarian
+              </button>
+            </div>
           </div>
 
           <!-- Menu Grid -->
@@ -593,8 +631,8 @@
                     </div>
                   </div>
 
-                  <!-- Delivery address for logged in customer -->
-                  <div class="mt-3 pt-3 border-top">
+                  <!-- Delivery address for logged in customer (hanya jika modul KiriminAja toko belum aktif) -->
+                  <div v-if="!store.delivery_enabled" class="mt-3 pt-3 border-top">
                     <label class="form-label small fw-bold">Alamat Pengiriman Pesanan <span class="text-danger">*</span></label>
                     <textarea v-model="customerForm.address" rows="2" class="form-input" placeholder="Jalan, No. Rumah, RT/RW, Patokan..." required></textarea>
                   </div>
@@ -761,15 +799,32 @@
                   </div>
                 </div>
 
-                <div class="mb-2">
-                  <label class="form-label small fw-bold">Alamat Pengiriman Lengkap <span class="text-danger">*</span></label>
-                  <textarea v-model="guestForm.address" rows="2" class="form-input" placeholder="Jalan, No. Rumah, RT/RW, Patokan..." required></textarea>
+                <div v-if="!store.delivery_enabled || deliveryState.fulfillment_type === 'pickup'" class="mb-2">
+                  <label class="form-label small fw-bold">
+                    {{ store.delivery_enabled ? 'Catatan / Alamat (Opsional untuk Ambil di Outlet)' : 'Alamat Pengiriman Lengkap' }}
+                    <span v-if="!store.delivery_enabled" class="text-danger">*</span>
+                  </label>
+                  <textarea v-model="guestForm.address" rows="2" class="form-input" placeholder="Jalan, No. Rumah, RT/RW, Patokan..." :required="!store.delivery_enabled"></textarea>
                 </div>
               </div>
+
+              <!-- 2b. Fulfillment & KiriminAja Shipping Panel -->
+              <CheckoutDeliveryPanel
+                v-model="deliveryState"
+                :store="store"
+                :is-loyalty="checkoutMode === 'loyalty' && isCustomerLoggedIn"
+                :saved-addresses="customerSavedAddresses"
+                :total-qty="cartTotalQuantity"
+                :subtotal-after-discount="Math.max(0, cartTotalPrice - loyaltyPromoDiscount)"
+                @fulfillment-changed="handleFulfillmentChanged"
+              />
 
               <!-- 3. Payment Method Selector -->
               <div class="mb-4">
                 <label class="form-label small fw-bold">Metode Pembayaran</label>
+                <div v-if="deliveryState.fulfillment_type === 'delivery'" class="alert alert-info py-2 px-3 small mb-2">
+                  <i class="fa-solid fa-circle-info me-1"></i> Pengiriman Kirim Langsung ke Rumah menggunakan pembayaran langsung (QRIS / Payment Gateway).
+                </div>
                 <div class="d-flex flex-column gap-2">
                   <!-- Payment Gateway if activated -->
                   <label v-if="store.payment_type === 'payment_gateway'" class="option-radio-card">
@@ -796,12 +851,12 @@
                     <span class="badge badge-primary">Rekomendasi</span>
                   </label>
 
-                  <!-- COD option -->
-                  <label class="option-radio-card">
+                  <!-- COD option (hanya untuk Ambil Sendiri di Outlet / saat KiriminAja nonaktif) -->
+                  <label v-if="deliveryState.fulfillment_type !== 'delivery'" class="option-radio-card">
                     <input type="radio" value="Bayar Terima Makanan" v-model="paymentMethod" name="paymentMethod" />
                     <div class="flex-grow-1 ms-2">
                       <div class="fw-bold"><i class="fa-solid fa-hand-holding-dollar text-success me-1"></i> Bayar Terima Makanan (COD)</div>
-                      <small class="text-muted d-block">Bayar tunai kepada kurir saat pesanan tiba</small>
+                      <small class="text-muted d-block">{{ store.delivery_enabled ? 'Bayar tunai saat mengambil pesanan di outlet' : 'Bayar tunai kepada kurir saat pesanan tiba' }}</small>
                     </div>
                   </label>
                 </div>
@@ -820,6 +875,13 @@
                 <div v-if="loyaltyPromoDiscount > 0" class="d-flex justify-content-between mb-1 text-success">
                   <span class="small"><i class="fa-solid fa-tag me-1"></i> Diskon Pelanggan Setia:</span>
                   <span class="font-mono fw-bold">- Rp {{ formatPrice(loyaltyPromoDiscount) }}</span>
+                </div>
+                <div v-if="deliveryState.fulfillment_type === 'delivery'" class="d-flex justify-content-between mb-1 text-primary">
+                  <span class="small">
+                    <i class="fa-solid fa-motorcycle me-1"></i>
+                    Ongkos Kirim ({{ deliveryState.shipping.courier ? String(deliveryState.shipping.courier).toUpperCase() : 'Pilih Kurir' }}):
+                  </span>
+                  <span class="font-mono fw-bold">Rp {{ formatPrice(deliveryState.shipping.cost || 0) }}</span>
                 </div>
                 <div class="d-flex justify-content-between align-items-center pt-2 border-top mb-2">
                   <span class="text-muted small">Total Pembayaran:</span>
@@ -1014,6 +1076,8 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import CheckoutDeliveryPanel from '@/Components/CheckoutDeliveryPanel.vue'
+import { fuzzySearchMenus } from '@/utils/menuSearch'
 
 const props = defineProps({
   store: {
@@ -1056,16 +1120,25 @@ const availablePromos = computed(() => {
 })
 
 const activeCategory = ref(null)
+const menuSearchQuery = ref('')
 
 const visibleCategories = computed(() => {
   return (props.categories || []).filter(c => c.menus && c.menus.length > 0)
 })
 
-const filteredMenus = computed(() => {
+const categoryMenus = computed(() => {
   if (activeCategory.value === null) {
     return props.menus
   }
   return props.menus.filter(m => m.category_id === activeCategory.value)
+})
+
+const menuSearchResult = computed(() => {
+  return fuzzySearchMenus(categoryMenus.value, menuSearchQuery.value)
+})
+
+const filteredMenus = computed(() => {
+  return menuSearchResult.value.items
 })
 
 // Customization Modal State
@@ -1337,8 +1410,51 @@ const finalEarnedPoints = computed(() => {
 })
 
 // Final Cart Price
+const customerSavedAddresses = ref([])
+const createBlankShipping = () => ({
+  type: '',
+  courier: '',
+  service_type: '',
+  service_name: '',
+  cost: 0,
+  etd: '',
+  province_id: '',
+  province_name: '',
+  city_id: '',
+  city_name: '',
+  district_id: '',
+  district_name: '',
+  subdistrict_id: '',
+  subdistrict_name: '',
+  postal_code: '',
+  address: '',
+  address_note: '',
+  latitude: null,
+  longitude: null,
+  geo_address: '',
+  save_address: true,
+  address_label: 'Rumah',
+})
+const deliveryState = ref({
+  fulfillment_type: 'pickup',
+  client_address_id: null,
+  shipping: createBlankShipping(),
+})
+
+const handleFulfillmentChanged = (type) => {
+  if (type === 'delivery' && paymentMethod.value === 'Bayar Terima Makanan') {
+    paymentMethod.value = props.store.payment_type === 'payment_gateway'
+      ? (props.store.payment_gateway_provider === 'mayar' ? 'Payment Gateway (Mayar.id)' : 'Payment Gateway (Midtrans)')
+      : 'QRIS Statik'
+  }
+}
+
 const cartFinalPrice = computed(() => {
-  return Math.max(0, cartTotalPrice.value - loyaltyPromoDiscount.value)
+  const base = Math.max(0, cartTotalPrice.value - loyaltyPromoDiscount.value)
+  const ship = deliveryState.value.fulfillment_type === 'delivery'
+    ? Number(deliveryState.value.shipping?.cost || 0)
+    : 0
+  return base + ship
 })
 
 // Quick open modal for loyalty
@@ -1369,6 +1485,22 @@ const loadCustomerSession = async () => {
   } catch (e) {}
 }
 
+const loadSavedAddressesForClient = async (client) => {
+  if (Array.isArray(client?.addresses)) {
+    customerSavedAddresses.value = client.addresses
+  }
+  if (client?.id && client?.email) {
+    try {
+      const res = await axios.get('/api/v1/customer/addresses', {
+        params: { client_id: client.id, email: client.email },
+      })
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        customerSavedAddresses.value = res.data.data
+      }
+    } catch (e) {}
+  }
+}
+
 const applyClientData = (client) => {
   customerData.value = client
   customerForm.value.email = client.email || ''
@@ -1378,6 +1510,7 @@ const applyClientData = (client) => {
   customerPoints.value = client.loyalty_points || 0
   isCustomerLoggedIn.value = true
   customerConcat.value = `${client.name} (${client.email})`
+  loadSavedAddressesForClient(client)
   localStorage.setItem('naumil_customer_session', JSON.stringify(client))
 }
 
@@ -1476,6 +1609,8 @@ const logoutCustomer = async () => {
   customerConcat.value = ''
   customerPoints.value = 0
   customerData.value = null
+  customerSavedAddresses.value = []
+  deliveryState.value.client_address_id = null
   customerForm.value.email = ''
   customerForm.value.name = ''
   customerForm.value.whatsapp = ''
@@ -1937,9 +2072,32 @@ const submitOrder = async () => {
     finalAddress = guestForm.value.address
   }
 
-  if (!finalName || !finalEmail || !finalWa || !finalAddress) {
+  const isDelivery = Boolean(props.store?.delivery_enabled && deliveryState.value.fulfillment_type === 'delivery')
+
+  if (!finalName || !finalEmail || !finalWa || (!props.store?.delivery_enabled && !finalAddress)) {
     alert('Mohon lengkapi Nama Lengkap, Nomor HP / WhatsApp, Email Aktif, dan Alamat Pengiriman.')
     return
+  }
+
+  if (isDelivery) {
+    if (paymentMethod.value === 'Bayar Terima Makanan') {
+      alert('Pengiriman Kirim Langsung ke Rumah wajib menggunakan pembayaran langsung (QRIS / Payment Gateway).')
+      return
+    }
+    const s = deliveryState.value.shipping || {}
+    if (!deliveryState.value.client_address_id) {
+      if (!s.province_id || !s.city_id || !s.district_id || !s.subdistrict_id || !/^\d{5}$/.test(String(s.postal_code || '')) || !s.address || s.address.trim().length < 10 || s.latitude === null || s.longitude === null) {
+        alert('Lengkapi Provinsi, Kota, Kecamatan, Kelurahan, Kode Pos (5 digit), Alamat Lengkap (min 10 karakter), dan tandai Pin Peta Geotag tujuan.')
+        return
+      }
+      finalAddress = s.address
+    }
+    if (!s.courier || !s.service_type) {
+      alert('Silakan pilih layanan kurir KiriminAja terlebih dahulu.')
+      return
+    }
+  } else if (!finalAddress) {
+    finalAddress = 'Ambil Sendiri di Outlet'
   }
 
   try {
@@ -1956,6 +2114,9 @@ const submitOrder = async () => {
       customer_whatsapp: finalWa,
       customer_address: finalAddress,
       payment_method: paymentMethod.value,
+      fulfillment_type: isDelivery ? 'delivery' : 'pickup',
+      client_address_id: isDelivery ? deliveryState.value.client_address_id : null,
+      shipping: isDelivery ? deliveryState.value.shipping : null,
       notes: 'Order via Storefront ' + props.store.name + (checkoutMode.value === 'loyalty' ? ' (Pelanggan Setia)' : ' (Tamu)'),
       items: cartItems.value.map(it => ({
         menu_id: it.menu.id,
@@ -1968,6 +2129,9 @@ const submitOrder = async () => {
     const res = await axios.post('/api/v1/orders', payload)
     if (res.data.success) {
       createdOrderData.value = res.data.data
+      if (checkoutMode.value === 'loyalty' && res.data.data.client) {
+        applyClientData(res.data.data.client)
+      }
       cartItems.value = []
       localStorage.removeItem('naumil_customer_cart_backup')
       showCartModal.value = false

@@ -121,6 +121,11 @@
                 <i class="fa-solid fa-id-card text-success me-2"></i> Data Diri & Profil
               </button>
               <button type="button" 
+                      :class="['tab-btn', activeTab === 'addresses' ? 'active' : '']"
+                      @click="activeTab = 'addresses'">
+                <i class="fa-solid fa-map-location-dot text-info me-2"></i> Buku Alamat ({{ customer.addresses?.length || 0 }})
+              </button>
+              <button type="button" 
                       :class="['tab-btn', activeTab === 'stores' ? 'active' : '']"
                       @click="activeTab = 'stores'">
                 <i class="fa-solid fa-store text-danger me-2"></i> Toko Langganan
@@ -396,6 +401,104 @@
                     </button>
                   </div>
                 </form>
+              </div>
+
+              <!-- ============================================== -->
+              <!-- TAB 4: BUKU ALAMAT PENGIRIMAN (MULTI-ALAMAT)   -->
+              <!-- ============================================== -->
+              <div v-if="activeTab === 'addresses'">
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                  <div>
+                    <h5 class="fw-bold mb-1"><i class="fa-solid fa-map-location-dot text-info me-2"></i>Buku Alamat Pengiriman</h5>
+                    <p class="text-muted small mb-0">Simpan alamat rumah/kantor cukup 1 kali. Anda bisa menambahkan alamat baru kapan saja saat ingin kirim ke lokasi berbeda.</p>
+                  </div>
+                  <button v-if="!showAddressForm" type="button" class="btn btn-primary btn-sm fw-bold" @click="openNewAddressForm">
+                    <i class="fa-solid fa-plus me-1"></i> Tambah Alamat Baru
+                  </button>
+                </div>
+
+                <!-- Form Tambah / Edit Alamat -->
+                <div v-if="showAddressForm" class="p-3 p-md-4 border rounded-4 bg-light mb-4 shadow-sm">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0 text-dark">
+                      {{ editingAddressId ? 'Edit Alamat Tersimpan' : 'Tambah Alamat Pengiriman Baru' }}
+                    </h6>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="cancelAddressForm">Batal</button>
+                  </div>
+
+                  <form @submit.prevent="submitAddressForm">
+                    <div class="row g-2 mb-2">
+                      <div class="col-md-4">
+                        <label class="form-label small fw-bold mb-1">Label Alamat <span class="text-danger">*</span></label>
+                        <input v-model="addressForm.label" type="text" class="form-control" maxlength="50" placeholder="Rumah / Kantor / Orang Tua" required />
+                      </div>
+                      <div class="col-md-4">
+                        <label class="form-label small fw-bold mb-1">Nama Penerima</label>
+                        <input v-model="addressForm.recipient_name" type="text" class="form-control" placeholder="Nama penerima" />
+                      </div>
+                      <div class="col-md-4">
+                        <label class="form-label small fw-bold mb-1">No. HP / WhatsApp</label>
+                        <input v-model="addressForm.phone" type="text" class="form-control font-mono" placeholder="0812..." />
+                      </div>
+                    </div>
+
+                    <KiriminAjaRegionForm v-model="addressForm" map-height="240px" />
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 pt-3 border-top">
+                      <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                        <input v-model="addressForm.is_default" type="checkbox" class="form-check-input mt-0" />
+                        <span class="fw-semibold">Jadikan Alamat Utama</span>
+                      </label>
+                      <button type="submit" class="btn btn-primary fw-bold px-4" :disabled="savingAddress">
+                        <i v-if="savingAddress" class="fa-solid fa-spinner fa-spin me-1"></i>
+                        <i v-else class="fa-solid fa-floppy-disk me-1"></i>
+                        {{ savingAddress ? 'Menyimpan...' : 'Simpan Alamat' }}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <!-- Daftar Alamat Tersimpan -->
+                <div v-if="customer.addresses && customer.addresses.length > 0" class="row g-3">
+                  <div v-for="addr in customer.addresses" :key="addr.id" class="col-md-6">
+                    <div class="p-3 rounded-4 border h-100 d-flex flex-column justify-content-between"
+                         :class="addr.is_default ? 'border-success bg-success-subtle' : 'bg-white shadow-sm'">
+                      <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <span class="fw-bold text-dark fs-6">{{ addr.label }}</span>
+                          <span v-if="addr.is_default" class="badge bg-success">Alamat Utama</span>
+                        </div>
+                        <div class="small fw-semibold text-dark">{{ addr.recipient_name || customer.name }} · <span class="font-mono">{{ addr.phone || customer.whatsapp }}</span></div>
+                        <div class="small text-muted mt-1">{{ addr.full_address }}</div>
+                        <div v-if="addr.address_note" class="small text-primary mt-1">
+                          <i class="fa-solid fa-signs-post me-1"></i> Patokan/Gang: {{ addr.address_note }}
+                        </div>
+                        <div class="small text-muted font-mono mt-1" style="font-size: 0.75rem;">
+                          Pin: {{ Number(addr.latitude).toFixed(5) }}, {{ Number(addr.longitude).toFixed(5) }}
+                        </div>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2 mt-3 pt-2 border-top">
+                        <button v-if="!addr.is_default" type="button" class="btn btn-sm btn-outline-success" @click="setDefaultAddress(addr.id)">
+                          Jadikan Utama
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" @click="editSavedAddress(addr)">
+                          <i class="fa-solid fa-pen"></i> Edit
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger ms-auto" @click="deleteSavedAddress(addr.id)">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else-if="!showAddressForm" class="text-center py-5 border rounded-4 bg-light">
+                  <i class="fa-solid fa-map-pin fa-2x text-muted mb-2"></i>
+                  <h6 class="fw-bold text-dark">Belum Ada Alamat Pengiriman Tersimpan</h6>
+                  <p class="text-muted small mb-3">Tambahkan alamat rumah atau kantor Anda 1 kali saja untuk mempercepat checkout pengiriman.</p>
+                  <button type="button" class="btn btn-primary btn-sm fw-bold" @click="openNewAddressForm">
+                    <i class="fa-solid fa-plus me-1"></i> Tambah Alamat Pertama
+                  </button>
+                </div>
               </div>
 
               <!-- ============================================== -->
@@ -721,6 +824,7 @@ import { ref, computed, onMounted } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import KiriminAjaRegionForm from '@/Components/KiriminAjaRegionForm.vue'
 
 const props = defineProps({
   initialClient: {
@@ -788,6 +892,129 @@ const profileForm = ref({
 const savingStores = ref(false)
 const storeUpdateSuccess = ref('')
 const selectedStoreIds = ref([])
+
+// Buku Alamat State
+const showAddressForm = ref(false)
+const savingAddress = ref(false)
+const editingAddressId = ref(null)
+const blankAddressForm = () => ({
+  label: 'Rumah',
+  recipient_name: customer.value?.name || '',
+  phone: customer.value?.whatsapp || '',
+  province_id: '',
+  province_name: '',
+  city_id: '',
+  city_name: '',
+  district_id: '',
+  district_name: '',
+  subdistrict_id: '',
+  subdistrict_name: '',
+  postal_code: '',
+  address: '',
+  address_note: '',
+  latitude: null,
+  longitude: null,
+  geo_address: '',
+  is_default: !(customer.value?.addresses?.length > 0),
+})
+const addressForm = ref(blankAddressForm())
+
+const openNewAddressForm = () => {
+  editingAddressId.value = null
+  addressForm.value = blankAddressForm()
+  showAddressForm.value = true
+}
+
+const editSavedAddress = (addr) => {
+  editingAddressId.value = addr.id
+  addressForm.value = {
+    label: addr.label || 'Rumah',
+    recipient_name: addr.recipient_name || customer.value?.name || '',
+    phone: addr.phone || customer.value?.whatsapp || '',
+    province_id: addr.province_id,
+    province_name: addr.province_name,
+    city_id: addr.city_id,
+    city_name: addr.city_name,
+    district_id: addr.district_id,
+    district_name: addr.district_name,
+    subdistrict_id: addr.subdistrict_id,
+    subdistrict_name: addr.subdistrict_name,
+    postal_code: addr.postal_code || '',
+    address: addr.address || '',
+    address_note: addr.address_note || '',
+    latitude: addr.latitude,
+    longitude: addr.longitude,
+    geo_address: addr.geo_address || '',
+    is_default: Boolean(addr.is_default),
+  }
+  showAddressForm.value = true
+}
+
+const cancelAddressForm = () => {
+  showAddressForm.value = false
+  editingAddressId.value = null
+}
+
+const submitAddressForm = async () => {
+  const f = addressForm.value
+  if (!f.province_id || !f.city_id || !f.district_id || !f.subdistrict_id || !/^\d{5}$/.test(String(f.postal_code || '')) || !f.address || f.address.trim().length < 10 || f.latitude === null || f.longitude === null) {
+    alert('Mohon lengkapi Provinsi, Kota, Kecamatan, Kelurahan, Kode Pos (5 digit), Alamat Lengkap (min 10 karakter), serta tandai titik lokasi di peta.')
+    return
+  }
+
+  savingAddress.value = true
+  try {
+    const payload = {
+      ...f,
+      client_id: customer.value.id,
+      email: customer.value.email,
+    }
+    const res = editingAddressId.value
+      ? await axios.put(`/api/v1/customer/addresses/${editingAddressId.value}`, payload)
+      : await axios.post('/api/v1/customer/addresses', payload)
+
+    if (res.data?.success) {
+      customer.value.addresses = res.data.addresses || []
+      syncCustomerData(customer.value)
+      showAddressForm.value = false
+      editingAddressId.value = null
+    }
+  } catch (err) {
+    alert(err.response?.data?.message || 'Gagal menyimpan alamat.')
+  } finally {
+    savingAddress.value = false
+  }
+}
+
+const setDefaultAddress = async (id) => {
+  try {
+    const res = await axios.post(`/api/v1/customer/addresses/${id}/default`, {
+      client_id: customer.value.id,
+      email: customer.value.email,
+    })
+    if (res.data?.success) {
+      customer.value.addresses = res.data.addresses || []
+      syncCustomerData(customer.value)
+    }
+  } catch (err) {
+    alert(err.response?.data?.message || 'Gagal mengubah alamat utama.')
+  }
+}
+
+const deleteSavedAddress = async (id) => {
+  if (!confirm('Hapus alamat ini dari buku alamat?')) return
+  try {
+    const res = await axios.delete(`/api/v1/customer/addresses/${id}`, {
+      data: { client_id: customer.value.id, email: customer.value.email },
+    })
+    if (res.data?.success) {
+      customer.value.addresses = res.data.addresses || []
+      syncCustomerData(customer.value)
+    }
+  } catch (err) {
+    alert(err.response?.data?.message || 'Gagal menghapus alamat.')
+  }
+}
 
 const totalEarnedPoints = computed(() => {
   if (!customer.value?.point_transactions) return 0

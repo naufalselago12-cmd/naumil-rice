@@ -51,8 +51,47 @@
                         <span>{{ $order->client->email ?? '-' }}</span>
                     </div>
                     <div class="col-md-6">
-                        <small class="text-muted d-block">Alamat Pengiriman:</small>
-                        <span>{{ $order->client->address ?: 'Ambil di Tempat / Sesuai Catatan' }}</span>
+                        <small class="text-muted d-block">Metode Penerimaan & Alamat:</small>
+                        @if($order->isDelivery() && !empty($order->shipping_address))
+                            <span class="badge bg-info text-dark mb-1">
+                                <i class="fa-solid fa-motorcycle me-1"></i> Kirim Langsung ke Rumah
+                            </span>
+                            <div class="small text-dark fw-semibold">
+                                {{ $order->shipping_address['address'] ?? '-' }}
+                            </div>
+                            <div class="small text-muted">
+                                @if(!empty($order->shipping_address['subdistrict_name']))
+                                    Kel. {{ $order->shipping_address['subdistrict_name'] }},
+                                @endif
+                                @if(!empty($order->shipping_address['district_name']))
+                                    Kec. {{ $order->shipping_address['district_name'] }},
+                                @endif
+                                {{ $order->shipping_address['city_name'] ?? '' }},
+                                {{ $order->shipping_address['province_name'] ?? '' }}
+                                {{ $order->shipping_address['postal_code'] ?? '' }}
+                            </div>
+                            @if(!empty($order->shipping_address['address_note']))
+                                <div class="mt-1 small text-primary-emphasis bg-primary-subtle px-2 py-1 rounded">
+                                    <i class="fa-solid fa-signs-post me-1"></i> <strong>Patokan / Gang:</strong> {{ $order->shipping_address['address_note'] }}
+                                </div>
+                            @endif
+                            @if(!empty($order->shipping_address['latitude']) && !empty($order->shipping_address['longitude']))
+                                <div class="mt-1 small">
+                                    <span class="font-mono text-muted">
+                                        Geotag: {{ $order->shipping_address['latitude'] }}, {{ $order->shipping_address['longitude'] }}
+                                    </span>
+                                    <a href="https://www.openstreetmap.org/?mlat={{ $order->shipping_address['latitude'] }}&mlon={{ $order->shipping_address['longitude'] }}#map=17/{{ $order->shipping_address['latitude'] }}/{{ $order->shipping_address['longitude'] }}"
+                                       target="_blank" rel="noopener" class="ms-2 text-decoration-none fw-bold">
+                                        <i class="fa-solid fa-map-location-dot me-1"></i>Lihat Peta OSM
+                                    </a>
+                                </div>
+                            @endif
+                        @else
+                            <span class="badge bg-light text-dark border mb-1">
+                                <i class="fa-solid fa-store me-1"></i> Ambil Sendiri di Outlet
+                            </span>
+                            <div class="small">{{ $order->client->address ?: 'Ambil di Tempat / Sesuai Catatan' }}</div>
+                        @endif
                     </div>
                 </div>
                 @if($order->notes)
@@ -100,6 +139,23 @@
                         @endforeach
                     </tbody>
                     <tfoot class="table-light">
+                        @if($order->discount_amount > 0)
+                            <tr>
+                                <th colspan="3" class="text-end text-muted fw-normal">Diskon Promo:</th>
+                                <th class="text-end font-mono text-danger">- Rp {{ number_format($order->discount_amount, 0, ',', '.') }}</th>
+                            </tr>
+                        @endif
+                        @if($order->isDelivery() || (float) ($order->shipping_cost ?? 0) > 0)
+                            <tr>
+                                <th colspan="3" class="text-end text-muted fw-normal">
+                                    Ongkos Kirim ({{ strtoupper($order->shipping_courier ?? 'KiriminAja') }}{{ $order->shipping_service_name ? ' - ' . $order->shipping_service_name : '' }})
+                                    @if($order->shipping_etd)
+                                        <small class="text-muted">({{ $order->shipping_etd }})</small>
+                                    @endif:
+                                </th>
+                                <th class="text-end font-mono text-dark">Rp {{ number_format($order->shipping_cost ?? 0, 0, ',', '.') }}</th>
+                            </tr>
+                        @endif
                         <tr>
                             <th colspan="3" class="text-end">Total Pembayaran:</th>
                             <th class="text-end font-mono fs-5 text-success">Rp {{ number_format($order->total_amount, 0, ',', '.') }}</th>
@@ -134,6 +190,78 @@
 
     <!-- Right Column: Status Updater & Payment Info -->
     <div class="col-lg-4">
+        @if($order->isDelivery())
+        <!-- KiriminAja Shipping Management Card -->
+        <div class="card-custom mb-4 border-info">
+            <div class="card-custom-header bg-info-subtle">
+                <h5 class="card-custom-title text-info-emphasis mb-0">
+                    <i class="fa-solid fa-truck-fast me-2"></i> Pengiriman KiriminAja
+                </h5>
+            </div>
+            <div class="p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-muted">Kurir / Layanan:</span>
+                    <span class="fw-bold text-dark">{{ strtoupper($order->shipping_courier ?? '-') }} — {{ $order->shipping_service_name ?? '-' }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-muted">Tipe / Ongkir:</span>
+                    <span class="font-mono fw-bold text-success">{{ strtoupper($order->shipping_type ?? 'express') }} · Rp {{ number_format($order->shipping_cost ?? 0, 0, ',', '.') }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-muted">Status Kirim:</span>
+                    <span class="badge bg-secondary font-mono">{{ strtoupper($order->shipping_status ?? 'waiting_shipment') }}</span>
+                </div>
+                @if($order->ka_order_id)
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-muted">ID KiriminAja:</span>
+                    <span class="font-mono small fw-bold">{{ $order->ka_order_id }}</span>
+                </div>
+                @endif
+                @if($order->ka_awb)
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="small text-muted">No. Resi (AWB):</span>
+                    <span class="font-mono fw-bold text-primary">{{ $order->ka_awb }}</span>
+                </div>
+                @endif
+
+                @if(empty($order->ka_order_id) || $order->shipping_status === 'cancelled')
+                    @if(!in_array($order->payment_status, ['paid', 'verified'], true))
+                        <div class="alert alert-warning small py-2 mb-2">
+                            <i class="fa-solid fa-circle-info me-1"></i> Pastikan pembayaran sudah <strong>PAID / Verified</strong> sebelum melakukan Request Pickup ke KiriminAja.
+                        </div>
+                    @endif
+                    <form method="POST" action="{{ route('store.backend.orders.bookShipping', ['store_slug' => $store->slug, 'order' => $order->id]) }}">
+                        @csrf
+                        <button type="submit" class="btn btn-primary w-100 fw-bold"
+                                {{ !in_array($order->payment_status, ['paid', 'verified'], true) ? 'disabled' : '' }}>
+                            <i class="fa-solid fa-paper-plane me-1"></i> Buat Pickup KiriminAja
+                        </button>
+                    </form>
+                @else
+                    <div class="d-grid gap-2 mt-2">
+                        <form method="POST" action="{{ route('store.backend.orders.refreshShipping', ['store_slug' => $store->slug, 'order' => $order->id]) }}">
+                            @csrf
+                            <button type="submit" class="btn btn-outline-primary w-100 btn-sm fw-bold">
+                                <i class="fa-solid fa-rotate me-1"></i> Refresh Tracking KiriminAja
+                            </button>
+                        </form>
+
+                        @if(!in_array($order->shipping_status, ['delivered', 'cancelled', 'returned'], true))
+                            <form method="POST" action="{{ route('store.backend.orders.cancelShipping', ['store_slug' => $store->slug, 'order' => $order->id]) }}"
+                                  onsubmit="return confirm('Batalkan pickup pengiriman KiriminAja ini?');">
+                                @csrf
+                                <div class="input-group input-group-sm">
+                                    <input type="text" name="reason" class="form-control" value="Dibatalkan oleh admin toko" minlength="5" required placeholder="Alasan batal">
+                                    <button type="submit" class="btn btn-outline-danger fw-bold">Batalkan Pickup</button>
+                                </div>
+                            </form>
+                        @endif
+                    </div>
+                @endif
+            </div>
+        </div>
+        @endif
+
         @if($order->status === 'Order Reject' || $order->is_cancelled)
         <!-- Cancellation Details Card -->
         <div class="card-custom mb-4 border-danger">

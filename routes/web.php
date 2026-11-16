@@ -98,6 +98,9 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
         Route::post('/orders/{order}/sync-mayar', [StoreBackendOrderController::class, 'syncMayarPayment'])->name('orders.syncMayar');
         Route::post('/orders/{order}/sync-midtrans', [StoreBackendOrderController::class, 'syncMidtransPayment'])->name('orders.syncMidtrans');
         Route::post('/orders/{order}/verify-payment', [StoreBackendOrderController::class, 'verifyPayment'])->name('orders.verifyPayment');
+        Route::post('/orders/{order}/book-shipping', [\App\Http\Controllers\StoreBackend\StoreBackendShippingController::class, 'bookShipment'])->name('orders.bookShipping');
+        Route::post('/orders/{order}/refresh-shipping', [\App\Http\Controllers\StoreBackend\StoreBackendShippingController::class, 'refreshShipment'])->name('orders.refreshShipping');
+        Route::post('/orders/{order}/cancel-shipping', [\App\Http\Controllers\StoreBackend\StoreBackendShippingController::class, 'cancelShipment'])->name('orders.cancelShipping');
 
         // Kitchen Display System (KDS)
         Route::get('/kds', [StoreBackendKdsController::class, 'index'])->name('kds');
@@ -126,6 +129,8 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
         Route::post('/settings/test-midtrans', [StoreBackendSettingsController::class, 'testMidtrans'])->name('settings.testMidtrans');
         Route::post('/settings/test-midtrans-transaction', [StoreBackendSettingsController::class, 'testMidtransTransaction'])->name('settings.testMidtransTransaction');
         Route::post('/settings/test-midtrans-status', [StoreBackendSettingsController::class, 'testMidtransStatus'])->name('settings.testMidtransStatus');
+        Route::post('/settings/simulate-shipping', [\App\Http\Controllers\StoreBackend\StoreBackendShippingController::class, 'simulate'])->name('settings.simulateShipping');
+        Route::get('/settings/kiriminaja-info', [\App\Http\Controllers\StoreBackend\StoreBackendShippingController::class, 'accountInfo'])->name('settings.kiriminajaInfo');
     });
 });
 
