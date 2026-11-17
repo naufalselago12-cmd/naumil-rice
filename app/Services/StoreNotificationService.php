@@ -248,8 +248,8 @@ class StoreNotificationService
                     'web_push_topic' => 'order-' . $notification->order_id,
                     'chrome_web_icon' => asset('favicon-192x192.png'),
                     // Android: channel native dibuat oleh aplikasi (naumil_rice_apps) dengan suara kustom
-                    // sehingga suara tetap berbunyi walau aplikasi tertutup. COD -> notif-pembelian, langsung -> notif-pembayaran
-                    'existing_android_channel_id' => $notification->type === StoreNotification::TYPE_COD
+                    // sehingga suara tetap berbunyi walau aplikasi tertutup. COD / Cancel -> notif-pembelian, langsung -> notif-pembayaran
+                    'existing_android_channel_id' => in_array($notification->type, [StoreNotification::TYPE_COD, StoreNotification::TYPE_CANCEL], true)
                         ? config('onesignal.android_channel_cod')
                         : config('onesignal.android_channel_direct'),
                     'priority' => 10,
