@@ -1,95 +1,135 @@
 <template>
-  <div class="kiriminaja-region-form">
-    <div class="row g-2 mb-2">
-      <div class="col-md-6">
-        <label class="form-label small fw-bold mb-1">Provinsi <span class="text-danger">*</span></label>
+  <div class="ka-region-form">
+    <div class="ka-grid-2">
+      <div class="ka-field">
+        <label :for="`${uid}-province`" class="ka-label">
+          Provinsi <span class="text-danger">*</span>
+        </label>
         <SearchableSelect
+          :button-id="`${uid}-province`"
           :model-value="modelValue.province_id"
           :options="provinces"
           :loading="loadingProvinces"
+          :load-error="provincesError"
           placeholder="-- Pilih Provinsi --"
           search-placeholder="Cari provinsi..."
           @select="onProvinceSelect"
+          @retry="loadProvinces(true)"
         />
       </div>
-      <div class="col-md-6">
-        <label class="form-label small fw-bold mb-1">Kota / Kabupaten <span class="text-danger">*</span></label>
+
+      <div class="ka-field">
+        <label :for="`${uid}-city`" class="ka-label">
+          Kota / Kabupaten <span class="text-danger">*</span>
+        </label>
         <SearchableSelect
+          :button-id="`${uid}-city`"
           :model-value="modelValue.city_id"
           :options="cities"
           :loading="loadingCities"
+          :load-error="citiesError"
           :disabled="!modelValue.province_id"
-          placeholder="-- Pilih Kota/Kab --"
+          :placeholder="modelValue.province_id ? '-- Pilih Kota / Kabupaten --' : 'Pilih provinsi terlebih dahulu'"
           search-placeholder="Cari kota/kabupaten..."
           @select="onCitySelect"
+          @retry="loadCities(modelValue.province_id)"
         />
       </div>
-      <div class="col-md-6">
-        <label class="form-label small fw-bold mb-1">Kecamatan <span class="text-danger">*</span></label>
+    </div>
+
+    <div class="ka-grid-3">
+      <div class="ka-field">
+        <label :for="`${uid}-district`" class="ka-label">
+          Kecamatan <span class="text-danger">*</span>
+        </label>
         <SearchableSelect
+          :button-id="`${uid}-district`"
           :model-value="modelValue.district_id"
           :options="districts"
           :loading="loadingDistricts"
+          :load-error="districtsError"
           :disabled="!modelValue.city_id"
-          placeholder="-- Pilih Kecamatan --"
+          :placeholder="modelValue.city_id ? '-- Pilih Kecamatan --' : 'Pilih kota terlebih dahulu'"
           search-placeholder="Cari kecamatan..."
           @select="onDistrictSelect"
+          @retry="loadDistricts(modelValue.city_id)"
         />
       </div>
-      <div class="col-md-4">
-        <label class="form-label small fw-bold mb-1">Kelurahan / Desa <span class="text-danger">*</span></label>
+
+      <div class="ka-field">
+        <label :for="`${uid}-subdistrict`" class="ka-label">
+          Kelurahan / Desa <span class="text-danger">*</span>
+        </label>
         <SearchableSelect
+          :button-id="`${uid}-subdistrict`"
           :model-value="modelValue.subdistrict_id"
           :options="subdistricts"
           :loading="loadingSubdistricts"
+          :load-error="subdistrictsError"
           :disabled="!modelValue.district_id"
-          placeholder="-- Pilih Kelurahan --"
+          :placeholder="modelValue.district_id ? '-- Pilih Kelurahan --' : 'Pilih kecamatan terlebih dahulu'"
           search-placeholder="Cari kelurahan..."
           @select="onSubdistrictSelect"
+          @retry="loadSubdistricts(modelValue.district_id)"
         />
       </div>
-      <div class="col-md-2">
-        <label class="form-label small fw-bold mb-1">Kode Pos <span class="text-danger">*</span></label>
+
+      <div class="ka-field">
+        <label :for="`${uid}-postal`" class="ka-label">
+          Kode Pos <span class="text-danger">*</span>
+        </label>
         <input
+          :id="`${uid}-postal`"
           :value="modelValue.postal_code"
           type="text"
+          inputmode="numeric"
+          autocomplete="postal-code"
           maxlength="5"
-          class="form-control font-mono"
+          class="ka-input font-mono"
           placeholder="12345"
           @input="updateField('postal_code', $event.target.value.replace(/\D+/g, '').slice(0, 5))"
         />
       </div>
     </div>
 
-    <div class="row g-2 mb-2">
-      <div class="col-md-7">
-        <label class="form-label small fw-bold mb-1">Alamat Lengkap (Jalan / No. Rumah / RT-RW) <span class="text-danger">*</span></label>
+    <div class="ka-grid-address">
+      <div class="ka-field">
+        <label :for="`${uid}-address`" class="ka-label">
+          Alamat Lengkap (Jalan / No. Rumah / RT-RW) <span class="text-danger">*</span>
+        </label>
         <textarea
+          :id="`${uid}-address`"
           :value="modelValue.address"
           rows="2"
-          class="form-control"
+          autocomplete="street-address"
+          class="ka-textarea"
           placeholder="Contoh: Jl. Melati Indah No. 15, RT 03/RW 05..."
           @input="updateField('address', $event.target.value)"
         ></textarea>
       </div>
-      <div class="col-md-5">
-        <label class="form-label small fw-bold mb-1">Catatan Gang / Patokan</label>
+
+      <div class="ka-field">
+        <label :for="`${uid}-note`" class="ka-label">
+          Catatan Gang / Patokan
+        </label>
         <textarea
+          :id="`${uid}-note`"
           :value="modelValue.address_note"
           rows="2"
           maxlength="150"
-          class="form-control"
+          class="ka-textarea"
           placeholder="Contoh: Masuk gang beringin 20m, rumah pagar hijau..."
           @input="updateField('address_note', $event.target.value)"
         ></textarea>
       </div>
     </div>
 
-    <div class="mb-1">
-      <label class="form-label small fw-bold mb-1">
-        <i class="fa-solid fa-map-pin text-danger me-1"></i>
-        Geotag Peta Lokasi (Klik &amp; Geser Marker - OpenStreetMap) <span class="text-danger">*</span>
-      </label>
+    <div class="ka-map-block">
+      <div class="ka-label ka-label-map">
+        <i class="fa-solid fa-map-pin text-danger"></i>
+        <span>Geotag Peta Lokasi (Klik &amp; Geser Marker - OpenStreetMap)</span>
+        <span class="text-danger">*</span>
+      </div>
       <GeotagMap
         :latitude="modelValue.latitude"
         :longitude="modelValue.longitude"
@@ -97,17 +137,16 @@
         :default-lat="defaultLat"
         :default-lng="defaultLng"
         :height="mapHeight"
-        @update:latitude="updateField('latitude', $event)"
-        @update:longitude="updateField('longitude', $event)"
+        @update:coordinates="onCoordinatesUpdate"
         @update:geo-address="updateField('geo_address', $event)"
         @detected="onGeoDetected"
       />
-      <div v-if="detectedRegionHint" class="alert alert-info py-2 px-3 small mt-2 mb-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <span>
-          <i class="fa-solid fa-wand-magic-sparkles me-1"></i>
+      <div v-if="detectedRegionHint" class="ka-region-hint">
+        <span class="ka-region-hint-text">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
           Wilayah peta terdeteksi: <strong>{{ detectedRegionLabel }}</strong>
         </span>
-        <button type="button" class="btn btn-sm btn-primary py-0 px-2 fw-semibold" @click="applyDetectedRegion">
+        <button type="button" class="ka-apply-btn" @click="applyDetectedRegion">
           Terapkan ke Dropdown
         </button>
       </div>
@@ -117,6 +156,7 @@
 
 <script>
 let cachedProvincesList = null
+let formInstanceSeq = 0
 </script>
 
 <script setup>
@@ -134,6 +174,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
+const uid = `ka-reg-${++formInstanceSeq}`
+
 const provinces = ref([])
 const cities = ref([])
 const districts = ref([])
@@ -144,7 +186,21 @@ const loadingCities = ref(false)
 const loadingDistricts = ref(false)
 const loadingSubdistricts = ref(false)
 
+const provincesError = ref('')
+const citiesError = ref('')
+const districtsError = ref('')
+const subdistrictsError = ref('')
+
 const detectedRegionHint = ref(null)
+
+// Draft sinkron mencegah patch berturut-turut dalam tick yang sama saling menimpa
+let localDraft = { ...(props.modelValue || {}) }
+watch(
+  () => props.modelValue,
+  (val) => {
+    localDraft = { ...(val || {}) }
+  }
+)
 
 const detectedRegionLabel = computed(() => {
   const m = detectedRegionHint.value
@@ -153,25 +209,33 @@ const detectedRegionLabel = computed(() => {
 })
 
 const updateFields = (patch) => {
-  emit('update:modelValue', { ...props.modelValue, ...patch })
+  localDraft = { ...localDraft, ...patch }
+  emit('update:modelValue', localDraft)
 }
 
 const updateField = (key, value) => {
-  emit('update:modelValue', { ...props.modelValue, [key]: value })
+  localDraft = { ...localDraft, [key]: value }
+  emit('update:modelValue', localDraft)
 }
 
-const loadProvinces = async () => {
-  if (cachedProvincesList) {
+const loadProvinces = async (force = false) => {
+  if (!force && Array.isArray(cachedProvincesList) && cachedProvincesList.length > 0) {
     provinces.value = cachedProvincesList
+    provincesError.value = ''
     return
   }
   loadingProvinces.value = true
+  provincesError.value = ''
   try {
     const res = await axios.get('/api/v1/shipping/provinces')
-    provinces.value = res.data?.data || []
-    cachedProvincesList = provinces.value
+    const list = res.data?.data || []
+    provinces.value = list
+    if (list.length > 0) {
+      cachedProvincesList = list
+    }
   } catch (e) {
     provinces.value = []
+    provincesError.value = 'Gagal memuat daftar provinsi.'
   } finally {
     loadingProvinces.value = false
   }
@@ -180,14 +244,17 @@ const loadProvinces = async () => {
 const loadCities = async (provinceId) => {
   if (!provinceId) {
     cities.value = []
+    citiesError.value = ''
     return
   }
   loadingCities.value = true
+  citiesError.value = ''
   try {
     const res = await axios.get('/api/v1/shipping/cities', { params: { province_id: provinceId } })
     cities.value = res.data?.data || []
   } catch (e) {
     cities.value = []
+    citiesError.value = 'Gagal memuat kota/kabupaten.'
   } finally {
     loadingCities.value = false
   }
@@ -196,14 +263,17 @@ const loadCities = async (provinceId) => {
 const loadDistricts = async (cityId) => {
   if (!cityId) {
     districts.value = []
+    districtsError.value = ''
     return
   }
   loadingDistricts.value = true
+  districtsError.value = ''
   try {
     const res = await axios.get('/api/v1/shipping/districts', { params: { city_id: cityId } })
     districts.value = res.data?.data || []
   } catch (e) {
     districts.value = []
+    districtsError.value = 'Gagal memuat kecamatan.'
   } finally {
     loadingDistricts.value = false
   }
@@ -212,14 +282,17 @@ const loadDistricts = async (cityId) => {
 const loadSubdistricts = async (districtId) => {
   if (!districtId) {
     subdistricts.value = []
+    subdistrictsError.value = ''
     return
   }
   loadingSubdistricts.value = true
+  subdistrictsError.value = ''
   try {
     const res = await axios.get('/api/v1/shipping/subdistricts', { params: { district_id: districtId } })
     subdistricts.value = res.data?.data || []
   } catch (e) {
     subdistricts.value = []
+    subdistrictsError.value = 'Gagal memuat kelurahan.'
   } finally {
     loadingSubdistricts.value = false
   }
@@ -253,7 +326,7 @@ const onCitySelect = (opt) => {
     subdistrict_id: '',
     subdistrict_name: '',
   }
-  if (opt.postal_code && !props.modelValue.postal_code) {
+  if (opt.postal_code && !localDraft.postal_code) {
     patch.postal_code = String(opt.postal_code).slice(0, 5)
   }
   updateFields(patch)
@@ -278,16 +351,20 @@ const onSubdistrictSelect = (opt) => {
   })
 }
 
+const onCoordinatesUpdate = ({ latitude, longitude }) => {
+  updateFields({ latitude, longitude })
+}
+
 const onGeoDetected = (info) => {
   const patch = {
     latitude: info.latitude,
     longitude: info.longitude,
     geo_address: info.geo_address,
   }
-  if (info.postal_code && !props.modelValue.postal_code) {
+  if (info.postal_code && !localDraft.postal_code) {
     patch.postal_code = String(info.postal_code).replace(/\D+/g, '').slice(0, 5)
   }
-  if (info.short_address && !props.modelValue.address) {
+  if (info.short_address && !localDraft.address) {
     patch.address = info.short_address
   }
   updateFields(patch)
@@ -344,4 +421,137 @@ onMounted(() => {
   hydrateExistingCascade()
 })
 </script>
+
+<style scoped>
+.ka-region-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.ka-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.ka-grid-3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 128px;
+  gap: 0.75rem;
+}
+
+.ka-grid-address {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .ka-grid-2,
+  .ka-grid-3,
+  .ka-grid-address {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ka-field {
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ka-label {
+  display: block;
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.35rem;
+}
+
+.ka-label-map {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ka-input,
+.ka-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-size: max(0.92rem, 15px);
+  line-height: 1.45;
+  padding: 0.6rem 0.8rem;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  outline: none;
+}
+
+.ka-input {
+  min-height: 44px;
+}
+
+.ka-textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.ka-input::placeholder,
+.ka-textarea::placeholder {
+  color: #94a3b8;
+}
+
+.ka-input:focus,
+.ka-textarea:focus {
+  border-color: #e11d48;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
+}
+
+.ka-map-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.ka-region-hint {
+  margin-top: 0.6rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e3a8a;
+  font-size: 0.82rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ka-region-hint-text {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ka-apply-btn {
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.ka-apply-btn:hover {
+  background: #1d4ed8;
+}
+</style>
 

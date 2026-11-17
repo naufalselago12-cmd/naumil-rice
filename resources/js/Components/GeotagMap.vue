@@ -1,80 +1,83 @@
 <template>
-  <div class="geotag-map-wrapper border rounded-3 p-2 bg-light">
-    <div class="d-flex flex-wrap gap-2 mb-2">
-      <div class="input-group input-group-sm flex-grow-1">
-        <span class="input-group-text bg-white text-danger">
+  <div class="gm-wrapper">
+    <div class="gm-toolbar">
+      <div class="gm-search-group">
+        <span class="gm-search-pin" aria-hidden="true">
           <i class="fa-solid fa-location-dot"></i>
         </span>
         <input
           v-model="searchQuery"
           type="text"
-          class="form-control"
+          class="gm-search-input"
           placeholder="Cari nama jalan, perumahan, atau patokan..."
           @keydown.enter.prevent="searchLocation"
         />
         <button
           type="button"
-          class="btn btn-outline-primary fw-semibold"
+          class="gm-btn gm-btn-search"
           :disabled="searching || !searchQuery.trim()"
           @click="searchLocation"
         >
-          <i v-if="searching" class="fa-solid fa-spinner fa-spin me-1"></i>
-          <i v-else class="fa-solid fa-magnifying-glass me-1"></i>
-          Cari Peta
+          <i v-if="searching" class="fa-solid fa-spinner fa-spin"></i>
+          <i v-else class="fa-solid fa-magnifying-glass"></i>
+          <span>Cari Peta</span>
         </button>
       </div>
       <button
         type="button"
-        class="btn btn-sm btn-outline-success fw-semibold"
+        class="gm-btn gm-btn-gps"
         :disabled="locating"
         @click="useCurrentGps"
       >
-        <i v-if="locating" class="fa-solid fa-spinner fa-spin me-1"></i>
-        <i v-else class="fa-solid fa-crosshairs me-1"></i>
-        GPS Saya
+        <i v-if="locating" class="fa-solid fa-spinner fa-spin"></i>
+        <i v-else class="fa-solid fa-crosshairs"></i>
+        <span>GPS Saya</span>
       </button>
     </div>
 
     <!-- Hasil Pencarian Peta Nominatim -->
-    <div v-if="searchResults.length > 0" class="list-group list-group-flush mb-2 border rounded bg-white shadow-sm" style="max-height: 150px; overflow-y: auto;">
+    <div v-if="searchResults.length > 0" class="gm-results">
       <button
         v-for="(item, idx) in searchResults"
         :key="idx"
         type="button"
-        class="list-group-item list-group-item-action py-2 px-2 small text-start"
+        class="gm-result-item"
         @click="pickSearchResult(item)"
       >
-        <i class="fa-solid fa-map-pin text-danger me-1"></i> {{ item.display_name }}
+        <i class="fa-solid fa-map-pin text-danger"></i>
+        <span>{{ item.display_name }}</span>
       </button>
     </div>
 
-    <div
-      ref="mapContainer"
-      class="rounded-3 border bg-white"
-      :style="{ height: height, width: '100%', zIndex: 1 }"
-    ></div>
+    <div class="gm-map-shell">
+      <div
+        ref="mapContainer"
+        class="gm-map-canvas"
+        :style="{ height: height }"
+      ></div>
+    </div>
 
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2 px-1">
-      <small class="text-muted">
-        <i class="fa-solid fa-hand-pointer text-primary me-1"></i>
+    <div class="gm-meta-row">
+      <small class="gm-hint-text">
+        <i class="fa-solid fa-hand-pointer text-primary"></i>
         Klik peta atau geser pin marker untuk menentukan koordinat akurat.
       </small>
-      <span v-if="hasCoords" class="badge bg-white text-dark border font-mono">
+      <span v-if="hasCoords" class="gm-coord-badge font-mono">
         {{ Number(latitude).toFixed(6) }}, {{ Number(longitude).toFixed(6) }}
       </span>
-      <span v-else class="badge bg-warning-subtle text-dark border border-warning">
+      <span v-else class="gm-coord-badge is-empty">
         Belum ada titik pin
       </span>
     </div>
 
-    <div v-if="reversing" class="small text-primary mt-1 px-1">
-      <i class="fa-solid fa-spinner fa-spin me-1"></i> Mendeteksi alamat dari koordinat...
+    <div v-if="reversing" class="gm-status-loading">
+      <i class="fa-solid fa-spinner fa-spin"></i> Mendeteksi alamat dari koordinat...
     </div>
-    <div v-else-if="geoAddress" class="small text-dark bg-white border rounded p-2 mt-2">
-      <strong class="d-block text-success mb-1">
-        <i class="fa-solid fa-map-location-dot me-1"></i> Alamat Terdeteksi Peta (OpenStreetMap):
+    <div v-else-if="geoAddress" class="gm-detected-box">
+      <strong class="gm-detected-title">
+        <i class="fa-solid fa-map-location-dot"></i> Alamat Terdeteksi Peta (OpenStreetMap):
       </strong>
-      <span>{{ geoAddress }}</span>
+      <span class="gm-detected-text">{{ geoAddress }}</span>
     </div>
   </div>
 </template>
@@ -105,7 +108,7 @@ const props = defineProps({
   matchRegion: { type: Boolean, default: true },
 })
 
-const emit = defineEmits(['update:latitude', 'update:longitude', 'update:geoAddress', 'detected'])
+const emit = defineEmits(['update:latitude', 'update:longitude', 'update:coordinates', 'update:geoAddress', 'detected'])
 
 const mapContainer = ref(null)
 const searchQuery = ref('')
@@ -150,6 +153,7 @@ const handlePinMoved = async (lat, lng, shouldReverse = true) => {
   internalUpdate = true
   const fixedLat = Number(Number(lat).toFixed(7))
   const fixedLng = Number(Number(lng).toFixed(7))
+  emit('update:coordinates', { latitude: fixedLat, longitude: fixedLng })
   emit('update:latitude', fixedLat)
   emit('update:longitude', fixedLng)
   ensureMarker(fixedLat, fixedLng, false)
@@ -284,4 +288,210 @@ onBeforeUnmount(() => {
   }
 })
 </script>
+
+<style scoped>
+.gm-wrapper {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+.gm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.gm-search-group {
+  flex: 1 1 240px;
+  min-inline-size: 0;
+  display: flex;
+  align-items: stretch;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.gm-search-group:focus-within {
+  border-color: #e11d48;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
+}
+
+.gm-search-pin {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.65rem;
+  color: #e11d48;
+  font-size: 0.9rem;
+}
+
+.gm-search-input {
+  flex: 1;
+  min-inline-size: 0;
+  min-height: 40px;
+  border: none;
+  outline: none;
+  font-size: 0.88rem;
+  color: #0f172a;
+  background: transparent;
+  padding: 0.35rem 0.25rem;
+}
+
+.gm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.gm-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.gm-btn-search {
+  border: none;
+  border-left: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #be123c;
+}
+
+.gm-btn-search:hover:not(:disabled) {
+  background: #ffe4e6;
+}
+
+.gm-btn-gps {
+  border: 1.5px solid #10b981;
+  border-radius: 10px;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.gm-btn-gps:hover:not(:disabled) {
+  background: #dcfce7;
+}
+
+.gm-results {
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  margin-bottom: 0.65rem;
+}
+
+.gm-result-item {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  color: #1e293b;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  cursor: pointer;
+}
+
+.gm-result-item:last-child {
+  border-bottom: none;
+}
+
+.gm-result-item:hover {
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+/* Mengisolasi stacking context Leaflet agar dropdown wilayah di atasnya selalu dapat diklik */
+.gm-map-shell {
+  position: relative;
+  isolation: isolate;
+  z-index: 1;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.gm-map-canvas {
+  width: 100%;
+}
+
+.gm-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
+
+.gm-hint-text {
+  color: #64748b;
+  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.gm-coord-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.gm-coord-badge.is-empty {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.gm-status-loading {
+  margin-top: 0.45rem;
+  font-size: 0.8rem;
+  color: #e11d48;
+  font-weight: 600;
+}
+
+.gm-detected-box {
+  margin-top: 0.6rem;
+  padding: 0.65rem 0.85rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: #1e293b;
+}
+
+.gm-detected-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #15803d;
+  margin-bottom: 0.25rem;
+}
+
+.gm-detected-text {
+  display: block;
+  line-height: 1.45;
+}
+</style>
 

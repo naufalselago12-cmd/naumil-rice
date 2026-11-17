@@ -427,18 +427,18 @@
                   </div>
 
                   <form @submit.prevent="submitAddressForm">
-                    <div class="row g-2 mb-2">
-                      <div class="col-md-4">
-                        <label class="form-label small fw-bold mb-1">Label Alamat <span class="text-danger">*</span></label>
-                        <input v-model="addressForm.label" type="text" class="form-control" maxlength="50" placeholder="Rumah / Kantor / Orang Tua" required />
+                    <div class="cp-addr-top-grid">
+                      <div class="cp-field">
+                        <label for="cp-addr-label" class="form-label small fw-bold mb-1">Label Alamat <span class="text-danger">*</span></label>
+                        <input id="cp-addr-label" v-model="addressForm.label" type="text" class="cp-input" maxlength="50" placeholder="Rumah / Kantor / Orang Tua" required />
                       </div>
-                      <div class="col-md-4">
-                        <label class="form-label small fw-bold mb-1">Nama Penerima</label>
-                        <input v-model="addressForm.recipient_name" type="text" class="form-control" placeholder="Nama penerima" />
+                      <div class="cp-field">
+                        <label for="cp-addr-recipient" class="form-label small fw-bold mb-1">Nama Penerima</label>
+                        <input id="cp-addr-recipient" v-model="addressForm.recipient_name" type="text" class="cp-input" placeholder="Nama penerima" />
                       </div>
-                      <div class="col-md-4">
-                        <label class="form-label small fw-bold mb-1">No. HP / WhatsApp</label>
-                        <input v-model="addressForm.phone" type="text" class="form-control font-mono" placeholder="0812..." />
+                      <div class="cp-field">
+                        <label for="cp-addr-phone" class="form-label small fw-bold mb-1">No. HP / WhatsApp</label>
+                        <input id="cp-addr-phone" v-model="addressForm.phone" type="text" class="cp-input font-mono" placeholder="0812..." />
                       </div>
                     </div>
 
@@ -1796,6 +1796,42 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   border: 2px solid #86efac;
+}
+
+.cp-addr-top-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .cp-addr-top-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.cp-field {
+  min-inline-size: 0;
+}
+
+.cp-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0.55rem 0.8rem;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: max(0.92rem, 15px);
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cp-input:focus {
+  border-color: #e11d48;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
 }
 
 @media (max-width: 768px) {

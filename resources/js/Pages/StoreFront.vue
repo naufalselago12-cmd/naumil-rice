@@ -265,41 +265,53 @@
           </div>
 
           <!-- Search Menu Bar (Toleran Typo / Fuzzy String Search) -->
-          <div class="mb-4">
-            <div class="input-group shadow-sm rounded-3 overflow-hidden border bg-white">
-              <span class="input-group-text bg-white border-0 text-primary px-3">
+          <search class="menu-search-section">
+            <div class="menu-search-box">
+              <span class="menu-search-icon" aria-hidden="true">
                 <i class="fa-solid fa-magnifying-glass"></i>
               </span>
+              <label for="storefront-menu-search" class="menu-search-sr-label">Cari menu</label>
               <input
+                id="storefront-menu-search"
                 v-model="menuSearchQuery"
-                type="text"
-                class="form-control border-0 shadow-none py-2"
+                type="search"
+                class="menu-search-input"
                 placeholder="Cari menu favorit Anda (contoh: nasi goreng, ayam bakar, es teh)..."
+                autocorrect="off"
+                autocapitalize="none"
+                spellcheck="false"
+                @keydown.esc="menuSearchQuery = ''"
               />
+              <span v-if="menuSearchQuery" class="menu-search-count font-mono">
+                {{ filteredMenus.length }} hasil
+              </span>
               <button
                 v-if="menuSearchQuery"
                 type="button"
-                class="btn btn-light border-0 text-muted px-3"
+                class="menu-search-clear"
                 @click="menuSearchQuery = ''"
                 title="Hapus pencarian"
+                aria-label="Hapus kata pencarian"
               >
                 <i class="fa-solid fa-xmark"></i>
               </button>
             </div>
-            <div v-if="menuSearchQuery && menuSearchResult.hadFuzzyMatch" class="small text-primary mt-2 ps-1 fw-semibold">
-              <i class="fa-solid fa-wand-magic-sparkles me-1"></i>
-              Pencarian terdekat untuk "<strong>{{ menuSearchQuery }}</strong>" — menampilkan {{ menuSearchResult.items.length }} menu paling relevan.
+            <div v-if="menuSearchQuery && menuSearchResult.hadFuzzyMatch" class="menu-search-fuzzy-note">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span>
+                Pencarian terdekat untuk "<strong>{{ menuSearchQuery }}</strong>" &mdash; menampilkan {{ menuSearchResult.items.length }} menu paling relevan.
+              </span>
             </div>
-          </div>
+          </search>
 
           <!-- Empty State -->
-          <div v-if="filteredMenus.length === 0" class="text-center py-5">
+          <div v-if="filteredMenus.length === 0" class="menu-empty-state">
             <i class="fa-solid fa-bowl-food fa-3x text-muted mb-3"></i>
             <h5>{{ menuSearchQuery ? 'Menu tidak ditemukan' : 'Belum ada menu di kategori ini' }}</h5>
             <p class="text-muted">
               {{ menuSearchQuery ? 'Tidak ada menu yang cocok dengan kata "' + menuSearchQuery + '".' : 'Silakan pilih kategori lain atau cek kembali nanti.' }}
             </p>
-            <div v-if="menuSearchQuery" class="d-flex justify-content-center gap-2 mt-2">
+            <div v-if="menuSearchQuery" class="menu-empty-actions">
               <button v-if="activeCategory !== null" type="button" class="btn btn-sm btn-primary" @click="activeCategory = null">
                 Cari di Semua Kategori
               </button>
@@ -822,8 +834,9 @@
               <!-- 3. Payment Method Selector -->
               <div class="mb-4">
                 <label class="form-label small fw-bold">Metode Pembayaran</label>
-                <div v-if="deliveryState.fulfillment_type === 'delivery'" class="alert alert-info py-2 px-3 small mb-2">
-                  <i class="fa-solid fa-circle-info me-1"></i> Pengiriman Kirim Langsung ke Rumah menggunakan pembayaran langsung (QRIS / Payment Gateway).
+                <div v-if="deliveryState.fulfillment_type === 'delivery'" class="delivery-info-banner">
+                  <i class="fa-solid fa-circle-info"></i>
+                  <span>Pengiriman Kirim Langsung ke Rumah menggunakan pembayaran langsung (QRIS / Payment Gateway).</span>
                 </div>
                 <div class="d-flex flex-column gap-2">
                   <!-- Payment Gateway if activated -->
@@ -2323,8 +2336,150 @@ const cleanPhone = (phone) => {
 
 .category-pills {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   overflow-x: auto;
   padding-bottom: 4px;
+}
+
+.menu-search-section {
+  display: block;
+  margin-top: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.menu-search-sr-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.menu-search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.35rem 0.55rem 0.35rem 0.9rem;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.menu-search-box:focus-within {
+  border-color: var(--primary, #e11d48);
+  box-shadow: 0 0 0 3.5px rgba(225, 29, 72, 0.14);
+}
+
+.menu-search-icon {
+  color: var(--primary, #e11d48);
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.menu-search-input {
+  flex: 1;
+  min-inline-size: 0;
+  min-height: 36px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: max(0.95rem, 16px);
+  color: #0f172a;
+}
+
+.menu-search-input::placeholder {
+  color: #94a3b8;
+}
+
+/* Hilangkan tombol X bawaan type="search" Chrome/Safari agar tombol clear kustom rapi */
+.menu-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.menu-search-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.menu-search-clear {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.menu-search-clear:hover {
+  background: #ffe4e6;
+  color: #be123c;
+}
+
+.menu-search-fuzzy-note {
+  margin-top: 0.55rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 10px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.menu-empty-state {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+}
+
+.menu-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.delivery-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.65rem;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .cat-btn {
