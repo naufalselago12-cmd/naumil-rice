@@ -52,29 +52,10 @@ class MidtransPaymentService
     }
 
     /**
-     * Create Midtrans Snap Transaction for an Order
+     * Build Midtrans customer_details array from order client.
      */
-    public function createSnapTransaction(Store $store, Order $order): array
+    protected function buildCustomerDetails(Store $store, Order $order): array
     {
-        $environment = $store->active_midtrans_environment;
-        $serverKey = trim($store->active_midtrans_server_key ?? '');
-        $clientKey = trim($store->active_midtrans_client_key ?? '');
-
-        if (empty($serverKey)) {
-            return [
-                'success' => false,
-                'message' => 'Server Key Midtrans (' . strtoupper($environment) . ') belum dikonfigurasi pada cabang ini.',
-            ];
-        }
-
-        $grossAmount = (int) round($order->total_amount);
-        if ($grossAmount <= 0) {
-            return [
-                'success' => false,
-                'message' => 'Total pembayaran tidak valid (Rp 0).',
-            ];
-        }
-
         $client = $order->client;
         $fullName = trim($client->name ?? 'Pelanggan Naumil Store');
         $nameParts = explode(' ', $fullName, 2);
@@ -87,11 +68,28 @@ class MidtransPaymentService
             $phone = '62' . substr($phone, 1);
         }
 
-        // Build item details
+        return [
+            'first_name' => $firstName ?: 'Pelanggan',
+            'last_name' => $lastName,
+            'email' => filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : 'kasir@naumilrice.com',
+            'phone' => $phone ?: '628120000000',
+            'billing_address' => [
+                'first_name' => $firstName ?: 'Pelanggan',
+                'last_name' => $lastName,
+                'address' => mb_substr($client->address ?? $store->address ?? 'Indonesia', 0, 100),
+            ],
+        ];
+    }
+
+    /**
+     * Build Midtrans item_details array whose sum strictly equals grossAmount.
+     */
+    protected function buildItemDetails(Order $order, int $grossAmount): array
+    {
         $itemDetails = [];
         if ($order->relationLoaded('items') && $order->items->count() > 0) {
             foreach ($order->items as $item) {
-                $menuName = $item->menu->name ?? ('Item #' . $item->menu_id);
+                $menuName = $item->menu_name ?: ($item->menu->name ?? ('Item #' . $item->menu_id));
                 $unitPrice = (int) round($item->price);
                 $qty = (int) max(1, $item->quantity);
 
@@ -104,7 +102,6 @@ class MidtransPaymentService
             }
         }
 
-        // Fallback item if no items loaded
         if (empty($itemDetails)) {
             $itemDetails[] = [
                 'id' => (string) mb_substr('ORDER-' . $order->order_number, 0, 45),
@@ -136,7 +133,6 @@ class MidtransPaymentService
         $diff = $grossAmount - $calculatedSum;
         if ($diff !== 0) {
             if ($diff < 0) {
-                // Discount / Promo deduction
                 $itemDetails[] = [
                     'id' => 'PROMO-DISC',
                     'price' => $diff,
@@ -144,7 +140,6 @@ class MidtransPaymentService
                     'name' => 'Diskon / Potongan Promo',
                 ];
             } else {
-                // Adjustment / Delivery fee / Additional charge
                 $itemDetails[] = [
                     'id' => 'ADJUSTMENT',
                     'price' => $diff,
@@ -154,6 +149,167 @@ class MidtransPaymentService
             }
         }
 
+        return $itemDetails;
+    }
+
+    /**
+     * Create Direct QRIS Midtrans Transaction for Cashier POS.
+     * Mencoba Core API /v2/charge (payment_type=qris) untuk menampilkan QR langsung,
+     * dan otomatis fallback ke Midtrans Snap yang dikhususkan ke QRIS apabila merchant hanya mengaktifkan Snap.
+     */
+    public function createQrisTransaction(Store $store, Order $order): array
+    {
+        $environment = $store->active_midtrans_environment;
+        $serverKey = trim($store->active_midtrans_server_key ?? '');
+        $clientKey = trim($store->active_midtrans_client_key ?? '');
+
+        if (empty($serverKey)) {
+            return [
+                'success' => false,
+                'message' => 'Server Key Midtrans (' . strtoupper($environment) . ') belum dikonfigurasi pada cabang ini.',
+            ];
+        }
+
+        $grossAmount = (int) round($order->total_amount);
+        if ($grossAmount <= 0) {
+            return [
+                'success' => false,
+                'message' => 'Total pembayaran tidak valid (Rp 0).',
+            ];
+        }
+
+        $order->loadMissing(['client', 'items.menu']);
+        $apiUrl = self::getApiUrl($environment);
+        $chargeUrl = "{$apiUrl}/charge";
+
+        $payload = [
+            'payment_type' => 'qris',
+            'transaction_details' => [
+                'order_id' => $order->order_number,
+                'gross_amount' => $grossAmount,
+            ],
+            'item_details' => $this->buildItemDetails($order, $grossAmount),
+            'customer_details' => $this->buildCustomerDetails($store, $order),
+            'qris' => [
+                'acquirer' => 'gopay',
+            ],
+            'custom_expiry' => [
+                'order_time' => now()->format('Y-m-d H:i:s O'),
+                'expiry_duration' => 30,
+                'unit' => 'minute',
+            ],
+        ];
+
+        try {
+            $response = Http::timeout(15)
+                ->withBasicAuth($serverKey, '')
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                ])
+                ->post($chargeUrl, $payload);
+
+            $json = $response->json() ?? [];
+            $statusCode = (string) ($json['status_code'] ?? $response->status());
+
+            if ($response->successful() && in_array($statusCode, ['200', '201'], true)) {
+                $qrisUrl = null;
+                foreach (($json['actions'] ?? []) as $action) {
+                    $actionName = strtolower((string) ($action['name'] ?? ''));
+                    if (in_array($actionName, ['generate-qr-code', 'generate-qr-code-v2'], true) && !empty($action['url'])) {
+                        $qrisUrl = $action['url'];
+                        if ($actionName === 'generate-qr-code') {
+                            break;
+                        }
+                    }
+                }
+                $qrString = $json['qr_string'] ?? null;
+
+                if ($qrisUrl || $qrString) {
+                    $order->update([
+                        'payment_url' => $qrisUrl,
+                        'payment_id' => $json['transaction_id'] ?? $order->order_number,
+                        'payment_gateway_provider' => Store::GATEWAY_PROVIDER_MIDTRANS,
+                        'payment_payload' => array_merge((array) $order->payment_payload, [
+                            'mode' => 'core_qris',
+                            'qris_url' => $qrisUrl,
+                            'qr_string' => $qrString,
+                            'expiry_time' => $json['expiry_time'] ?? null,
+                            'environment' => $environment,
+                            'charge_response' => $json,
+                            'created_at' => now()->toIso8601String(),
+                        ]),
+                    ]);
+
+                    return [
+                        'success' => true,
+                        'mode' => 'core_qris',
+                        'qris_url' => $qrisUrl,
+                        'qr_string' => $qrString,
+                        'payment_url' => $qrisUrl,
+                        'snap_token' => null,
+                        'client_key' => $clientKey,
+                        'environment' => $environment,
+                        'expiry_time' => $json['expiry_time'] ?? null,
+                        'data' => $json,
+                    ];
+                }
+            }
+
+            Log::info('Midtrans Core API QRIS fallback to Snap QRIS', [
+                'order' => $order->order_number,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Midtrans Core API QRIS exception, fallback ke Snap: ' . $e->getMessage(), [
+                'order' => $order->order_number,
+            ]);
+        }
+
+        // Fallback otomatis ke Snap dengan metode QRIS
+        $snapRes = $this->createSnapTransaction($store, $order, ['other_qris', 'gopay']);
+        if (!$snapRes['success']) {
+            $snapRes = $this->createSnapTransaction($store, $order);
+        }
+
+        if ($snapRes['success']) {
+            $snapRes['mode'] = 'snap_qris';
+            $snapRes['qris_url'] = null;
+            $snapRes['qr_string'] = null;
+        }
+
+        return $snapRes;
+    }
+
+    /**
+     * Create Midtrans Snap Transaction for an Order
+     */
+    public function createSnapTransaction(Store $store, Order $order, ?array $enabledPayments = null): array
+    {
+        $environment = $store->active_midtrans_environment;
+        $serverKey = trim($store->active_midtrans_server_key ?? '');
+        $clientKey = trim($store->active_midtrans_client_key ?? '');
+
+        if (empty($serverKey)) {
+            return [
+                'success' => false,
+                'message' => 'Server Key Midtrans (' . strtoupper($environment) . ') belum dikonfigurasi pada cabang ini.',
+            ];
+        }
+
+        $grossAmount = (int) round($order->total_amount);
+        if ($grossAmount <= 0) {
+            return [
+                'success' => false,
+                'message' => 'Total pembayaran tidak valid (Rp 0).',
+            ];
+        }
+
+        $order->loadMissing(['client', 'items.menu']);
+        $itemDetails = $this->buildItemDetails($order, $grossAmount);
+        $customerDetails = $this->buildCustomerDetails($store, $order);
+
         $returnUrl = url('/payment/midtrans/return?order=' . urlencode($order->order_number));
 
         $payload = [
@@ -161,17 +317,7 @@ class MidtransPaymentService
                 'order_id' => $order->order_number,
                 'gross_amount' => $grossAmount,
             ],
-            'customer_details' => [
-                'first_name' => $firstName ?: 'Pelanggan',
-                'last_name' => $lastName,
-                'email' => $email,
-                'phone' => $phone ?: '628120000000',
-                'billing_address' => [
-                    'first_name' => $firstName ?: 'Pelanggan',
-                    'last_name' => $lastName,
-                    'address' => mb_substr($client->address ?? $store->address ?? 'Indonesia', 0, 100),
-                ],
-            ],
+            'customer_details' => $customerDetails,
             'item_details' => $itemDetails,
             'callbacks' => [
                 'finish' => $returnUrl,
@@ -182,6 +328,10 @@ class MidtransPaymentService
                 'unit' => 'hours',
             ],
         ];
+
+        if (!empty($enabledPayments)) {
+            $payload['enabled_payments'] = array_values($enabledPayments);
+        }
 
         $snapUrl = self::getSnapUrl($environment);
 

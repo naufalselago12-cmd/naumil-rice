@@ -339,6 +339,15 @@
             </li>
 
             <li class="nav-item">
+                <a href="{{ route('store.backend.cashier.pos', $currentStore->slug) }}" 
+                   class="nav-link-side {{ request()->routeIs('store.backend.cashier*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-cash-register text-info"></i>
+                    <span>Mode Kasir (POS)</span>
+                    <span class="badge bg-info text-dark ms-auto">POS</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
                 <a href="{{ route('store.backend.orders.index', $currentStore->slug) }}" 
                    class="nav-link-side {{ request()->routeIs('store.backend.orders*') ? 'active' : '' }}">
                     <i class="fa-solid fa-receipt"></i>
@@ -364,6 +373,14 @@
             </li>
 
             <li class="sidebar-header">PENGATURAN TOKO</li>
+
+            <li class="nav-item">
+                <a href="{{ route('store.backend.cashiers.index', $currentStore->slug) }}" 
+                   class="nav-link-side {{ request()->routeIs('store.backend.cashiers*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-user-tag text-warning"></i>
+                    <span>Hak Akses Kasir</span>
+                </a>
+            </li>
 
             <li class="nav-item">
                 <a href="{{ route('store.backend.settings', $currentStore->slug) }}" 

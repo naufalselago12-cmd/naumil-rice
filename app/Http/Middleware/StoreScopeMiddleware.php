@@ -46,11 +46,36 @@ class StoreScopeMiddleware
 
         $user = Auth::guard('web')->user();
 
-        // Check permission: superadmin or assigned store_admin
+        // Jika akun kasir mengakses halaman backend admin, arahkan langsung ke Mode Kasir (POS) cabangnya
+        if ($user->isCashier()) {
+            if (!$user->isActiveAccount()) {
+                Auth::guard('web')->logout();
+                return redirect()->route('store.backend.login', ['store_slug' => $store->slug ?: $storeSlug])
+                    ->with('error', 'Akun kasir Anda sedang dinonaktifkan oleh admin toko.');
+            }
+            if ((int) $user->store_id === (int) $store->id) {
+                return redirect()->route('store.backend.cashier.pos', ['store_slug' => $store->slug]);
+            }
+            $assignedSlug = $user->store?->slug;
+            if ($assignedSlug) {
+                return redirect()->route('store.backend.cashier.pos', ['store_slug' => $assignedSlug])
+                    ->with('error', "Akses Ditolak: Akun kasir Anda terdaftar di '{$user->store->name}'.");
+            }
+            Auth::guard('web')->logout();
+            return redirect()->route('store.backend.login', ['store_slug' => $store->slug ?: $storeSlug])
+                ->with('error', 'Akun kasir tidak terhubung dengan toko.');
+        }
+
+        // Check permission: superadmin or assigned active store_admin
         if (!$user->canManageStore($store->id)) {
             $assignedStoreName = $user->store ? $user->store->name : 'Toko Lain';
-            return redirect()->route('store.backend.dashboard', ['store_slug' => $user->store?->slug ?? ''])
-                ->with('error', "Akses Ditolak: Anda tidak memiliki wewenang untuk mengelola cabang '{$store->name}'. Anda ditugaskan di '{$assignedStoreName}'.");
+            if ($user->store?->slug) {
+                return redirect()->route('store.backend.dashboard', ['store_slug' => $user->store->slug])
+                    ->with('error', "Akses Ditolak: Anda tidak memiliki wewenang untuk mengelola cabang '{$store->name}'. Anda ditugaskan di '{$assignedStoreName}'.");
+            }
+            Auth::guard('web')->logout();
+            return redirect()->route('store.backend.login', ['store_slug' => $store->slug ?: $storeSlug])
+                ->with('error', "Akses Ditolak untuk cabang '{$store->name}'.");
         }
 
         return $next($request);

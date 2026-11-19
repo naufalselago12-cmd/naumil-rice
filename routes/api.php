@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ClientApiController;
 use App\Http\Controllers\Api\OrderApiController;
 use App\Http\Controllers\Api\Admin\AdminAuthController;
 use App\Http\Controllers\Api\Admin\AdminCampaignController;
+use App\Http\Controllers\Api\Admin\AdminCashierAccountController;
 use App\Http\Controllers\Api\Admin\AdminCategoryController;
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\Admin\AdminLoyaltyController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Api\Admin\AdminNotificationController;
 use App\Http\Controllers\Api\Admin\AdminOrderController;
 use App\Http\Controllers\Api\Admin\AdminReportController;
 use App\Http\Controllers\Api\Admin\AdminSettingsController;
+use App\Http\Controllers\Api\Cashier\CashierPosApiController;
 
 Route::prefix('v1')->group(function () {
     // 1. Stores
@@ -105,10 +107,13 @@ Route::prefix('v1')->group(function () {
     Route::prefix('admin')->group(function () {
         Route::post('/login', [AdminAuthController::class, 'login'])->middleware('throttle:10,1');
 
-        Route::middleware(['auth:sanctum', 'store.api'])->group(function () {
+        // Profil & logout: dapat dipanggil oleh Admin Toko maupun Kasir
+        Route::middleware(['auth:sanctum', 'store.api.member'])->group(function () {
             Route::get('/me', [AdminAuthController::class, 'me']);
             Route::post('/logout', [AdminAuthController::class, 'logout']);
+        });
 
+        Route::middleware(['auth:sanctum', 'store.api'])->group(function () {
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
 
             // Notifikasi realtime (riwayat + tandai dibaca)
@@ -154,6 +159,13 @@ Route::prefix('v1')->group(function () {
             Route::put('/loyalty/promos/{promo}', [AdminLoyaltyController::class, 'updatePromo']);
             Route::delete('/loyalty/promos/{promo}', [AdminLoyaltyController::class, 'destroyPromo']);
 
+            // Manajemen Akun Kasir per Toko (khusus Admin Toko)
+            Route::get('/cashiers', [AdminCashierAccountController::class, 'index']);
+            Route::post('/cashiers', [AdminCashierAccountController::class, 'store']);
+            Route::put('/cashiers/{cashier}', [AdminCashierAccountController::class, 'update']);
+            Route::patch('/cashiers/{cashier}/toggle', [AdminCashierAccountController::class, 'toggle']);
+            Route::delete('/cashiers/{cashier}', [AdminCashierAccountController::class, 'destroy']);
+
             // Laporan & pengaturan
             Route::get('/reports', [AdminReportController::class, 'index']);
             Route::get('/settings', [AdminSettingsController::class, 'show']);
@@ -161,6 +173,21 @@ Route::prefix('v1')->group(function () {
             Route::post('/settings/test-midtrans', [AdminSettingsController::class, 'testMidtrans']);
             Route::post('/settings/test-mayar', [AdminSettingsController::class, 'testMayar']);
         });
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | 9. MODE KASIR / POS & KDS RINGKAS (Kasir & Admin Toko via Bearer token Sanctum)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('cashier')->middleware(['auth:sanctum', 'store.api.member'])->group(function () {
+        Route::get('/menus', [CashierPosApiController::class, 'menus']);
+        Route::post('/orders', [CashierPosApiController::class, 'createOrder']);
+        Route::get('/orders/recent', [CashierPosApiController::class, 'recentOrders']);
+        Route::post('/orders/{order}/mark-paid', [CashierPosApiController::class, 'markPaid']);
+        Route::post('/orders/{order}/sync-midtrans', [CashierPosApiController::class, 'syncMidtrans']);
+        Route::get('/kds', [CashierPosApiController::class, 'kdsQueue']);
+        Route::patch('/kds/{order}/status', [CashierPosApiController::class, 'updateKdsStatus']);
     });
 });
 

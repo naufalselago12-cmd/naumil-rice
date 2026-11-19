@@ -21,8 +21,14 @@ class StoreBackendAuthController extends Controller
         $store = $this->getStore($storeSlug);
 
         if (Auth::guard('web')->check()) {
-            if (Auth::guard('web')->user()->canManageStore($store->id)) {
-                return redirect()->route('store.backend.dashboard', ['store_slug' => $store->slug]);
+            $user = Auth::guard('web')->user();
+            if ($user->isActiveAccount()) {
+                if ($user->isCashier() && $user->canAccessStoreCashier($store->id)) {
+                    return redirect()->route('store.backend.cashier.pos', ['store_slug' => $store->slug]);
+                }
+                if ($user->canManageStore($store->id)) {
+                    return redirect()->route('store.backend.dashboard', ['store_slug' => $store->slug]);
+                }
             }
         }
 
@@ -47,7 +53,14 @@ class StoreBackendAuthController extends Controller
         if (Auth::guard('web')->attempt([$fieldType => $loginInput, 'password' => $password], $remember)) {
             $user = Auth::guard('web')->user();
 
-            if (!$user->canManageStore($store->id)) {
+            if (!$user->isActiveAccount()) {
+                Auth::guard('web')->logout();
+                return back()->withErrors([
+                    'username' => 'Akun Anda sedang dinonaktifkan oleh admin toko. Hubungi admin cabang.',
+                ])->onlyInput('username');
+            }
+
+            if (!$user->canAccessStoreCashier($store->id)) {
                 Auth::guard('web')->logout();
                 $assigned = $user->store ? $user->store->name : 'cabang lain';
                 return back()->withErrors([
@@ -61,6 +74,12 @@ class StoreBackendAuthController extends Controller
             }
 
             $request->session()->regenerate();
+
+            if ($user->isCashier()) {
+                return redirect()->route('store.backend.cashier.pos', ['store_slug' => $store->slug])
+                    ->with('success', "Selamat bertugas di Kasir {$store->name}, {$user->name}!");
+            }
+
             return redirect()->intended(route('store.backend.dashboard', ['store_slug' => $store->slug]))
                 ->with('success', "Selamat datang di Panel Dapur {$store->name}, {$user->name}!");
         }

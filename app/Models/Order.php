@@ -16,6 +16,12 @@ class Order extends Model
     public const STATUS_READY = 'Order Ready';
     public const STATUS_REJECT = 'Order Reject';
 
+    public const SOURCE_ONLINE = 'online';
+    public const SOURCE_CASHIER = 'cashier';
+
+    public const PAYMENT_CASHIER_CASH = 'Kasir - Cash';
+    public const PAYMENT_CASHIER_QRIS = 'Kasir - QRIS Midtrans';
+
     public const ALL_STATUSES = [
         self::STATUS_CONFIRMED,
         self::STATUS_PROCESSING,
@@ -28,20 +34,29 @@ class Order extends Model
     protected static function booted()
     {
         static::updated(function (Order $order) {
-            if ($order->isDirty('status') && $order->status === self::STATUS_READY) {
+            if ($order->isDirty('status')
+                && $order->status === self::STATUS_READY
+                && !$order->isCashierOrder()) {
                 app(\App\Services\CustomerNotificationService::class)->sendOrderReadyNotification($order);
             }
 
-            // Notifikasi realtime admin toko: pembayaran langsung (QRIS / Payment Gateway) masuk
-            if ($order->wasChanged('payment_status')
-                && in_array($order->payment_status, ['paid', 'payment_on_review'], true)) {
-                app(\App\Services\StoreNotificationService::class)->notifyDirectPayment($order);
+            // Notifikasi realtime admin toko saat pembayaran masuk / lunas
+            if ($order->wasChanged('payment_status')) {
+                if ($order->isCashierOrder()) {
+                    if ($order->payment_status === 'paid') {
+                        app(\App\Services\StoreNotificationService::class)->notifyCashierPayment($order);
+                    }
+                } elseif (in_array($order->payment_status, ['paid', 'payment_on_review'], true)) {
+                    app(\App\Services\StoreNotificationService::class)->notifyDirectPayment($order);
+                }
             }
         });
     }
 
     protected $fillable = [
         'order_number',
+        'order_source',
+        'cashier_user_id',
         'store_id',
         'campaign_id',
         'client_id',
@@ -117,11 +132,34 @@ class Order extends Model
         'refund_otp_verified_at' => 'datetime',
     ];
 
-    protected $appends = ['payment_proof_url', 'is_cancelled', 'is_midtrans_payment'];
+    protected $appends = ['payment_proof_url', 'is_cancelled', 'is_midtrans_payment', 'is_cashier_order'];
 
     public function getIsCancelledAttribute(): bool
     {
         return $this->status === self::STATUS_REJECT || !empty($this->cancelled_at);
+    }
+
+    public function isCashierOrder(): bool
+    {
+        return ($this->order_source ?? self::SOURCE_ONLINE) === self::SOURCE_CASHIER
+            || in_array((string) $this->payment_method, [self::PAYMENT_CASHIER_CASH, self::PAYMENT_CASHIER_QRIS], true);
+    }
+
+    public function getIsCashierOrderAttribute(): bool
+    {
+        return $this->isCashierOrder();
+    }
+
+    public function isCashierCash(): bool
+    {
+        return $this->isCashierOrder()
+            && ($this->payment_method === self::PAYMENT_CASHIER_CASH
+                || str_contains(strtolower((string) $this->payment_method), 'cash'));
+    }
+
+    public function isCashierQris(): bool
+    {
+        return $this->isCashierOrder() && !$this->isCashierCash();
     }
 
     public function isDelivery(): bool
@@ -158,6 +196,11 @@ class Order extends Model
     public function client()
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function cashier()
+    {
+        return $this->belongsTo(User::class, 'cashier_user_id');
     }
 
     public function loyaltyPromo()

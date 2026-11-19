@@ -22,6 +22,8 @@ use App\Http\Controllers\StoreBackend\StoreBackendReportController;
 use App\Http\Controllers\StoreBackend\StoreBackendSettingsController;
 use App\Http\Controllers\StoreBackend\StoreBackendLoyaltyCustomerController;
 use App\Http\Controllers\StoreBackend\StoreBackendLoyaltyPromoController;
+use App\Http\Controllers\StoreBackend\StoreBackendCashierAccountController;
+use App\Http\Controllers\StoreBackend\StoreBackendCashierPosController;
 
 // Public Front Controller
 use App\Http\Controllers\StoreFrontController;
@@ -122,6 +124,13 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
         // Loyalty Promos Management
         Route::resource('loyalty-promos', StoreBackendLoyaltyPromoController::class)->names('loyaltyPromos');
 
+        // Manajemen Akun Kasir per Toko (khusus Admin Toko / Super Admin)
+        Route::get('/cashiers', [StoreBackendCashierAccountController::class, 'index'])->name('cashiers.index');
+        Route::post('/cashiers', [StoreBackendCashierAccountController::class, 'store'])->name('cashiers.store');
+        Route::put('/cashiers/{cashier}', [StoreBackendCashierAccountController::class, 'update'])->name('cashiers.update');
+        Route::patch('/cashiers/{cashier}/toggle', [StoreBackendCashierAccountController::class, 'toggle'])->name('cashiers.toggle');
+        Route::delete('/cashiers/{cashier}', [StoreBackendCashierAccountController::class, 'destroy'])->name('cashiers.destroy');
+
         // Store Profile, QRIS & Payment Gateway Settings
         Route::get('/settings', [StoreBackendSettingsController::class, 'index'])->name('settings');
         Route::put('/settings', [StoreBackendSettingsController::class, 'update'])->name('settings.update');
@@ -131,6 +140,18 @@ Route::prefix('{store_slug}/backend')->name('store.backend.')->group(function ()
         Route::post('/settings/test-midtrans-status', [StoreBackendSettingsController::class, 'testMidtransStatus'])->name('settings.testMidtransStatus');
         Route::post('/settings/simulate-shipping', [\App\Http\Controllers\StoreBackend\StoreBackendShippingController::class, 'simulate'])->name('settings.simulateShipping');
         Route::get('/settings/kiriminaja-info', [\App\Http\Controllers\StoreBackend\StoreBackendShippingController::class, 'accountInfo'])->name('settings.kiriminajaInfo');
+    });
+
+    // Mode Kasir (POS & KDS ringkas) — dapat diakses oleh Akun Kasir cabang & Admin Toko cabang
+    Route::middleware(['store.cashier'])->prefix('cashier')->name('cashier.')->group(function () {
+        Route::get('/', [StoreBackendCashierPosController::class, 'index'])->name('pos');
+        Route::get('/menus', [StoreBackendCashierPosController::class, 'menus'])->name('menus');
+        Route::post('/orders', [StoreBackendCashierPosController::class, 'createOrder'])->name('orders.store');
+        Route::get('/orders/recent', [StoreBackendCashierPosController::class, 'recentOrders'])->name('orders.recent');
+        Route::post('/orders/{order}/mark-paid', [StoreBackendCashierPosController::class, 'markPaid'])->name('orders.markPaid');
+        Route::post('/orders/{order}/sync-midtrans', [StoreBackendCashierPosController::class, 'syncMidtrans'])->name('orders.syncMidtrans');
+        Route::get('/kds', [StoreBackendCashierPosController::class, 'kdsQueue'])->name('kds');
+        Route::patch('/kds/{order}/status', [StoreBackendCashierPosController::class, 'updateKdsStatus'])->name('kds.status');
     });
 });
 
@@ -148,6 +169,9 @@ Route::prefix('backend')->name('admin.')->group(function () {
         Route::get('/', function () {
             if (auth()->check() && auth()->user()->isSuperAdmin()) {
                 return redirect()->route('superadmin.dashboard');
+            }
+            if (auth()->check() && auth()->user()->isCashier() && auth()->user()->store) {
+                return redirect()->route('store.backend.cashier.pos', auth()->user()->store->slug);
             }
             if (auth()->check() && auth()->user()->store) {
                 return redirect()->route('store.backend.dashboard', auth()->user()->store->slug);

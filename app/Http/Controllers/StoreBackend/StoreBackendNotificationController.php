@@ -82,6 +82,7 @@ class StoreBackendNotificationController extends Controller
         match ($request->query('filter')) {
             'cod' => $query->where('type', StoreNotification::TYPE_COD),
             'direct' => $query->where('type', StoreNotification::TYPE_DIRECT),
+            'cashier' => $query->where('type', StoreNotification::TYPE_CASHIER),
             'cancel' => $query->where('type', StoreNotification::TYPE_CANCEL),
             'unread' => $query->whereNull('read_at'),
             default => null,

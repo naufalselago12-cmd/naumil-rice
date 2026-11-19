@@ -16,10 +16,10 @@ class ApiStoreAdminMiddleware
     {
         $user = $request->user();
 
-        if (!$user || !$user->isStoreAdmin() || !$user->store) {
+        if (!$user || !$user->isStoreAdmin() || !$user->isActiveAccount() || !$user->store) {
             return response()->json([
                 'success' => false,
-                'message' => 'Akses ditolak. Aplikasi ini hanya untuk akun admin toko yang terhubung ke sebuah cabang.',
+                'message' => 'Akses ditolak. Endpoint ini khusus untuk akun admin toko yang aktif.',
             ], 403);
         }
 

@@ -26,9 +26,15 @@ class AdminAuthController extends Controller
             throw ValidationException::withMessages(['username' => 'Username atau password yang dimasukkan salah.']);
         }
 
-        if (!$user->isStoreAdmin() || !$user->store) {
+        if (!($user->isStoreAdmin() || $user->isCashier()) || !$user->store) {
             throw ValidationException::withMessages([
-                'username' => 'Aplikasi ini hanya untuk akun admin toko yang terhubung ke sebuah cabang.',
+                'username' => 'Aplikasi ini hanya untuk akun Admin Toko atau Kasir yang terhubung ke sebuah cabang.',
+            ]);
+        }
+
+        if (!$user->isActiveAccount()) {
+            throw ValidationException::withMessages([
+                'username' => 'Akun Anda sedang dinonaktifkan oleh admin toko. Hubungi admin cabang.',
             ]);
         }
 
@@ -60,6 +66,8 @@ class AdminAuthController extends Controller
                 'name' => $user->name,
                 'username' => $user->username,
                 'email' => $user->email,
+                'role' => $user->role,
+                'is_active' => $user->isActiveAccount(),
             ],
             'store' => [
                 'id' => $store->id,
@@ -68,9 +76,13 @@ class AdminAuthController extends Controller
                 'code' => $store->code,
                 'logo' => $store->logo,
                 'address' => $store->address,
+                'has_midtrans' => $store->hasMidtransConfigured(),
+                'midtrans_environment' => $store->active_midtrans_environment,
             ],
-            // external_id OneSignal untuk perangkat ini (dipakai OneSignal.login pada aplikasi)
-            'onesignal_external_id' => config('onesignal.external_id_prefix') . $user->id,
+            // external_id OneSignal hanya untuk Admin Toko (akun Kasir tidak menerima push notifikasi admin)
+            'onesignal_external_id' => $user->isStoreAdmin()
+                ? config('onesignal.external_id_prefix') . $user->id
+                : null,
         ];
     }
 }

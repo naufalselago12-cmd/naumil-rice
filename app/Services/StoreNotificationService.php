@@ -31,16 +31,24 @@ class StoreNotificationService
             return 'Bayar Setelah Makanan Jadi (COD)';
         }
 
+        if ($paymentMethod === Order::PAYMENT_CASHIER_CASH) {
+            return 'Kasir - Tunai (Cash)';
+        }
+
+        if ($paymentMethod === Order::PAYMENT_CASHIER_QRIS) {
+            return 'Kasir - QRIS Midtrans';
+        }
+
         return $paymentMethod ?: 'Pembayaran Langsung';
     }
 
     /**
-     * Pesanan baru masuk. Hanya COD yang dinotifikasi di sini;
+     * Pesanan baru masuk (Online). Hanya COD yang dinotifikasi di sini;
      * metode bayar langsung baru dinotifikasi ketika pembayarannya masuk.
      */
     public function notifyOrderPlaced(Order $order): ?StoreNotification
     {
-        if (!self::isCod($order->payment_method)) {
+        if ($order->isCashierOrder() || !self::isCod($order->payment_method)) {
             return null;
         }
 
@@ -48,17 +56,34 @@ class StoreNotificationService
     }
 
     /**
-     * Pembayaran langsung masuk (lunas / bukti bayar diunggah).
+     * Pembayaran langsung masuk (Online: lunas / bukti bayar diunggah).
      */
     public function notifyDirectPayment(Order $order): ?StoreNotification
     {
-        if (self::isCod($order->payment_method)) {
+        if ($order->isCashierOrder() || self::isCod($order->payment_method)) {
             return null;
         }
 
         $event = $order->payment_status === 'paid' ? 'payment_received' : 'payment_review';
 
         return $this->record($order, StoreNotification::TYPE_DIRECT, $event);
+    }
+
+    /**
+     * Pembayaran pesanan dari Kasir (POS) lunas (Cash klik Lunas atau QRIS Midtrans settled).
+     * Dikirim HANYA ke Admin Toko (bukan Kasir).
+     * - Cash -> notif_pembelian.wav (channel COD)
+     * - QRIS -> notif_pembayaran.wav (channel Direct)
+     * - TTS hanya nominal pembayaran berhasil (tanpa rincian menu).
+     */
+    public function notifyCashierPayment(Order $order, ?string $mode = null): ?StoreNotification
+    {
+        $isCash = $mode === 'cash' || ($mode === null && $order->isCashierCash());
+        $event = $isCash ? 'cashier_cash_paid' : 'cashier_qris_paid';
+
+        return $this->record($order, StoreNotification::TYPE_CASHIER, $event, [
+            'cashier_payment_mode' => $isCash ? 'cash' : 'qris',
+        ]);
     }
 
     /**
@@ -79,7 +104,7 @@ class StoreNotificationService
                 return null;
             }
 
-            $order->loadMissing(['client', 'items']);
+            $order->loadMissing(['client', 'items', 'cashier']);
             $data = array_merge($this->snapshot($order), $extraData);
 
             [$title, $body] = $this->compose($type, $event, $data);
@@ -132,11 +157,27 @@ class StoreNotificationService
             ];
         })->values()->all();
 
+        $itemsTtsSummary = collect($items)
+            ->map(fn ($i) => ((int) $i['quantity']) . ' ' . trim((string) $i['name']))
+            ->filter()
+            ->implode(', ');
+        if (mb_strlen($itemsTtsSummary) > 220) {
+            $itemsTtsSummary = mb_substr($itemsTtsSummary, 0, 217) . '...';
+        }
+
+        $isCashier = $order->isCashierOrder();
+
         return [
             'order_number' => $order->order_number,
-            'customer_name' => $order->client?->name ?? 'Pelanggan',
-            'customer_whatsapp' => $order->client?->whatsapp,
+            'order_source' => $isCashier ? Order::SOURCE_CASHIER : ($order->order_source ?? Order::SOURCE_ONLINE),
+            'is_cashier' => $isCashier,
+            'cashier_name' => $order->cashier?->name,
+            'customer_name' => $isCashier
+                ? ('Kasir' . ($order->cashier?->name ? ' · ' . $order->cashier->name : ''))
+                : ($order->client?->name ?? 'Pelanggan'),
+            'customer_whatsapp' => $isCashier ? null : $order->client?->whatsapp,
             'items' => $items,
+            'items_tts_summary' => $isCashier ? '' : $itemsTtsSummary,
             'subtotal' => (float) $order->subtotal,
             'discount' => (float) $order->discount_amount,
             'shipping_cost' => (float) ($order->shipping_cost ?? 0),
@@ -177,6 +218,15 @@ class StoreNotificationService
             $title = "Pesanan Dibatalkan ({$actor}) - " . $data['customer_name'];
             $reasonStr = !empty($data['cancellation_reason']) ? " | Alasan: " . $data['cancellation_reason'] : "";
             $body = "Pesanan #{$data['order_number']} telah dibatalkan ({$summary})\nTotal {$total}{$reasonStr}";
+        } elseif ($type === StoreNotification::TYPE_CASHIER) {
+            $cashierBy = !empty($data['cashier_name']) ? $data['cashier_name'] : 'Kasir POS';
+            if ($event === 'cashier_cash_paid') {
+                $title = "Transaksi Kasir (Cash) Lunas - {$cashierBy}";
+                $body = "{$summary}\nTotal {$total} - Tunai (Cash) diterima kasir";
+            } else {
+                $title = "Transaksi Kasir (QRIS) Lunas - {$cashierBy}";
+                $body = "{$summary}\nTotal {$total} - QRIS Midtrans Lunas";
+            }
         } elseif ($type === StoreNotification::TYPE_COD) {
             $title = 'Pesanan Baru (COD) - ' . $data['customer_name'];
             $body = "{$summary}\nTotal {$total} - Bayar setelah makanan jadi{$deliveryTag}";
@@ -192,8 +242,8 @@ class StoreNotificationService
     }
 
     /**
-     * Kirim Web Push ke seluruh admin toko (yang sedang login di OneSignal)
-     * lewat external_id.
+     * Kirim Web/Mobile Push HANYA ke Admin Toko (store_admin, BUKAN kasir)
+     * yang terdaftar di cabang tersebut lewat external_id OneSignal.
      */
     public function sendPush(int $notificationId): void
     {
@@ -214,13 +264,14 @@ class StoreNotificationService
         }
 
         $prefix = (string) config('onesignal.external_id_prefix');
-        $externalIds = User::where(function ($q) {
-                $q->where('role', User::ROLE_STORE_ADMIN)
-                  ->orWhere('role', 'store_admin');
-            })
+        // Khusus role store_admin (selain kasir) yang aktif pada toko ini
+        $externalIds = User::where('role', User::ROLE_STORE_ADMIN)
             ->where('store_id', $notification->store_id)
+            ->get()
+            ->filter(fn (User $u) => $u->isActiveAccount())
             ->pluck('id')
             ->map(fn ($id) => $prefix . $id)
+            ->values()
             ->all();
 
         if (empty($externalIds)) {
@@ -230,6 +281,25 @@ class StoreNotificationService
 
         $slug = $notification->store?->slug;
         $url = route('store.backend.notification', ['store_slug' => $slug]);
+
+        $isCashierNotif = $notification->type === StoreNotification::TYPE_CASHIER;
+        $useCodChannel = in_array($notification->type, [StoreNotification::TYPE_COD, StoreNotification::TYPE_CANCEL], true)
+            || ($isCashierNotif && $notification->event === 'cashier_cash_paid');
+
+        // Rincian menu TTS hanya untuk pesanan online; pesanan kasir hanya nominal pembayaran berhasil.
+        $itemsTtsSummary = $isCashierNotif
+            ? ''
+            : (string) ($notification->data['items_tts_summary'] ?? '');
+
+        if (!$isCashierNotif && $itemsTtsSummary === '' && !empty($notification->data['items'])) {
+            $itemsTtsSummary = collect($notification->data['items'])
+                ->map(fn ($i) => ((int) ($i['quantity'] ?? 1)) . ' ' . trim((string) ($i['name'] ?? '')))
+                ->filter()
+                ->implode(', ');
+            if (mb_strlen($itemsTtsSummary) > 220) {
+                $itemsTtsSummary = mb_substr($itemsTtsSummary, 0, 217) . '...';
+            }
+        }
 
         try {
             $response = Http::withHeaders(['Authorization' => 'Key ' . $apiKey])
@@ -247,9 +317,10 @@ class StoreNotificationService
                     'web_url' => $url,
                     'web_push_topic' => 'order-' . $notification->order_id,
                     'chrome_web_icon' => asset('favicon-192x192.png'),
-                    // Android: channel native dibuat oleh aplikasi (naumil_rice_apps) dengan suara kustom
-                    // sehingga suara tetap berbunyi walau aplikasi tertutup. COD / Cancel -> notif-pembelian, langsung -> notif-pembayaran
-                    'existing_android_channel_id' => in_array($notification->type, [StoreNotification::TYPE_COD, StoreNotification::TYPE_CANCEL], true)
+                    // Android channel native:
+                    // - COD / Cancel / Cashier Cash -> naumil_cod_v1 (notif_pembelian.wav)
+                    // - Online Direct / Cashier QRIS -> naumil_direct_v1 (notif_pembayaran.wav)
+                    'existing_android_channel_id' => $useCodChannel
                         ? config('onesignal.android_channel_cod')
                         : config('onesignal.android_channel_direct'),
                     'priority' => 10,
@@ -258,10 +329,14 @@ class StoreNotificationService
                         'type' => $notification->type,
                         'order_id' => $notification->order_id,
                         'event' => $notification->event,
+                        'order_source' => $isCashierNotif ? Order::SOURCE_CASHIER : ($notification->data['order_source'] ?? Order::SOURCE_ONLINE),
+                        'is_cashier' => $isCashierNotif,
+                        'cashier_name' => (string) ($notification->data['cashier_name'] ?? ''),
                         'payment_status' => $notification->data['payment_status'] ?? '',
                         'total' => (float) ($notification->data['total'] ?? 0),
                         'customer_name' => $notification->data['customer_name'] ?? '',
                         'order_number' => $notification->data['order_number'] ?? '',
+                        'items_tts_summary' => $itemsTtsSummary,
                         'cancelled_by' => $notification->data['cancelled_by'] ?? '',
                         'cancellation_reason' => $notification->data['cancellation_reason'] ?? '',
                     ],

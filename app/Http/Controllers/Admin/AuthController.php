@@ -14,6 +14,13 @@ class AuthController extends Controller
     public function showLoginForm()
     {
         if (Auth::check()) {
+            $user = Auth::user();
+            if ($user->isCashier() && $user->store) {
+                return redirect()->route('store.backend.cashier.pos', ['store_slug' => $user->store->slug]);
+            }
+            if ($user->isStoreAdmin() && $user->store) {
+                return redirect()->route('store.backend.dashboard', ['store_slug' => $user->store->slug]);
+            }
             return redirect()->route('admin.dashboard');
         }
         return view('admin.auth.login');
@@ -37,8 +44,28 @@ class AuthController extends Controller
         $fieldType = filter_var($loginInput, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
         if (Auth::attempt([$fieldType => $loginInput, 'password' => $password], $remember)) {
+            $user = Auth::user();
+
+            if (!$user->isActiveAccount()) {
+                Auth::logout();
+                return back()->withErrors([
+                    'username' => 'Akun Anda sedang dinonaktifkan oleh admin toko.',
+                ])->onlyInput('username');
+            }
+
             $request->session()->regenerate();
-            return redirect()->intended(route('admin.dashboard'))->with('success', 'Selamat datang, ' . Auth::user()->name . '!');
+
+            if ($user->isCashier() && $user->store) {
+                return redirect()->route('store.backend.cashier.pos', ['store_slug' => $user->store->slug])
+                    ->with('success', "Selamat bertugas di Kasir {$user->store->name}, {$user->name}!");
+            }
+
+            if ($user->isStoreAdmin() && $user->store) {
+                return redirect()->route('store.backend.dashboard', ['store_slug' => $user->store->slug])
+                    ->with('success', 'Selamat datang, ' . $user->name . '!');
+            }
+
+            return redirect()->intended(route('admin.dashboard'))->with('success', 'Selamat datang, ' . $user->name . '!');
         }
 
         return back()->withErrors([

@@ -84,7 +84,7 @@
              alt="{{ $store->name }}" class="store-logo-img shadow-sm">
         <span class="badge bg-danger font-mono d-inline-block mb-1">{{ $store->code }}</span>
         <h3 class="fw-bold fs-5 mb-1">{{ $store->name }}</h3>
-        <small class="opacity-75">Panel Dapur & Administrator Cabang</small>
+        <small class="opacity-75">Panel Dapur, Kasir (POS) & Administrator Cabang</small>
     </div>
 
     <div class="p-4 p-md-4">
@@ -129,11 +129,11 @@
             @csrf
 
             <div class="mb-3">
-                <label class="form-label small fw-bold mb-1">Username Admin Toko</label>
+                <label class="form-label small fw-bold mb-1">Username Admin / Kasir</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-user"></i></span>
                     <input type="text" name="username" class="form-control" 
-                           placeholder="Username pengelola toko" value="{{ old('username') }}" required autofocus>
+                           placeholder="Username admin toko atau kasir" value="{{ old('username') }}" required autofocus>
                 </div>
             </div>
 

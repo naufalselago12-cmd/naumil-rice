@@ -6,9 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class StoreNotification extends Model
 {
-    public const TYPE_COD = 'cod';       // Bayar setelah makanan jadi
-    public const TYPE_DIRECT = 'direct'; // Bayar langsung (QRIS / Payment Gateway)
-    public const TYPE_CANCEL = 'cancel'; // Pesanan dibatalkan (customer / admin)
+    public const TYPE_COD = 'cod';         // Bayar setelah makanan jadi (online)
+    public const TYPE_DIRECT = 'direct';   // Bayar langsung QRIS / Payment Gateway (online)
+    public const TYPE_CANCEL = 'cancel';   // Pesanan dibatalkan (customer / admin)
+    public const TYPE_CASHIER = 'cashier'; // Transaksi POS Kasir (Cash / QRIS Midtrans)
 
     protected $fillable = [
         'store_id',
@@ -38,4 +39,3 @@ class StoreNotification extends Model
         return $this->belongsTo(Order::class);
     }
 }
-

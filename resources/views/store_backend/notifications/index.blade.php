@@ -19,6 +19,7 @@
     .legend-chip { display: inline-flex; align-items: center; gap: .45rem; font-size: .78rem; font-weight: 700; padding: .3rem .75rem; border-radius: 999px; }
     .legend-chip.cod { background: #fef3c7; color: #92400e; }
     .legend-chip.direct { background: #d1fae5; color: #065f46; }
+    .legend-chip.cashier { background: #ede9fe; color: #5b21b6; }
     .legend-chip.cancel { background: #fee2e2; color: #991b1b; }
 
     .filter-tabs .btn { border-radius: 999px; font-size: .82rem; font-weight: 600; }
@@ -30,6 +31,8 @@
     .n-card.cod::before { background: linear-gradient(180deg, #f59e0b, #ea580c); }
     .n-card.direct { background: linear-gradient(135deg, #ecfdf5 0%, #e6faf1 100%); border-color: #a7f3d0; }
     .n-card.direct::before { background: linear-gradient(180deg, #10b981, #059669); }
+    .n-card.cashier { background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border-color: #c4b5fd; }
+    .n-card.cashier::before { background: linear-gradient(180deg, #7c3aed, #4f46e5); }
     .n-card.cancel { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-color: #fecaca; }
     .n-card.cancel::before { background: linear-gradient(180deg, #ef4444, #b91c1c); }
     .n-card.unread { box-shadow: 0 6px 18px rgba(15,23,42,.08); }
@@ -40,6 +43,7 @@
     .n-icon { width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; color: #fff; flex-shrink: 0; }
     .cod .n-icon { background: linear-gradient(135deg, #f59e0b, #ea580c); }
     .direct .n-icon { background: linear-gradient(135deg, #10b981, #059669); }
+    .cashier .n-icon { background: linear-gradient(135deg, #7c3aed, #4f46e5); }
     .cancel .n-icon { background: linear-gradient(135deg, #ef4444, #b91c1c); }
 
     .n-name { font-weight: 800; color: #0f172a; font-size: 1.02rem; line-height: 1.2; }
@@ -47,6 +51,7 @@
     .n-badge { font-size: .7rem; font-weight: 800; padding: .25rem .65rem; border-radius: 999px; letter-spacing: .02em; white-space: nowrap; }
     .cod .n-badge { background: #f59e0b; color: #fff; }
     .direct .n-badge { background: #10b981; color: #fff; }
+    .cashier .n-badge { background: #7c3aed; color: #fff; }
     .cancel .n-badge { background: #ef4444; color: #fff; }
     .n-unread-dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; display: inline-block; margin-right: 6px; }
 
@@ -57,7 +62,7 @@
     .n-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; }
     .n-total { font-family: var(--font-mono); font-weight: 800; font-size: 1.2rem; color: #0f172a; }
     .n-pay { font-size: .8rem; font-weight: 700; display: inline-flex; align-items: center; gap: .4rem; background: rgba(255,255,255,.85); padding: .3rem .7rem; border-radius: 10px; color: #334155; }
-    .cod .n-pay i { color: #ea580c; } .direct .n-pay i { color: #059669; } .cancel .n-pay i { color: #dc2626; }
+    .cod .n-pay i { color: #ea580c; } .direct .n-pay i { color: #059669; } .cashier .n-pay i { color: #7c3aed; } .cancel .n-pay i { color: #dc2626; }
     .empty-state { text-align: center; padding: 3.5rem 1rem; color: #64748b; }
     .empty-state i { font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem; }
 </style>
@@ -94,8 +99,9 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
     <div class="d-flex flex-wrap gap-2">
-        <span class="legend-chip cod"><i class="fa-solid fa-bell-concierge"></i> COD · Bayar setelah makanan jadi</span>
-        <span class="legend-chip direct"><i class="fa-solid fa-circle-check"></i> Bayar langsung (QRIS / Gateway)</span>
+        <span class="legend-chip cod"><i class="fa-solid fa-bell-concierge"></i> COD · Online</span>
+        <span class="legend-chip direct"><i class="fa-solid fa-circle-check"></i> Bayar Langsung · Online</span>
+        <span class="legend-chip cashier"><i class="fa-solid fa-cash-register"></i> Kasir (POS) · Cash / QRIS</span>
     </div>
     <div class="d-flex flex-wrap gap-2 align-items-center">
         <div class="btn-group filter-tabs" role="group" id="filterTabs">
@@ -103,6 +109,7 @@
             <button type="button" class="btn btn-sm btn-outline-dark" data-filter="unread">Belum dibaca <span class="badge bg-danger ms-1" data-notif-badge style="display:none;">0</span></button>
             <button type="button" class="btn btn-sm btn-outline-warning" data-filter="cod">COD</button>
             <button type="button" class="btn btn-sm btn-outline-success" data-filter="direct">Bayar Langsung</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-filter="cashier" style="border-color:#7c3aed;color:#7c3aed;">Kasir (POS)</button>
             <button type="button" class="btn btn-sm btn-outline-danger" data-filter="cancel">Dibatalkan</button>
         </div>
         <button type="button" class="btn btn-sm btn-outline-secondary" id="btnReadAll"><i class="fa-solid fa-check-double me-1"></i>Tandai semua dibaca</button>
@@ -148,19 +155,21 @@
     function buildCard(item, isNew) {
         const d = item.data || {};
         const isCod = item.type === 'cod';
+        const isCashier = item.type === 'cashier';
+        const isCashierCash = isCashier && item.event === 'cashier_cash_paid';
         const isCancel = item.type === 'cancel';
-        const cardType = isCancel ? 'cancel' : (isCod ? 'cod' : 'direct');
+        const cardType = isCancel ? 'cancel' : (isCashier ? 'cashier' : (isCod ? 'cod' : 'direct'));
         const card = el('div', 'n-card ' + cardType + (item.is_read ? '' : ' unread') + (isNew ? ' is-new' : ''));
         card.dataset.id = item.id;
 
         // Header
         const head = el('div', 'd-flex align-items-start gap-3');
         const icon = el('div', 'n-icon');
-        icon.innerHTML = '<i class="fa-solid ' + (isCancel ? 'fa-ban' : (isCod ? 'fa-bell-concierge' : 'fa-circle-check')) + '"></i>';
+        icon.innerHTML = '<i class="fa-solid ' + (isCancel ? 'fa-ban' : (isCashier ? 'fa-cash-register' : (isCod ? 'fa-bell-concierge' : 'fa-circle-check'))) + '"></i>';
         const who = el('div', 'flex-grow-1');
         const nameRow = el('div', 'n-name');
         if (!item.is_read) nameRow.append(el('span', 'n-unread-dot'));
-        nameRow.append(document.createTextNode(d.customer_name || 'Pelanggan'));
+        nameRow.append(document.createTextNode(d.customer_name || (isCashier ? 'Kasir POS' : 'Pelanggan')));
         const meta = el('div', 'n-meta');
         meta.textContent = '#' + (d.order_number || '-') + ' · ' + item.created_human + ' · ';
         const ago = el('span', 'js-ago', timeAgo(item.created_at));
@@ -170,8 +179,10 @@
         who.append(nameRow, meta);
 
         let label = isCancel ? 'PESANAN DIBATALKAN'
-            : (isCod ? 'COD · BAYAR SETELAH MAKANAN JADI'
-            : (item.event === 'payment_review' ? 'BAYAR LANGSUNG · MENUNGGU VERIFIKASI' : 'BAYAR LANGSUNG · LUNAS'));
+            : (isCashier
+                ? (isCashierCash ? 'KASIR · TUNAI (CASH) LUNAS' : 'KASIR · QRIS MIDTRANS LUNAS')
+                : (isCod ? 'COD · BAYAR SETELAH MAKANAN JADI'
+                    : (item.event === 'payment_review' ? 'BAYAR LANGSUNG · MENUNGGU VERIFIKASI' : 'BAYAR LANGSUNG · LUNAS')));
         if (isCancel && d.cancelled_by) {
             label += ' (' + (d.cancelled_by === 'customer' ? 'PELANGGAN' : 'ADMIN') + ')';
         }
@@ -204,7 +215,10 @@
         // Footer: total + metode bayar
         const foot = el('div', 'n-foot');
         const pay = el('span', 'n-pay');
-        pay.innerHTML = '<i class="fa-solid ' + (isCod ? 'fa-hand-holding-dollar' : 'fa-credit-card') + '"></i>';
+        const payIcon = isCashier
+            ? (isCashierCash ? 'fa-hand-holding-dollar' : 'fa-qrcode')
+            : (isCod ? 'fa-hand-holding-dollar' : 'fa-credit-card');
+        pay.innerHTML = '<i class="fa-solid ' + payIcon + '"></i>';
         pay.append(document.createTextNode(d.payment_label || d.payment_method || '-'));
         const totalBox = el('div', 'text-end');
         totalBox.append(el('div', 'n-meta', 'Total Harga'), el('div', 'n-total', rupiah(d.total)));
