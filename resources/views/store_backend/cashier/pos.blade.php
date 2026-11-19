@@ -446,7 +446,7 @@
 
             <div class="cart-items-scroll" id="cartItemsList"></div>
 
-            <div class="p-3 border-top bg-white">
+            <div class="p-3 border-top bg-white" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)) !important;">
                 <div class="mb-2">
                     <input type="text" id="orderNotesInput" class="form-control form-control-sm"
                            placeholder="Catatan pesanan (opsional, misal: tanpa pedas)">
@@ -457,22 +457,17 @@
                     <span class="fs-5 fw-bold font-mono text-dark" id="cartTotalText">Rp 0</span>
                 </div>
 
-                {{-- Pilihan Metode Pembayaran Kasir: Cash (Uang+Tangan) & QRIS (QR saja) --}}
-                <div class="pay-grid mb-2">
-                    <button type="button" class="ico-btn btn-cash selected" id="btnSelectCash" onclick="selectPaymentMode('cash')">
+                {{-- Langsung 2 tombol checkout: Cash (Uang+Tangan) & QRIS (QR saja) --}}
+                <div class="pay-grid">
+                    <button type="button" class="ico-btn btn-cash-solid w-100" id="btnPayCash" onclick="submitCheckout('cash')">
                         <i class="fa-solid fa-hand-holding-dollar"></i>
                         <span class="ico-lbl">Cash</span>
                     </button>
-                    <button type="button" class="ico-btn btn-qris" id="btnSelectQris" onclick="selectPaymentMode('qris')">
+                    <button type="button" class="ico-btn btn-qris-solid w-100" id="btnPayQris" onclick="submitCheckout('qris')">
                         <i class="fa-solid fa-qrcode"></i>
                         <span class="ico-lbl">QRIS</span>
                     </button>
                 </div>
-
-                <button type="button" class="ico-btn btn-cash-solid w-100 py-2" id="btnCheckout" onclick="submitCheckout()">
-                    <i class="fa-solid fa-hand-holding-dollar" id="checkoutBtnIcon"></i>
-                    <span class="ico-lbl" style="font-size:12px;" id="checkoutBtnLabel">Proses Cash</span>
-                </button>
             </div>
         </aside>
     </div>
@@ -1026,30 +1021,9 @@
         }).join('');
     }
 
-    /* ==================== PAYMENT SELECTION & CHECKOUT ==================== */
-    window.selectPaymentMode = function (mode) {
-        paymentMode = mode;
-        const btnCash = document.getElementById('btnSelectCash');
-        const btnQris = document.getElementById('btnSelectQris');
-        const btnCheckout = document.getElementById('btnCheckout');
-        const ico = document.getElementById('checkoutBtnIcon');
-        const lbl = document.getElementById('checkoutBtnLabel');
-
-        btnCash.classList.toggle('selected', mode === 'cash');
-        btnQris.classList.toggle('selected', mode === 'qris');
-
-        if (mode === 'cash') {
-            btnCheckout.className = 'ico-btn btn-cash-solid w-100 py-2';
-            ico.className = 'fa-solid fa-hand-holding-dollar';
-            lbl.textContent = 'Proses Cash';
-        } else {
-            btnCheckout.className = 'ico-btn btn-qris-solid w-100 py-2';
-            ico.className = 'fa-solid fa-qrcode';
-            lbl.textContent = 'Bayar QRIS Midtrans';
-        }
-    };
-
-    window.submitCheckout = async function () {
+    /* ==================== DIRECT 2-BUTTON CHECKOUT (CASH / QRIS) ==================== */
+    window.submitCheckout = async function (mode) {
+        paymentMode = mode || 'cash';
         if (!cart.length) {
             toast('Pilih menu terlebih dahulu', 'err');
             return;
@@ -1059,8 +1033,10 @@
             return;
         }
 
-        const btn = document.getElementById('btnCheckout');
-        btn.disabled = true;
+        const btnCash = document.getElementById('btnPayCash');
+        const btnQris = document.getElementById('btnPayQris');
+        if (btnCash) btnCash.disabled = true;
+        if (btnQris) btnQris.disabled = true;
         try {
             const payload = {
                 payment_mode: paymentMode,
@@ -1105,7 +1081,8 @@
         } catch (e) {
             toast('Kendala koneksi ke server.', 'err');
         } finally {
-            btn.disabled = false;
+            if (btnCash) btnCash.disabled = false;
+            if (btnQris) btnQris.disabled = false;
         }
     };
 
