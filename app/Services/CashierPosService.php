@@ -21,6 +21,7 @@ class CashierPosService
 {
     private static ?bool $hasOrderSourceColumn = null;
     private static ?bool $hasCashierUserIdColumn = null;
+    private static ?bool $hasFulfillmentTypeColumn = null;
 
     protected function hasOrderSourceColumn(): bool
     {
@@ -32,14 +33,20 @@ class CashierPosService
         return self::$hasCashierUserIdColumn ??= Schema::hasColumn('orders', 'cashier_user_id');
     }
 
+    protected function hasFulfillmentTypeColumn(): bool
+    {
+        return self::$hasFulfillmentTypeColumn ??= Schema::hasColumn('orders', 'fulfillment_type');
+    }
+
     /**
      * Katalog POS Kasir: hanya menu aktif milik cabang tersebut + kategori & info Midtrans.
      */
     public function getActiveCatalog(Store $store): array
     {
         $categories = Category::where('store_id', $store->id)
+            ->orderBy('display_order')
             ->orderBy('name')
-            ->get(['id', 'name', 'slug']);
+            ->get(['id', 'name']);
 
         $menus = Menu::with(['category:id,name', 'options'])
             ->where('store_id', $store->id)
@@ -51,9 +58,15 @@ class CashierPosService
                 $img = $m->image;
                 $imgUrl = null;
                 if ($img) {
-                    $imgUrl = (str_starts_with($img, 'http://') || str_starts_with($img, 'https://'))
-                        ? $img
-                        : asset('storage/' . ltrim($img, '/'));
+                    if (str_starts_with($img, 'http://') || str_starts_with($img, 'https://')) {
+                        $imgUrl = $img;
+                    } elseif (str_starts_with($img, '/storage/') || str_starts_with($img, 'storage/')) {
+                        $imgUrl = asset(ltrim($img, '/'));
+                    } elseif (str_starts_with($img, '/')) {
+                        $imgUrl = url($img);
+                    } else {
+                        $imgUrl = asset('storage/' . ltrim($img, '/'));
+                    }
                 }
 
                 return [
@@ -213,13 +226,15 @@ class CashierPosService
                 'subtotal' => $subtotal,
                 'discount_amount' => 0,
                 'total_amount' => $subtotal,
-                'fulfillment_type' => Order::FULFILLMENT_PICKUP,
-                'shipping_cost' => 0,
                 'notes' => isset($payload['notes']) && trim((string) $payload['notes']) !== ''
                     ? trim((string) $payload['notes'])
                     : null,
             ];
 
+            if ($this->hasFulfillmentTypeColumn()) {
+                $orderAttrs['fulfillment_type'] = Order::FULFILLMENT_PICKUP;
+                $orderAttrs['shipping_cost'] = 0;
+            }
             if ($this->hasOrderSourceColumn()) {
                 $orderAttrs['order_source'] = Order::SOURCE_CASHIER;
             }
