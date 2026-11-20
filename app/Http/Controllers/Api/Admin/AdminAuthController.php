@@ -79,8 +79,8 @@ class AdminAuthController extends Controller
                 'has_midtrans' => $store->hasMidtransConfigured(),
                 'midtrans_environment' => $store->active_midtrans_environment,
             ],
-            // external_id OneSignal hanya untuk Admin Toko (akun Kasir tidak menerima push notifikasi admin)
-            'onesignal_external_id' => $user->isStoreAdmin()
+            // external_id OneSignal aktif untuk seluruh akun cabang (Admin Toko & Kasir)
+            'onesignal_external_id' => ($user->isStoreAdmin() || $user->isCashier())
                 ? config('onesignal.external_id_prefix') . $user->id
                 : null,
         ];

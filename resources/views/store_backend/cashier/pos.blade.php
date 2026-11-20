@@ -1255,7 +1255,7 @@
                 stopQrisPolling();
                 const banner = document.getElementById('qrisStatusBanner');
                 banner.className = 'alert alert-success py-2 px-3 small fw-bold mb-0';
-                banner.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> PEMBAYARAN QRIS LUNAS! Notifikasi terkirim ke Admin Toko.';
+                banner.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> PEMBAYARAN QRIS LUNAS! Notifikasi pembayaran terkirim ke Admin &amp; Kasir.';
                 toast('Pembayaran QRIS Midtrans Lunas!');
                 fetchKds();
                 fetchRecent();

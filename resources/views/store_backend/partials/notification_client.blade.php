@@ -6,8 +6,8 @@
 @php
     $__nUser = auth()->user();
     $__nAppId = config('onesignal.app_id');
-    // Hanya admin toko pemilik cabang ini yang didaftarkan ke OneSignal (external_id)
-    $__nEligible = $__nUser && $__nUser->isStoreAdmin() && (int) $__nUser->store_id === (int) $currentStore->id;
+    // Admin toko & kasir pemilik cabang ini didaftarkan ke OneSignal (external_id)
+    $__nEligible = $__nUser && ($__nUser->isStoreAdmin() || $__nUser->isCashier()) && (int) $__nUser->store_id === (int) $currentStore->id;
     $__nLatestId = (int) \App\Models\StoreNotification::where('store_id', $currentStore->id)->max('id');
     $__notifConfig = [
         'appId' => $__nAppId,
@@ -83,12 +83,8 @@
 
     function playSound(type, eventName) {
         if (isMuted()) return false;
-        let soundKey = 'cod';
-        if (type === 'cashier') {
-            soundKey = (eventName === 'cashier_cash_paid') ? 'cod' : 'direct';
-        } else if (type === 'direct') {
-            soundKey = 'direct';
-        }
+        // COD & pembatalan -> notif-pembelian.wav; Pembayaran (Tunai/Cash, QRIS, Direct Online) -> notif-pembayaran.wav
+        const soundKey = (type === 'cashier' || type === 'direct') ? 'direct' : 'cod';
         const a = sounds[soundKey] || sounds.cod;
         try {
             a.currentTime = 0;

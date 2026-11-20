@@ -107,19 +107,19 @@ Route::prefix('v1')->group(function () {
     Route::prefix('admin')->group(function () {
         Route::post('/login', [AdminAuthController::class, 'login'])->middleware('throttle:10,1');
 
-        // Profil & logout: dapat dipanggil oleh Admin Toko maupun Kasir
+        // Profil, logout & notifikasi realtime: dapat dipanggil oleh Admin Toko maupun Kasir cabang aktif
         Route::middleware(['auth:sanctum', 'store.api.member'])->group(function () {
             Route::get('/me', [AdminAuthController::class, 'me']);
             Route::post('/logout', [AdminAuthController::class, 'logout']);
+
+            // Notifikasi realtime (riwayat + tandai dibaca + polling fallback jingle & TTS)
+            Route::get('/notifications', [AdminNotificationController::class, 'feed']);
+            Route::post('/notifications/read-all', [AdminNotificationController::class, 'markAllRead']);
+            Route::post('/notifications/{notification}/read', [AdminNotificationController::class, 'read'])->whereNumber('notification');
         });
 
         Route::middleware(['auth:sanctum', 'store.api'])->group(function () {
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
-
-            // Notifikasi realtime (riwayat + tandai dibaca)
-            Route::get('/notifications', [AdminNotificationController::class, 'feed']);
-            Route::post('/notifications/read-all', [AdminNotificationController::class, 'markAllRead']);
-            Route::post('/notifications/{notification}/read', [AdminNotificationController::class, 'read'])->whereNumber('notification');
 
             // Pesanan & KDS
             Route::get('/orders', [AdminOrderController::class, 'index']);

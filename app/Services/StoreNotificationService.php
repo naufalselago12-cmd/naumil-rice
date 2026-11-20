@@ -10,11 +10,14 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Membuat riwayat notifikasi pesanan untuk admin backend toko
- * dan mengirimnya sebagai Web Push lewat OneSignal.
+ * Membuat riwayat notifikasi pesanan untuk cabang toko (Admin Toko & Kasir)
+ * dan mengirimnya sebagai Web/Mobile Push lewat OneSignal.
  *
- * - COD (Bayar Terima Makanan)      -> notifikasi saat pesanan masuk  (suara: notif-pembelian.wav)
- * - Bayar langsung (QRIS / Gateway) -> notifikasi saat pembayaran masuk (suara: notif-pembayaran.wav)
+ * Aturan Jingle & TTS:
+ * - COD (Bayar Terima Makanan) / Cancel          -> notif_pembelian.wav  (channel COD)
+ * - Pembayaran Tunai (Cash Kasir) / QRIS / Online -> notif_pembayaran.wav (channel Direct)
+ * - Penerima Push: SELURUH akun aktif cabang (Admin Toko & Kasir), baik pesanan online maupun kasir.
+ * - TTS Rincian Menu: HANYA untuk akun Kasir; akun Admin hanya menerima TTS nominal tanpa rincian menu.
  */
 class StoreNotificationService
 {
@@ -70,11 +73,11 @@ class StoreNotificationService
     }
 
     /**
-     * Pembayaran pesanan dari Kasir (POS) lunas (Cash klik Lunas atau QRIS Midtrans settled).
-     * Dikirim HANYA ke Admin Toko (bukan Kasir).
-     * - Cash -> notif_pembelian.wav (channel COD)
-     * - QRIS -> notif_pembayaran.wav (channel Direct)
-     * - TTS hanya nominal pembayaran berhasil (tanpa rincian menu).
+     * Pembayaran pesanan dari Kasir (POS) lunas (Cash/Tunai klik Lunas atau QRIS Midtrans settled).
+     * Dikirim ke SELURUH akun aktif cabang (Admin Toko & Kasir) agar pembayaran masuk terdengar jelas.
+     * - Cash (Tunai) -> notif_pembayaran.wav (channel Direct)
+     * - QRIS         -> notif_pembayaran.wav (channel Direct)
+     * - TTS rincian menu hanya untuk akun Kasir; akun Admin hanya nominal pembayaran berhasil.
      */
     public function notifyCashierPayment(Order $order, ?string $mode = null): ?StoreNotification
     {
@@ -177,7 +180,7 @@ class StoreNotificationService
                 : ($order->client?->name ?? 'Pelanggan'),
             'customer_whatsapp' => $isCashier ? null : $order->client?->whatsapp,
             'items' => $items,
-            'items_tts_summary' => $isCashier ? '' : $itemsTtsSummary,
+            'items_tts_summary' => $itemsTtsSummary,
             'subtotal' => (float) $order->subtotal,
             'discount' => (float) $order->discount_amount,
             'shipping_cost' => (float) ($order->shipping_cost ?? 0),
@@ -242,8 +245,14 @@ class StoreNotificationService
     }
 
     /**
-     * Kirim Web/Mobile Push HANYA ke Admin Toko (store_admin, BUKAN kasir)
-     * yang terdaftar di cabang tersebut lewat external_id OneSignal.
+     * Kirim Web/Mobile Push ke SELURUH akun aktif cabang (Admin Toko & Kasir)
+     * lewat external_id OneSignal.
+     *
+     * Aturan Jingle & TTS:
+     * - COD / Cancel                                 -> naumil_cod_v2    (notif_pembelian.wav)
+     * - Pembayaran Tunai (Cash) / QRIS / Bayar Online -> naumil_direct_v2 (notif_pembayaran.wav)
+     * - Admin Toko (`store_admin`) -> TANPA TTS rincian menu (`include_items_tts = false`)
+     * - Kasir (`cashier`)          -> DENGAN TTS rincian menu (`include_items_tts = true`)
      */
     public function sendPush(int $notificationId): void
     {
@@ -264,18 +273,31 @@ class StoreNotificationService
         }
 
         $prefix = (string) config('onesignal.external_id_prefix');
-        // Khusus role store_admin (selain kasir) yang aktif pada toko ini
-        $externalIds = User::where('role', User::ROLE_STORE_ADMIN)
+        // Kirim ke seluruh akun aktif cabang: Admin Toko MAUPUN Kasir
+        $storeUsers = User::whereIn('role', [User::ROLE_STORE_ADMIN, User::ROLE_CASHIER])
             ->where('store_id', $notification->store_id)
             ->get()
-            ->filter(fn (User $u) => $u->isActiveAccount())
+            ->filter(fn (User $u) => $u->isActiveAccount());
+
+        $adminExternalIds = $storeUsers
+            ->filter(fn (User $u) => $u->isStoreAdmin())
             ->pluck('id')
             ->map(fn ($id) => $prefix . $id)
             ->values()
             ->all();
 
-        if (empty($externalIds)) {
-            $notification->update(['push_status' => 'skipped', 'push_response' => 'Tidak ada admin toko.']);
+        $cashierExternalIds = $storeUsers
+            ->filter(fn (User $u) => $u->isCashier())
+            ->pluck('id')
+            ->map(fn ($id) => $prefix . $id)
+            ->values()
+            ->all();
+
+        if (empty($adminExternalIds) && empty($cashierExternalIds)) {
+            $notification->update([
+                'push_status' => 'skipped',
+                'push_response' => 'Tidak ada admin toko atau kasir aktif pada cabang ini.',
+            ]);
             return;
         }
 
@@ -283,15 +305,17 @@ class StoreNotificationService
         $url = route('store.backend.notification', ['store_slug' => $slug]);
 
         $isCashierNotif = $notification->type === StoreNotification::TYPE_CASHIER;
-        $useCodChannel = in_array($notification->type, [StoreNotification::TYPE_COD, StoreNotification::TYPE_CANCEL], true)
-            || ($isCashierNotif && $notification->event === 'cashier_cash_paid');
+        // HANYA COD & Pembatalan yang memakai notif_pembelian.wav (channel COD).
+        // Pembayaran Tunai (Cash Kasir), QRIS Kasir, dan Pembayaran Online semuanya memakai notif_pembayaran.wav (channel Direct).
+        $useCodChannel = in_array($notification->type, [StoreNotification::TYPE_COD, StoreNotification::TYPE_CANCEL], true);
+        $androidChannelId = $useCodChannel
+            ? config('onesignal.android_channel_cod')
+            : config('onesignal.android_channel_direct');
+        $androidSound = $useCodChannel ? 'notif_pembelian' : 'notif_pembayaran';
 
-        // Rincian menu TTS hanya untuk pesanan online; pesanan kasir hanya nominal pembayaran berhasil.
-        $itemsTtsSummary = $isCashierNotif
-            ? ''
-            : (string) ($notification->data['items_tts_summary'] ?? '');
-
-        if (!$isCashierNotif && $itemsTtsSummary === '' && !empty($notification->data['items'])) {
+        // Rincian menu TTS disiapkan dari snapshot untuk dikirim HANYA ke akun Kasir
+        $itemsTtsSummary = (string) ($notification->data['items_tts_summary'] ?? '');
+        if ($itemsTtsSummary === '' && !empty($notification->data['items'])) {
             $itemsTtsSummary = collect($notification->data['items'])
                 ->map(fn ($i) => ((int) ($i['quantity'] ?? 1)) . ' ' . trim((string) ($i['name'] ?? '')))
                 ->filter()
@@ -301,59 +325,98 @@ class StoreNotificationService
             }
         }
 
-        try {
-            $response = Http::withHeaders(['Authorization' => 'Key ' . $apiKey])
-                ->acceptJson()
-                ->asJson()
-                ->timeout(8)
-                ->post(config('onesignal.api_url'), [
-                    'app_id' => $appId,
-                    'target_channel' => 'push',
-                    'include_aliases' => ['external_id' => $externalIds],
-                    'headings' => ['en' => $notification->title, 'id' => $notification->title],
-                    'contents' => ['en' => $notification->body, 'id' => $notification->body],
-                    // web_url: hanya untuk Web Push. Di aplikasi mobile, klik notifikasi ditangani
-                    // oleh aplikasi (membuka halaman Notifikasi) lewat additionalData, bukan membuka browser.
-                    'web_url' => $url,
-                    'web_push_topic' => 'order-' . $notification->order_id,
-                    'chrome_web_icon' => asset('favicon-192x192.png'),
-                    // Android channel native:
-                    // - COD / Cancel / Cashier Cash -> naumil_cod_v1 (notif_pembelian.wav)
-                    // - Online Direct / Cashier QRIS -> naumil_direct_v1 (notif_pembayaran.wav)
-                    'existing_android_channel_id' => $useCodChannel
-                        ? config('onesignal.android_channel_cod')
-                        : config('onesignal.android_channel_direct'),
-                    'priority' => 10,
-                    'data' => [
-                        'notification_id' => $notification->id,
-                        'type' => $notification->type,
-                        'order_id' => $notification->order_id,
-                        'event' => $notification->event,
-                        'order_source' => $isCashierNotif ? Order::SOURCE_CASHIER : ($notification->data['order_source'] ?? Order::SOURCE_ONLINE),
-                        'is_cashier' => $isCashierNotif,
-                        'cashier_name' => (string) ($notification->data['cashier_name'] ?? ''),
-                        'payment_status' => $notification->data['payment_status'] ?? '',
-                        'total' => (float) ($notification->data['total'] ?? 0),
-                        'customer_name' => $notification->data['customer_name'] ?? '',
-                        'order_number' => $notification->data['order_number'] ?? '',
-                        'items_tts_summary' => $itemsTtsSummary,
-                        'cancelled_by' => $notification->data['cancelled_by'] ?? '',
-                        'cancellation_reason' => $notification->data['cancellation_reason'] ?? '',
-                    ],
-                ]);
+        $baseData = [
+            'notification_id' => $notification->id,
+            'type' => $notification->type,
+            'order_id' => $notification->order_id,
+            'event' => $notification->event,
+            'order_source' => $isCashierNotif ? Order::SOURCE_CASHIER : ($notification->data['order_source'] ?? Order::SOURCE_ONLINE),
+            'is_cashier' => $isCashierNotif,
+            'cashier_name' => (string) ($notification->data['cashier_name'] ?? ''),
+            'payment_status' => $notification->data['payment_status'] ?? '',
+            'total' => (float) ($notification->data['total'] ?? 0),
+            'customer_name' => $notification->data['customer_name'] ?? '',
+            'order_number' => $notification->data['order_number'] ?? '',
+            'cancelled_by' => $notification->data['cancelled_by'] ?? '',
+            'cancellation_reason' => $notification->data['cancellation_reason'] ?? '',
+        ];
 
-            $resJson = $response->json();
-            $hasErrors = !empty($resJson['errors']);
-            $isSent = $response->successful() && !$hasErrors;
-
-            $notification->update([
-                'push_status' => $isSent ? 'sent' : 'failed',
-                'push_response' => mb_substr($response->body(), 0, 2000),
-            ]);
-        } catch (\Throwable $e) {
-            Log::warning('OneSignal push gagal: ' . $e->getMessage());
-            $notification->update(['push_status' => 'failed', 'push_response' => mb_substr($e->getMessage(), 0, 2000)]);
+        $batches = [];
+        if (!empty($adminExternalIds)) {
+            $batches['admin'] = [
+                'external_ids' => $adminExternalIds,
+                'target_role' => User::ROLE_STORE_ADMIN,
+                'include_items_tts' => false,
+                'items_tts_summary' => '',
+            ];
         }
+        if (!empty($cashierExternalIds)) {
+            $batches['cashier'] = [
+                'external_ids' => $cashierExternalIds,
+                'target_role' => User::ROLE_CASHIER,
+                'include_items_tts' => true,
+                'items_tts_summary' => $itemsTtsSummary,
+            ];
+        }
+
+        $anySent = false;
+        $responses = [];
+
+        foreach ($batches as $groupKey => $batch) {
+            try {
+                $response = Http::withHeaders(['Authorization' => 'Key ' . $apiKey])
+                    ->acceptJson()
+                    ->asJson()
+                    ->timeout(8)
+                    ->post(config('onesignal.api_url'), [
+                        'app_id' => $appId,
+                        'target_channel' => 'push',
+                        'include_aliases' => ['external_id' => $batch['external_ids']],
+                        'headings' => ['en' => $notification->title, 'id' => $notification->title],
+                        'contents' => ['en' => $notification->body, 'id' => $notification->body],
+                        // web_url: hanya untuk Web Push. Di aplikasi mobile, klik notifikasi ditangani
+                        // oleh aplikasi (membuka halaman Notifikasi / Pesanan) lewat additionalData.
+                        'web_url' => $url,
+                        'web_push_topic' => 'order-' . $notification->order_id,
+                        'chrome_web_icon' => asset('favicon-192x192.png'),
+                        // Android channel native:
+                        // - COD / Cancel -> naumil_cod_v2 (notif_pembelian.wav)
+                        // - Pembayaran Tunai (Cash) / QRIS / Online Direct -> naumil_direct_v2 (notif_pembayaran.wav)
+                        'existing_android_channel_id' => $androidChannelId,
+                        'android_sound' => $androidSound,
+                        'priority' => 10,
+                        'data' => array_merge($baseData, [
+                            'target_role' => $batch['target_role'],
+                            'include_items_tts' => $batch['include_items_tts'],
+                            'items_tts_summary' => $batch['items_tts_summary'],
+                        ]),
+                    ]);
+
+                $resJson = $response->json();
+                $hasErrors = !empty($resJson['errors']);
+                $isSent = $response->successful() && !$hasErrors;
+                if ($isSent) {
+                    $anySent = true;
+                }
+
+                $responses[$groupKey] = [
+                    'status' => $isSent ? 'sent' : 'failed',
+                    'http' => $response->status(),
+                    'body' => $resJson ?? mb_substr($response->body(), 0, 500),
+                ];
+            } catch (\Throwable $e) {
+                Log::warning("OneSignal push ({$groupKey}) gagal: " . $e->getMessage());
+                $responses[$groupKey] = [
+                    'status' => 'failed',
+                    'error' => mb_substr($e->getMessage(), 0, 500),
+                ];
+            }
+        }
+
+        $notification->update([
+            'push_status' => $anySent ? 'sent' : 'failed',
+            'push_response' => mb_substr(json_encode($responses, JSON_UNESCAPED_UNICODE) ?: '', 0, 2000),
+        ]);
     }
 }
 

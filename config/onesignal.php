@@ -22,9 +22,9 @@ return [
     // Prefix external_id OneSignal untuk admin toko: "{prefix}{user_id}"
     'external_id_prefix' => env('ONESIGNAL_EXTERNAL_ID_PREFIX', 'naumil-store-admin-'),
 
-    // ID channel notifikasi Android yang dibuat di aplikasi mobile (harus sama dengan MainActivity.kt)
-    'android_channel_cod' => env('ONESIGNAL_ANDROID_CHANNEL_COD', 'naumil_cod_v1'),
-    'android_channel_direct' => env('ONESIGNAL_ANDROID_CHANNEL_DIRECT', 'naumil_direct_v1'),
+    // ID channel notifikasi Android yang dibuat di aplikasi mobile (harus sama dengan NotificationChannelHelper.kt)
+    'android_channel_cod' => env('ONESIGNAL_ANDROID_CHANNEL_COD', 'naumil_cod_v2'),
+    'android_channel_direct' => env('ONESIGNAL_ANDROID_CHANNEL_DIRECT', 'naumil_direct_v2'),
 
 ];
 

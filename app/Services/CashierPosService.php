@@ -321,8 +321,8 @@ class CashierPosService
     }
 
     /**
-     * Kasir menandai pesanan Cash sebagai LUNAS.
-     * Otomatis mengirim push notifikasi notif_pembelian.wav ke Admin Toko saja (selain kasir).
+     * Kasir menandai pesanan Cash (Tunai) sebagai LUNAS.
+     * Otomatis mengirim push notifikasi notif_pembayaran.wav ke seluruh akun cabang (Admin Toko & Kasir).
      */
     public function markCashPaid(Store $store, Order $order, User $actor): Order
     {
@@ -383,7 +383,7 @@ class CashierPosService
                 'last_sync' => $res['data'] ?? [],
                 'settled_at' => now()->toIso8601String(),
             ]);
-            $order->save(); // Order::booted() -> notifyCashierPayment($order) (notif_pembayaran.wav ke Admin)
+            $order->save(); // Order::booted() -> notifyCashierPayment($order) (notif_pembayaran.wav ke Admin & Kasir)
 
             OrderStatusLog::create([
                 'order_id' => $order->id,
