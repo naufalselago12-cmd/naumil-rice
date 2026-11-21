@@ -283,6 +283,7 @@ class StoreNotificationService
             ->filter(fn (User $u) => $u->isStoreAdmin())
             ->pluck('id')
             ->map(fn ($id) => $prefix . $id)
+            ->unique()
             ->values()
             ->all();
 
@@ -290,6 +291,7 @@ class StoreNotificationService
             ->filter(fn (User $u) => $u->isCashier())
             ->pluck('id')
             ->map(fn ($id) => $prefix . $id)
+            ->unique()
             ->values()
             ->all();
 
@@ -364,37 +366,53 @@ class StoreNotificationService
 
         foreach ($batches as $groupKey => $batch) {
             try {
+                $payload = [
+                    'app_id' => $appId,
+                    'target_channel' => 'push',
+                    'include_aliases' => ['external_id' => $batch['external_ids']],
+                    'headings' => ['en' => $notification->title, 'id' => $notification->title],
+                    'contents' => ['en' => $notification->body, 'id' => $notification->body],
+                    // web_url: hanya untuk Web Push. Di aplikasi mobile, klik notifikasi ditangani
+                    // oleh aplikasi (membuka halaman Notifikasi / Pesanan) lewat additionalData.
+                    'web_url' => $url,
+                    'web_push_topic' => 'order-' . $notification->order_id,
+                    'chrome_web_icon' => asset('favicon-192x192.png'),
+                    // Android channel native:
+                    // - COD / Cancel -> naumil_cod_v2 (notif_pembelian.wav)
+                    // - Pembayaran Tunai (Cash) / QRIS / Online Direct -> naumil_direct_v2 (notif_pembayaran.wav)
+                    'existing_android_channel_id' => $androidChannelId,
+                    'android_sound' => $androidSound,
+                    'priority' => 10,
+                    'data' => array_merge($baseData, [
+                        'target_role' => $batch['target_role'],
+                        'include_items_tts' => $batch['include_items_tts'],
+                        'items_tts_summary' => $batch['items_tts_summary'],
+                    ]),
+                ];
+
                 $response = Http::withHeaders(['Authorization' => 'Key ' . $apiKey])
                     ->acceptJson()
                     ->asJson()
                     ->timeout(8)
-                    ->post(config('onesignal.api_url'), [
-                        'app_id' => $appId,
-                        'target_channel' => 'push',
-                        'include_aliases' => ['external_id' => $batch['external_ids']],
-                        'headings' => ['en' => $notification->title, 'id' => $notification->title],
-                        'contents' => ['en' => $notification->body, 'id' => $notification->body],
-                        // web_url: hanya untuk Web Push. Di aplikasi mobile, klik notifikasi ditangani
-                        // oleh aplikasi (membuka halaman Notifikasi / Pesanan) lewat additionalData.
-                        'web_url' => $url,
-                        'web_push_topic' => 'order-' . $notification->order_id,
-                        'chrome_web_icon' => asset('favicon-192x192.png'),
-                        // Android channel native:
-                        // - COD / Cancel -> naumil_cod_v2 (notif_pembelian.wav)
-                        // - Pembayaran Tunai (Cash) / QRIS / Online Direct -> naumil_direct_v2 (notif_pembayaran.wav)
-                        'existing_android_channel_id' => $androidChannelId,
-                        'android_sound' => $androidSound,
-                        'priority' => 10,
-                        'data' => array_merge($baseData, [
-                            'target_role' => $batch['target_role'],
-                            'include_items_tts' => $batch['include_items_tts'],
-                            'items_tts_summary' => $batch['items_tts_summary'],
-                        ]),
-                    ]);
+                    ->post(config('onesignal.api_url'), $payload);
 
                 $resJson = $response->json();
                 $hasErrors = !empty($resJson['errors']);
-                $isSent = $response->successful() && !$hasErrors;
+                $isSent = $response->successful() && !$hasErrors && !empty($resJson['id']);
+
+                // Auto-heal: jika OneSignal menolak external_id karena subscription perangkat sempat berstatus
+                // notification_types=0 (NO_PERMISSION) / enabled=false padahal FCM token aktif, aktifkan lalu kirim ulang.
+                if (!$isSent && $this->healOneSignalSubscriptions($appId, $apiKey, $batch['external_ids'])) {
+                    $response = Http::withHeaders(['Authorization' => 'Key ' . $apiKey])
+                        ->acceptJson()
+                        ->asJson()
+                        ->timeout(8)
+                        ->post(config('onesignal.api_url'), $payload);
+                    $resJson = $response->json();
+                    $hasErrors = !empty($resJson['errors']);
+                    $isSent = $response->successful() && !$hasErrors && !empty($resJson['id']);
+                }
+
                 if ($isSent) {
                     $anySent = true;
                 }
@@ -417,6 +435,85 @@ class StoreNotificationService
             'push_status' => $anySent ? 'sent' : 'failed',
             'push_response' => mb_substr(json_encode($responses, JSON_UNESCAPED_UNICODE) ?: '', 0, 2000),
         ]);
+    }
+
+    /**
+     * Pastikan seluruh subscription AndroidPush milik user aktif (enabled=true, notification_types=1)
+     * dan bersihkan subscription kosong (tanpa FCM token) di server OneSignal.
+     */
+    public function ensureUserOneSignalEnabled(User $user): void
+    {
+        if (!($user->isStoreAdmin() || $user->isCashier())) {
+            return;
+        }
+        $appId = (string) config('onesignal.app_id');
+        $apiKey = (string) config('onesignal.rest_api_key');
+        if ($appId === '' || $apiKey === '') {
+            return;
+        }
+        $extId = (string) config('onesignal.external_id_prefix') . $user->id;
+        $this->healOneSignalSubscriptions($appId, $apiKey, [$extId]);
+    }
+
+    /**
+     * Memulihkan subscription OneSignal yang memiliki FCM token valid tetapi berstatus enabled=false / notification_types<=0.
+     */
+    public function healOneSignalSubscriptions(string $appId, string $apiKey, array $externalIds): bool
+    {
+        $healedAny = false;
+        foreach (array_unique($externalIds) as $extId) {
+            if (!is_string($extId) || trim($extId) === '') {
+                continue;
+            }
+            try {
+                $userUrl = "https://api.onesignal.com/apps/{$appId}/users/by/external_id/{$extId}";
+                $res = Http::withHeaders(['Authorization' => 'Key ' . $apiKey])
+                    ->acceptJson()
+                    ->timeout(6)
+                    ->get($userUrl);
+
+                if (!$res->successful()) {
+                    continue;
+                }
+
+                $subs = $res->json('subscriptions') ?? [];
+                foreach ($subs as $sub) {
+                    $subId = (string) ($sub['id'] ?? '');
+                    $token = trim((string) ($sub['token'] ?? ''));
+                    $enabled = (bool) ($sub['enabled'] ?? false);
+                    $nt = (int) ($sub['notification_types'] ?? 0);
+
+                    if ($subId === '') {
+                        continue;
+                    }
+
+                    $subUrl = "https://api.onesignal.com/apps/{$appId}/subscriptions/{$subId}";
+                    if ($token === '') {
+                        Http::withHeaders(['Authorization' => 'Key ' . $apiKey])
+                            ->timeout(5)
+                            ->delete($subUrl);
+                    } elseif (!$enabled || $nt !== 1) {
+                        $patchRes = Http::withHeaders(['Authorization' => 'Key ' . $apiKey])
+                            ->acceptJson()
+                            ->asJson()
+                            ->timeout(6)
+                            ->patch($subUrl, [
+                                'subscription' => [
+                                    'enabled' => true,
+                                    'notification_types' => 1,
+                                ],
+                            ]);
+                        if ($patchRes->successful()) {
+                            $healedAny = true;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::debug("OneSignal heal ({$extId}) dilewati: " . $e->getMessage());
+            }
+        }
+
+        return $healedAny;
     }
 }
 

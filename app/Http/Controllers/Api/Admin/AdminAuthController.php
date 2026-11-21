@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Store;
 use App\Models\User;
+use App\Services\StoreNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -40,12 +41,22 @@ class AdminAuthController extends Controller
 
         $token = $user->createToken($data['device_name'] ?? 'naumil-rice-apps')->plainTextToken;
 
+        app()->terminating(function () use ($user) {
+            app(StoreNotificationService::class)->ensureUserOneSignalEnabled($user);
+        });
+
         return response()->json(['success' => true, 'token' => $token] + $this->profile($user));
     }
 
     public function me(Request $request)
     {
-        return response()->json(['success' => true] + $this->profile($request->user()));
+        /** @var User $user */
+        $user = $request->user();
+        app()->terminating(function () use ($user) {
+            app(StoreNotificationService::class)->ensureUserOneSignalEnabled($user);
+        });
+
+        return response()->json(['success' => true] + $this->profile($user));
     }
 
     public function logout(Request $request)
